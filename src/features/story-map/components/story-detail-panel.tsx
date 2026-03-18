@@ -126,9 +126,10 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
                 </div>
                 <ul className="space-y-2">
                   {story.acceptance_criteria.map((criteria, index) => {
-                    const criteriaText = typeof criteria === 'string'
-                      ? criteria
-                      : criteria.description || JSON.stringify(criteria);
+                    const criteriaText =
+                      typeof criteria === 'string'
+                        ? criteria
+                        : (criteria as { description?: string }).description || JSON.stringify(criteria);
                     return (
                       <li
                         key={index}

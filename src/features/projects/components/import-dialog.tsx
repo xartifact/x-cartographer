@@ -18,12 +18,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { parseTomlFile, parseTomlStoryMap } from '@/lib/toml';
 import { validateTomlStoryMap, formatValidationErrors } from '@/lib/toml/validator';
-import type { Project } from '@/features/projects/types';
+import type { Project, TomlStoryMap } from '@/features/projects/types';
 
 interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport: (projectData: Omit<Project, 'id' | 'updated_at'>) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onImport: (projectData: any) => void;
   // 项目级别导入的参数
   projectId?: string;
   mode?: 'create' | 'merge' | 'replace';
@@ -37,7 +38,7 @@ export function ImportDialog({
   mode = 'create'
 }: ImportDialogProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<any>(null);
+  const [preview, setPreview] = useState<TomlStoryMap | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,7 +73,7 @@ export function ImportDialog({
         }
 
         // 解析成功
-        setPreview(validation.data);
+        setPreview(validation.data || null);
       } catch (err) {
         const message = err instanceof Error ? err.message : '未知错误';
         setError(`解析失败: ${message}`);
@@ -92,7 +93,7 @@ export function ImportDialog({
 
       // 如果是项目级别导入，添加 projectId
       if (projectId && mode !== 'create') {
-        onImport({ ...projectData, _projectId: projectId, _mode: mode } as any);
+        onImport({ ...projectData, _projectId: projectId, _mode: mode });
       } else {
         onImport(projectData);
       }
@@ -245,13 +246,13 @@ export function ImportDialog({
                   <div className="text-sm text-muted-foreground">
                     共 {preview.user_journeys.length} 个用户旅程，
                     {preview.user_journeys.reduce(
-                      (acc: number, journey: any) => acc + (journey.stories?.length || 0),
+                      (acc: number, journey) => acc + (journey.stories?.length || 0),
                       0
                     )}{' '}
                     个用户故事
                   </div>
                   <div className="mt-2 space-y-2">
-                    {preview.user_journeys.map((journey: any, index: number) => (
+                    {preview.user_journeys.map((journey, index: number) => (
                       <div key={journey.id || index} className="text-sm border-b pb-2 last:border-0">
                         <div className="font-medium">{journey.name}</div>
                         <div className="text-muted-foreground">{journey.stories?.length || 0} 个故事</div>

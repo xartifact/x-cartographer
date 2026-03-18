@@ -1,7 +1,6 @@
 {
   "enabledPlugins": {
     "product-designer@personal-llm-plugins": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "serena@claude-plugins-official": true
+    "typescript-lsp@claude-plugins-official": true
   }
 }

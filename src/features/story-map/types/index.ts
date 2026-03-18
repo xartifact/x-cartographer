@@ -2,7 +2,7 @@
  * 故事地图类型定义
  */
 
-import { Priority, Position } from '@/types';
+import { Priority, Position, StoryStatus } from '@/types';
 import { UserJourney } from '@/types/user-journey';
 import { UserStory } from '@/types/user-story';
 
@@ -14,6 +14,8 @@ export interface StoryMapFilter {
   priorities: Priority[];
   /** 按旅程筛选 */
   journeyIds: string[];
+  /** 按状态筛选 */
+  statuses: StoryStatus[];
   /** 搜索关键词 */
   searchQuery: string;
 }

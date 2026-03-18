@@ -5,7 +5,7 @@ import { ArrowRight, FolderOpen, Map, ListTodo } from 'lucide-react';
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+    <div className="flex flex-col items-center justify-center py-12 md:py-20">
       <div className="max-w-5xl w-full space-y-8">
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold tracking-tight">
@@ -92,6 +92,6 @@ export default function Home() {
           </Button>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

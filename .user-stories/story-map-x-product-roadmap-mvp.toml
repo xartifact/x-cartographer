@@ -30,8 +30,9 @@ tags = ["MVP", "核心功能", "AI交互"]
 id = "US-002"
 title = "作为产品经理，我想要 LLM 分析我的需求描述，以便识别关键用户和使用场景"
 description = "调用 LLM API 分析用户输入的需求文本，提取用户角色、功能点、使用场景等结构化信息"
-priority = "high"
+priority = "medium"
 estimation = 13
+status = "backlog"
 acceptance_criteria = [
   "集成 LLM API（如 OpenAI GPT-4）",
   "自动识别用户角色（personas）",
@@ -39,14 +40,15 @@ acceptance_criteria = [
   "以结构化格式展示分析结果",
   "支持用户确认或修改 LLM 分析结果"
 ]
-tags = ["MVP", "核心功能", "AI分析"]
+tags = ["AI分析", "backlog"]
 
 [[user_journeys.stories]]
 id = "US-003"
 title = "作为产品经理，我想要查看 LLM 建议的用户旅程，以便规划产品功能结构"
 description = "基于需求分析结果，LLM 生成建议的用户旅程地图，包含关键步骤和优先级"
-priority = "high"
+priority = "medium"
 estimation = 13
+status = "backlog"
 acceptance_criteria = [
   "自动生成用户旅程建议",
   "每个旅程包含清晰的步骤描述",
@@ -54,7 +56,7 @@ acceptance_criteria = [
   "支持用户编辑和调整旅程",
   "生成符合用户故事地图方法论的结构"
 ]
-tags = ["MVP", "核心功能", "AI生成"]
+tags = ["AI生成", "backlog"]
 
 # ==================== 用户旅程 2: 用户故事创建与管理 ====================
 [[user_journeys]]
@@ -82,8 +84,9 @@ tags = ["MVP", "核心功能", "故事管理"]
 id = "US-005"
 title = "作为产品经理，我想要 LLM 自动生成用户故事的验收标准，以便确保功能完整性"
 description = "基于用户故事描述，LLM 自动建议验收标准（acceptance criteria）"
-priority = "medium"
+priority = "low"
 estimation = 8
+status = "backlog"
 acceptance_criteria = [
   "调用 LLM 根据用户故事生成验收标准",
   "生成的标准清晰、可测试",
@@ -91,7 +94,7 @@ acceptance_criteria = [
   "至少生成 3-5 条验收标准",
   "符合 SMART 原则（具体、可衡量、可实现、相关、有时限）"
 ]
-tags = ["MVP", "AI辅助", "质量保证"]
+tags = ["AI辅助", "backlog"]
 
 [[user_journeys.stories]]
 id = "US-006"
@@ -186,8 +189,9 @@ persona = "产品经理、技术负责人"
 id = "US-011"
 title = "作为技术负责人，我想要 LLM 将用户故事拆解为开发任务，以便团队执行"
 description = "调用 LLM 将用户故事分解为 2-4 小时的可执行任务，包含技术细节"
-priority = "high"
+priority = "medium"
 estimation = 13
+status = "backlog"
 acceptance_criteria = [
   "LLM 自动将用户故事拆解为任务列表",
   "每个任务 2-4 小时可完成",
@@ -195,7 +199,7 @@ acceptance_criteria = [
   "识别任务间的依赖关系",
   "任务分类（user_story/technical_task/bug_fix/spike）"
 ]
-tags = ["MVP", "核心功能", "AI拆解", "任务管理"]
+tags = ["AI拆解", "任务管理", "backlog"]
 
 [[user_journeys.stories]]
 id = "US-012"
@@ -307,6 +311,7 @@ title = "作为用户，我想要配置 LLM API 密钥，以便使用 AI 功能"
 description = "提供设置页面，用户可输入和保存 LLM API 配置信息"
 priority = "high"
 estimation = 5
+status = "backlog"
 acceptance_criteria = [
   "提供设置页面",
   "支持输入 API 密钥（加密保存）",
@@ -314,7 +319,7 @@ acceptance_criteria = [
   "提供 API 连接测试功能",
   "显示 API 使用量统计"
 ]
-tags = ["MVP", "核心功能", "配置管理"]
+tags = ["配置管理", "backlog"]
 
 [[user_journeys.stories]]
 id = "US-019"

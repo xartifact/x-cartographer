@@ -5,7 +5,7 @@
  */
 
 import { create } from 'zustand';
-import { Priority, Position } from '@/types';
+import { Priority, Position, StoryStatus } from '@/types';
 import { UserJourney, UserStory } from '@/types';
 import type { StoryMapFilter, StoryMapConfig, ZoomLevel } from '../types';
 
@@ -32,6 +32,8 @@ interface StoryMapState {
   setPriorityFilter: (priorities: Priority[]) => void;
   /** 设置旅程筛选 */
   setJourneyFilter: (journeyIds: string[]) => void;
+  /** 设置状态筛选 */
+  setStatusFilter: (statuses: StoryStatus[]) => void;
   /** 设置搜索关键词 */
   setSearchQuery: (query: string) => void;
   /** 重置筛选条件 */
@@ -57,6 +59,7 @@ interface StoryMapState {
 const defaultFilter: StoryMapFilter = {
   priorities: [],
   journeyIds: [],
+  statuses: [],
   searchQuery: '',
 };
 
@@ -92,6 +95,12 @@ export const useStoryMapStore = create<StoryMapState>((set, get) => ({
   setJourneyFilter: (journeyIds) => {
     set((state) => ({
       filter: { ...state.filter, journeyIds },
+    }));
+  },
+
+  setStatusFilter: (statuses) => {
+    set((state) => ({
+      filter: { ...state.filter, statuses },
     }));
   },
 
@@ -174,6 +183,14 @@ export function filterStories(
           !filter.journeyIds.includes(journey.id)
         ) {
           return false;
+        }
+
+        // 状态筛选
+        if (filter.statuses.length > 0) {
+          const storyStatus = story.status || 'backlog';
+          if (!filter.statuses.includes(storyStatus)) {
+            return false;
+          }
         }
 
         // 搜索关键词筛选

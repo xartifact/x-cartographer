@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Project, CreateProjectDTO, UpdateProjectDTO } from '@/types';
+import type { Project, CreateProjectDTO, UpdateProjectDTO, UserJourney } from '@/types';
 import {
   getProjects,
   getProjectById,
@@ -75,7 +75,7 @@ export interface ProjectState {
     version: string;
     tech_stack: string[];
     created_at: string;
-    user_journeys: any[];
+    user_journeys: UserJourney[];
   }) => Project;
 
   // 合并 TOML 数据到现有项目
@@ -86,7 +86,7 @@ export interface ProjectState {
       description?: string;
       version?: string;
       tech_stack?: string[];
-      user_journeys: any[];
+      user_journeys: UserJourney[];
     },
     mode?: 'replace' | 'merge'
   ) => Project | null;
@@ -101,7 +101,7 @@ export const useProjectStore = create<ProjectState>()(
       // 初始状态
       projects: [],
       activeProject: null,
-      isLoading: false,
+      isLoading: true, // 初始为加载中，等待 initialize 完成
       error: null,
       searchQuery: '',
 

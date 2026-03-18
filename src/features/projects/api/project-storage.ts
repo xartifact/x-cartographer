@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { Project, CreateProjectDTO, UpdateProjectDTO, ProjectSettings } from '@/types';
+import type { Project, CreateProjectDTO, UpdateProjectDTO, ProjectSettings, UserJourney, UserStory } from '@/types';
 import { LLMProvider } from '@/types';
 import { saveToLocalStorage, loadFromLocalStorage, removeFromLocalStorage } from '@/lib/storage';
 import { validateProject } from './project-validator';
@@ -290,7 +290,7 @@ export function createProjectFromToml(data: {
   version: string;
   tech_stack: string[];
   created_at: string;
-  user_journeys: any[];
+  user_journeys: UserJourney[];
 }): Project {
   const now = new Date().toISOString();
 
@@ -300,7 +300,7 @@ export function createProjectFromToml(data: {
     description: data.description,
     created_at: data.created_at,
     updated_at: now,
-    user_journeys: data.user_journeys as any,
+    user_journeys: data.user_journeys,
     metadata: {
       tech_stack: data.tech_stack,
       version: data.version,
@@ -338,7 +338,7 @@ export function mergeTomlToProject(
     description?: string;
     version?: string;
     tech_stack?: string[];
-    user_journeys: any[];
+    user_journeys: UserJourney[];
   },
   mode: 'replace' | 'merge' = 'merge'
 ): Project | null {
@@ -359,27 +359,27 @@ export function mergeTomlToProject(
     mergedJourneys = tomlData.user_journeys;
   } else {
     // 合并模式：合并或更新用户旅程
-    tomlData.user_journeys.forEach((tomlJourney: any) => {
+    tomlData.user_journeys.forEach((tomlJourney: UserJourney) => {
       const existing = existingJourneyMap.get(tomlJourney.id);
-      
+
       if (existing) {
         // 更新现有旅程
         const index = mergedJourneys.findIndex((j) => j.id === tomlJourney.id);
         if (index !== -1) {
           // 创建故事映射
           const existingStoryMap = new Map(
-            (existing.stories || []).map((s: any) => [s.id, s])
+            (existing.stories || []).map((s: UserStory) => [s.id, s])
           );
 
           // 合并故事
-          const mergedStories = (tomlJourney.stories || []).map((tomlStory: any) => {
+          const mergedStories = (tomlJourney.stories || []).map((tomlStory: UserStory) => {
             const existingStory = existingStoryMap.get(tomlStory.id);
             return existingStory ? { ...existingStory, ...tomlStory } : tomlStory;
           });
 
           // 添加新故事（不存在于 TOML 中的现有故事）
-          (existing.stories || []).forEach((story: any) => {
-            if (!tomlJourney.stories?.find((s: any) => s.id === story.id)) {
+          (existing.stories || []).forEach((story: UserStory) => {
+            if (!tomlJourney.stories?.find((s: UserStory) => s.id === story.id)) {
               mergedStories.push(story);
             }
           });

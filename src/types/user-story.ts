@@ -2,7 +2,7 @@
  * 用户故事相关类型定义
  */
 
-import { Priority, Timestamp, Position } from './common';
+import { Priority, Timestamp, Position, StoryStatus } from './common';
 import { Task } from './task';
 
 /**
@@ -38,6 +38,9 @@ export interface UserStory {
 
   /** 排序顺序 */
   order: number;
+
+  /** 状态 */
+  status?: StoryStatus;
 
   /** 创建时间 */
   created_at: Timestamp;

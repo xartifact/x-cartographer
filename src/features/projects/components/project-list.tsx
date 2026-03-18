@@ -315,6 +315,7 @@ export default function ProjectListPage() {
     router.push(`/projects/${projectId}`);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleImportSuccess = (projectData: any) => {
     const project = importFromToml(projectData);
     setShowImportDialog(false);

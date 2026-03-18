@@ -18,8 +18,9 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { useStoryMapStore } from '../stores/story-map-store';
-import { Priority } from '@/types';
+import { Priority, StoryStatus } from '@/types';
 import { UserJourney } from '@/types/user-journey';
+import { STORY_STATUS_OPTIONS } from '@/features/tasks/components/status-badge';
 import { cn } from '@/lib/utils';
 
 interface FilterPanelProps {
@@ -39,20 +40,33 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, className }) => {
     setSearchQuery,
     setPriorityFilter,
     setJourneyFilter,
+    setStatusFilter,
     resetFilter,
   } = useStoryMapStore();
 
   const [isPriorityOpen, setIsPriorityOpen] = useState(true);
+  const [isStatusOpen, setIsStatusOpen] = useState(true);
   const [isJourneyOpen, setIsJourneyOpen] = useState(true);
 
   const activeFilterCount =
-    filter.priorities.length + filter.journeyIds.length + (filter.searchQuery ? 1 : 0);
+    filter.priorities.length +
+    filter.journeyIds.length +
+    filter.statuses.length +
+    (filter.searchQuery ? 1 : 0);
 
   const handlePriorityChange = (priority: Priority, checked: boolean | string) => {
     if (checked) {
       setPriorityFilter([...filter.priorities, priority]);
     } else {
       setPriorityFilter(filter.priorities.filter((p) => p !== priority));
+    }
+  };
+
+  const handleStatusChange = (status: StoryStatus, checked: boolean | string) => {
+    if (checked) {
+      setStatusFilter([...filter.statuses, status]);
+    } else {
+      setStatusFilter(filter.statuses.filter((s) => s !== status));
     }
   };
 
@@ -123,6 +137,52 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, className }) => {
                 <label
                   htmlFor={`priority-${option.value}`}
                   className={cn('text-sm cursor-pointer', option.color)}
+                >
+                  {option.label}
+                </label>
+              </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+
+        <Separator />
+
+        {/* 状态筛选 */}
+        <Collapsible open={isStatusOpen} onOpenChange={setIsStatusOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full justify-between p-0">
+              <span className="text-sm font-medium">状态</span>
+              {isStatusOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2 space-y-2">
+            {STORY_STATUS_OPTIONS.map((option) => (
+              <div key={option.value} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`status-${option.value}`}
+                  checked={filter.statuses.includes(option.value as StoryStatus)}
+                  onCheckedChange={(checked) => handleStatusChange(option.value as StoryStatus, checked)}
+                />
+                <span
+                  className={cn(
+                    'w-2 h-2 rounded-full shrink-0',
+                    option.color === 'gray' && 'bg-gray-500',
+                    option.color === 'slate' && 'bg-slate-500',
+                    option.color === 'blue' && 'bg-blue-500',
+                    option.color === 'green' && 'bg-green-500',
+                    option.color === 'red' && 'bg-red-500',
+                    option.color === 'yellow' && 'bg-yellow-500',
+                    option.color === 'purple' && 'bg-purple-500',
+                    option.color === 'orange' && 'bg-orange-500'
+                  )}
+                />
+                <label
+                  htmlFor={`status-${option.value}`}
+                  className="text-sm cursor-pointer"
                 >
                   {option.label}
                 </label>

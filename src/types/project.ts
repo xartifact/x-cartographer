@@ -104,4 +104,5 @@ export interface UpdateProjectDTO {
   name?: string;
   description?: string;
   settings?: Partial<ProjectSettings>;
+  user_journeys?: UserJourney[];
 }

@@ -23,7 +23,7 @@ function parseUserStory(tomlStory: TomlUserStory): UserStory {
     priority: tomlStory.priority,
     estimation: tomlStory.estimation,
     acceptance_criteria: acceptanceCriteria,
-    tags: tomlStory.tags,
+    tags: tomlStory.tags || [],
     status: tomlStory.status || 'backlog',
   };
 }

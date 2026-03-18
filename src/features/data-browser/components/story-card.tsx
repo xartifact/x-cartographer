@@ -10,10 +10,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { UserStory } from '@/types';
 import { cn } from '@/lib/utils';
+import { StatusBadge, STORY_STATUS_OPTIONS } from '@/features/tasks/components/status-badge';
+import { StoryStatus } from '@/types';
 
 interface StoryCardProps {
   story: UserStory;
   journeyName?: string;
+
+  /** 是否显示状态标签 */
+  showStatus?: boolean;
+
+  /** 状态变更回调 */
+  onStatusChange?: (newStatus: StoryStatus) => void;
+
+  /** 是否可编辑状态 */
+  editableStatus?: boolean;
 }
 
 const priorityConfig = {
@@ -22,10 +33,28 @@ const priorityConfig = {
   low: { label: '低', variant: 'default' as const, className: 'bg-green-500' },
 };
 
-export function StoryCard({ story, journeyName }: StoryCardProps) {
+export function StoryCard({
+  story,
+  journeyName,
+  showStatus = true,
+  onStatusChange,
+  editableStatus = false,
+}: StoryCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const priority = priorityConfig[story.priority] || priorityConfig.medium;
+  const status: StoryStatus = story.status || 'backlog';
+
+  const handleStatusClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (editableStatus && onStatusChange) {
+      // 简单的状态循环切换
+      const statusOptions = STORY_STATUS_OPTIONS.map((s) => s.value);
+      const currentIndex = statusOptions.indexOf(status);
+      const nextIndex = (currentIndex + 1) % statusOptions.length;
+      onStatusChange(statusOptions[nextIndex] as StoryStatus);
+    }
+  };
 
   return (
     <Card className={cn('transition-all duration-200', isExpanded && 'ring-2 ring-primary')}>
@@ -48,6 +77,15 @@ export function StoryCard({ story, journeyName }: StoryCardProps) {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {showStatus && (
+              <StatusBadge
+                status={status}
+                isTask={false}
+                size="sm"
+                className={cn(editableStatus && 'cursor-pointer hover:opacity-80')}
+                onClick={handleStatusClick}
+              />
+            )}
             <Badge variant={priority.variant} className="text-xs">
               {priority.label}
             </Badge>
@@ -74,7 +112,11 @@ export function StoryCard({ story, journeyName }: StoryCardProps) {
                   {story.acceptance_criteria.map((criteria, index) => (
                     <li key={index} className="flex items-start gap-2">
                       <span className="text-muted-foreground">-</span>
-                      <span>{typeof criteria === 'string' ? criteria : criteria.description}</span>
+                      <span>
+                        {typeof criteria === 'string'
+                          ? criteria
+                          : (criteria as { description?: string }).description || ''}
+                      </span>
                     </li>
                   ))}
                 </ul>

@@ -47,10 +47,10 @@ export interface UserJourney {
 /**
  * TOML 格式的用户故事验收标准
  */
-export interface TomlAcceptanceCriterion {
+export type TomlAcceptanceCriterion = string | {
   description: string;
   completed?: boolean;
-}
+};
 
 /**
  * TOML 格式的用户故事
@@ -61,8 +61,8 @@ export interface TomlUserStory {
   description: string;
   priority: Priority;
   estimation: number;
-  acceptance_criteria: string[] | TomlAcceptanceCriterion[];
-  tags: string[];
+  acceptance_criteria: TomlAcceptanceCriterion[];
+  tags?: string[];
   status?: 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled';
 }
 
