@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus, ArrowLeft, Upload } from 'lucide-react';
 import { ProjectList, ProjectCreateDialog } from '@/features/projects/components';
 import { ImportDialog } from '@/features/projects/components/import-dialog';
@@ -13,6 +14,7 @@ import { useProjectStore } from '@/features/projects/stores';
 import { Button } from '@/components/ui/button';
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const { initialize, importFromToml } = useProjectStore();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -23,14 +25,14 @@ export default function ProjectsPage() {
 
   const handleCreateSuccess = (projectId: string) => {
     setShowCreateDialog(false);
-    window.location.href = `/projects/${projectId}`;
+    router.push(`/projects/${projectId}`);
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleImportSuccess = (projectData: any) => {
-    const project = importFromToml(projectData);
+  const handleImportSuccess = async (projectData: any) => {
+    const project = await importFromToml(projectData);
     setShowImportDialog(false);
-    window.location.href = `/projects/${project.id}`;
+    router.push(`/projects/${project.id}`);
   };
 
   return (

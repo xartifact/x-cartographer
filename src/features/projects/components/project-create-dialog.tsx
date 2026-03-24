@@ -87,7 +87,7 @@ export function ProjectCreateDialog({
 
     setIsLoading(true);
     try {
-      const project = addProject({
+      const project = await addProject({
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         tech_stack: formData.tags

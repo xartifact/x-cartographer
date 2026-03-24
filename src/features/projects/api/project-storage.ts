@@ -1,23 +1,62 @@
 /**
  * 项目数据持久化服务
- * 使用 localStorage 存储项目数据
+ * 使用 Drizzle ORM + PGlite 存储项目数据
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import type { Project, CreateProjectDTO, UpdateProjectDTO, ProjectSettings, UserJourney, UserStory } from '@/types';
 import { LLMProvider } from '@/types';
-import { saveToLocalStorage, loadFromLocalStorage, removeFromLocalStorage } from '@/lib/storage';
+import { ensureDb } from '@/lib/db/client';
+import { ProjectRepository } from '@/lib/db/repositories/project.repository';
 import { validateProject } from './project-validator';
+import { saveToLocalStorage, loadFromLocalStorage, removeFromLocalStorage } from '@/lib/storage';
 
 /**
- * localStorage 键名
- */
-const STORAGE_KEY = 'x-product-roadmap-projects';
-
-/**
- * 当前激活项目 ID 键名
+ * localStorage 键名（仅用于 activeProjectId 和数据迁移）
  */
 const ACTIVE_PROJECT_KEY = 'x-product-roadmap-active-project';
+const LEGACY_STORAGE_KEY = 'x-product-roadmap-projects';
+const MIGRATION_DONE_KEY = 'x-product-roadmap-db-migrated';
+
+const repo = new ProjectRepository();
+
+/**
+ * 初始化数据库并执行 localStorage 数据迁移
+ */
+export async function initializeDatabase(): Promise<void> {
+  await ensureDb();
+
+  // 检查是否需要从 localStorage 迁移数据
+  if (typeof window !== 'undefined') {
+    const migrated = loadFromLocalStorage<boolean>(MIGRATION_DONE_KEY);
+    if (!migrated) {
+      await migrateFromLocalStorage();
+    }
+  }
+}
+
+/**
+ * 从 localStorage 迁移旧数据到数据库
+ */
+async function migrateFromLocalStorage(): Promise<void> {
+  const data = loadFromLocalStorage<Record<string, Project>>(LEGACY_STORAGE_KEY);
+  if (!data) {
+    saveToLocalStorage(MIGRATION_DONE_KEY, true);
+    return;
+  }
+
+  const projects = Object.values(data);
+  for (const project of projects) {
+    try {
+      await repo.saveFullProject(project);
+    } catch (error) {
+      console.error(`Failed to migrate project ${project.id}:`, error);
+    }
+  }
+
+  saveToLocalStorage(MIGRATION_DONE_KEY, true);
+  console.log(`Migrated ${projects.length} projects from localStorage to database`);
+}
 
 /**
  * 获取默认项目设置
@@ -38,32 +77,29 @@ export function getDefaultSettings(): ProjectSettings {
 /**
  * 获取所有项目
  */
-export function getProjects(): Project[] {
-  const data = loadFromLocalStorage<Record<string, Project>>(STORAGE_KEY);
-  if (!data) {
-    return [];
-  }
-  return Object.values(data).sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+export async function getProjects(): Promise<Project[]> {
+  await ensureDb();
+  return repo.findAll();
 }
 
 /**
  * 根据 ID 获取项目
  */
-export function getProjectById(id: string): Project | null {
-  const projects = getProjects();
-  return projects.find((p) => p.id === id) || null;
+export async function getProjectById(id: string): Promise<Project | null> {
+  await ensureDb();
+  return repo.findById(id);
 }
 
 /**
  * 创建新项目
  */
-export function createProject(dto: CreateProjectDTO): Project {
+export async function createProject(dto: CreateProjectDTO): Promise<Project> {
+  await ensureDb();
   const now = new Date().toISOString();
+  const id = uuidv4();
 
   const project: Project = {
-    id: uuidv4(),
+    id,
     name: dto.name,
     description: dto.description,
     created_at: now,
@@ -77,93 +113,71 @@ export function createProject(dto: CreateProjectDTO): Project {
     settings: getDefaultSettings(),
   };
 
-  // 验证项目数据
   const validation = validateProject(project);
   if (!validation.valid) {
     throw new Error(`Invalid project: ${validation.errors.join(', ')}`);
   }
 
-  // 保存到 localStorage
-  const projects = getProjects();
-  projects.push(project);
-  saveToLocalStorage(STORAGE_KEY, Object.fromEntries(projects.map((p) => [p.id, p])));
-
+  await repo.saveFullProject(project);
   return project;
 }
 
 /**
  * 更新项目
  */
-export function updateProject(id: string, dto: UpdateProjectDTO): Project | null {
-  const project = getProjectById(id);
+export async function updateProject(id: string, dto: UpdateProjectDTO): Promise<Project | null> {
+  await ensureDb();
+  const project = await repo.findById(id);
   if (!project) {
     return null;
   }
 
-  // 更新字段
-  if (dto.name !== undefined) {
-    project.name = dto.name;
-  }
-  if (dto.description !== undefined) {
-    project.description = dto.description;
-  }
+  if (dto.name !== undefined) project.name = dto.name;
+  if (dto.description !== undefined) project.description = dto.description;
   if (dto.settings !== undefined) {
     project.settings = { ...project.settings, ...dto.settings };
   }
-
+  if (dto.user_journeys !== undefined) {
+    project.user_journeys = dto.user_journeys;
+  }
   project.updated_at = new Date().toISOString();
 
-  // 验证项目数据
   const validation = validateProject(project);
   if (!validation.valid) {
     throw new Error(`Invalid project: ${validation.errors.join(', ')}`);
   }
 
-  // 保存到 localStorage
-  const projects = getProjects();
-  const index = projects.findIndex((p) => p.id === id);
-  if (index !== -1) {
-    projects[index] = project;
-    saveToLocalStorage(STORAGE_KEY, Object.fromEntries(projects.map((p) => [p.id, p])));
-  }
-
+  await repo.saveFullProject(project);
   return project;
 }
 
 /**
  * 删除项目
  */
-export function deleteProject(id: string): boolean {
-  const projects = getProjects();
-  const filtered = projects.filter((p) => p.id !== id);
+export async function deleteProject(id: string): Promise<boolean> {
+  await ensureDb();
+  await repo.delete(id);
 
-  if (filtered.length === projects.length) {
-    return false;
-  }
-
-  saveToLocalStorage(STORAGE_KEY, Object.fromEntries(filtered.map((p) => [p.id, p])));
-
-  // 如果删除的是当前项目，清除激活状态
   const activeId = getActiveProjectId();
   if (activeId === id) {
     removeFromLocalStorage(ACTIVE_PROJECT_KEY);
   }
-
   return true;
 }
 
 /**
  * 获取项目数量
  */
-export function getProjectCount(): number {
-  return getProjects().length;
+export async function getProjectCount(): Promise<number> {
+  const projects = await getProjects();
+  return projects.length;
 }
 
 /**
  * 检查项目名称是否已存在
  */
-export function isProjectNameExists(name: string, excludeId?: string): boolean {
-  const projects = getProjects();
+export async function isProjectNameExists(name: string, excludeId?: string): Promise<boolean> {
+  const projects = await getProjects();
   return projects.some((p) => p.name.toLowerCase() === name.toLowerCase() && p.id !== excludeId);
 }
 
@@ -188,7 +202,7 @@ export function getActiveProjectId(): string | null {
 /**
  * 获取当前激活项目
  */
-export function getActiveProject(): Project | null {
+export async function getActiveProject(): Promise<Project | null> {
   const id = getActiveProjectId();
   if (!id) {
     return null;
@@ -199,23 +213,16 @@ export function getActiveProject(): Project | null {
 /**
  * 搜索项目
  */
-export function searchProjects(query: string): Project[] {
-  const projects = getProjects();
-  const lowerQuery = query.toLowerCase();
-
-  return projects.filter(
-    (p) =>
-      p.name.toLowerCase().includes(lowerQuery) ||
-      p.description?.toLowerCase().includes(lowerQuery) ||
-      p.metadata.tags.some((tag) => tag.toLowerCase().includes(lowerQuery))
-  );
+export async function searchProjects(query: string): Promise<Project[]> {
+  await ensureDb();
+  return repo.search(query);
 }
 
 /**
  * 导出所有项目数据
  */
-export function exportProjects(): string {
-  const projects = getProjects();
+export async function exportProjects(): Promise<string> {
+  const projects = await getProjects();
   return JSON.stringify(
     {
       version: '1.0',
@@ -230,7 +237,7 @@ export function exportProjects(): string {
 /**
  * 导入项目数据
  */
-export function importProjects(jsonString: string): { success: boolean; imported: number; errors: string[] } {
+export async function importProjects(jsonString: string): Promise<{ success: boolean; imported: number; errors: string[] }> {
   const errors: string[] = [];
   let imported = 0;
 
@@ -241,39 +248,27 @@ export function importProjects(jsonString: string): { success: boolean; imported
       return { success: false, imported: 0, errors: ['Invalid format: projects array not found'] };
     }
 
-    const existingProjects = getProjects();
-    const merged = new Map<string, Project>();
-
-    // 保留现有项目
-    existingProjects.forEach((p) => merged.set(p.id, p));
-
-    // 导入新项目
-    data.projects.forEach((project: Project, index: number) => {
+    for (const [index, project] of (data.projects as Project[]).entries()) {
       try {
-        // 验证项目
         const validation = validateProject(project);
         if (!validation.valid) {
           errors.push(`Project at index ${index}: ${validation.errors.join(', ')}`);
-          return;
+          continue;
         }
 
-        // 生成新 ID 以避免冲突
-        const newProject = {
+        const newProject: Project = {
           ...project,
           id: uuidv4(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
 
-        merged.set(newProject.id, newProject);
+        await repo.saveFullProject(newProject);
         imported++;
       } catch (error) {
         errors.push(`Project at index ${index}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-    });
-
-    // 保存合并后的项目
-    saveToLocalStorage(STORAGE_KEY, Object.fromEntries(merged));
+    }
   } catch (error) {
     errors.push(`Parse error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -284,14 +279,15 @@ export function importProjects(jsonString: string): { success: boolean; imported
 /**
  * 从 TOML 导入的项目数据创建项目
  */
-export function createProjectFromToml(data: {
+export async function createProjectFromToml(data: {
   name: string;
   description: string;
   version: string;
   tech_stack: string[];
   created_at: string;
   user_journeys: UserJourney[];
-}): Project {
+}): Promise<Project> {
+  await ensureDb();
   const now = new Date().toISOString();
 
   const project: Project = {
@@ -309,29 +305,25 @@ export function createProjectFromToml(data: {
     settings: getDefaultSettings(),
   };
 
-  // 保存到 localStorage
-  const projects = getProjects();
-  projects.push(project);
-  saveToLocalStorage(STORAGE_KEY, Object.fromEntries(projects.map((p) => [p.id, p])));
-
+  await repo.saveFullProject(project);
   return project;
 }
 
 /**
  * 清空所有项目
  */
-export function clearAllProjects(): void {
-  removeFromLocalStorage(STORAGE_KEY);
+export async function clearAllProjects(): Promise<void> {
+  const projects = await getProjects();
+  for (const p of projects) {
+    await repo.delete(p.id);
+  }
   removeFromLocalStorage(ACTIVE_PROJECT_KEY);
 }
 
 /**
  * 合并 TOML 数据到现有项目
- * @param projectId 项目 ID
- * @param tomlData TOML 解析的数据
- * @param mode 合并模式: 'replace' 替换现有数据, 'merge' 合并数据
  */
-export function mergeTomlToProject(
+export async function mergeTomlToProject(
   projectId: string,
   tomlData: {
     name?: string;
@@ -341,13 +333,13 @@ export function mergeTomlToProject(
     user_journeys: UserJourney[];
   },
   mode: 'replace' | 'merge' = 'merge'
-): Project | null {
-  const project = getProjectById(projectId);
+): Promise<Project | null> {
+  await ensureDb();
+  const project = await repo.findById(projectId);
   if (!project) {
     return null;
   }
 
-  // 创建一个 ID 映射，用于检测和更新现有旅程
   const existingJourneyMap = new Map(
     project.user_journeys.map((j) => [j.id, j])
   );
@@ -355,29 +347,23 @@ export function mergeTomlToProject(
   let mergedJourneys = project.user_journeys;
 
   if (mode === 'replace') {
-    // 替换模式：完全替换用户旅程
     mergedJourneys = tomlData.user_journeys;
   } else {
-    // 合并模式：合并或更新用户旅程
     tomlData.user_journeys.forEach((tomlJourney: UserJourney) => {
       const existing = existingJourneyMap.get(tomlJourney.id);
 
       if (existing) {
-        // 更新现有旅程
         const index = mergedJourneys.findIndex((j) => j.id === tomlJourney.id);
         if (index !== -1) {
-          // 创建故事映射
           const existingStoryMap = new Map(
             (existing.stories || []).map((s: UserStory) => [s.id, s])
           );
 
-          // 合并故事
           const mergedStories = (tomlJourney.stories || []).map((tomlStory: UserStory) => {
             const existingStory = existingStoryMap.get(tomlStory.id);
             return existingStory ? { ...existingStory, ...tomlStory } : tomlStory;
           });
 
-          // 添加新故事（不存在于 TOML 中的现有故事）
           (existing.stories || []).forEach((story: UserStory) => {
             if (!tomlJourney.stories?.find((s: UserStory) => s.id === story.id)) {
               mergedStories.push(story);
@@ -391,13 +377,11 @@ export function mergeTomlToProject(
           };
         }
       } else {
-        // 添加新旅程
         mergedJourneys.push(tomlJourney);
       }
     });
   }
 
-  // 更新项目基本信息（可选）
   const updatedProject: Project = {
     ...project,
     name: tomlData.name || project.name,
@@ -411,19 +395,11 @@ export function mergeTomlToProject(
     },
   };
 
-  // 验证并保存
   const validation = validateProject(updatedProject);
   if (!validation.valid) {
     throw new Error(`Invalid project: ${validation.errors.join(', ')}`);
   }
 
-  // 保存到 localStorage
-  const projects = getProjects();
-  const index = projects.findIndex((p) => p.id === projectId);
-  if (index !== -1) {
-    projects[index] = updatedProject;
-    saveToLocalStorage(STORAGE_KEY, Object.fromEntries(projects.map((p) => [p.id, p])));
-  }
-
+  await repo.saveFullProject(updatedProject);
   return updatedProject;
 }

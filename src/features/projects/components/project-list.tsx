@@ -316,8 +316,8 @@ export default function ProjectListPage() {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleImportSuccess = (projectData: any) => {
-    const project = importFromToml(projectData);
+  const handleImportSuccess = async (projectData: any) => {
+    const project = await importFromToml(projectData);
     setShowImportDialog(false);
     router.push(`/projects/${project.id}`);
   };

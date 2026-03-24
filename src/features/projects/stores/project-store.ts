@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Project, CreateProjectDTO, UpdateProjectDTO, UserJourney } from '@/types';
 import {
+  initializeDatabase,
   getProjects,
   getProjectById,
   createProject,
@@ -13,7 +14,6 @@ import {
   deleteProject,
   setActiveProjectId,
   getActiveProjectId,
-  getActiveProject,
   searchProjects,
   createProjectFromToml,
   mergeTomlToProject,
@@ -23,52 +23,22 @@ import {
  * 项目状态接口
  */
 export interface ProjectState {
-  // 项目列表
   projects: Project[];
-
-  // 当前激活的项目
   activeProject: Project | null;
-
-  // 加载状态
   isLoading: boolean;
-
-  // 错误信息
   error: string | null;
-
-  // 搜索查询
   searchQuery: string;
 
-  // 加载所有项目
-  loadProjects: () => void;
-
-  // 设置项目列表
+  loadProjects: () => Promise<void>;
   setProjects: (projects: Project[]) => void;
-
-  // 创建项目
-  addProject: (dto: CreateProjectDTO) => Project;
-
-  // 更新项目
-  modifyProject: (id: string, dto: UpdateProjectDTO) => Project | null;
-
-  // 删除项目
-  removeProject: (id: string) => boolean;
-
-  // 设置当前激活项目
-  setActiveProject: (id: string | null) => void;
-
-  // 搜索项目
+  addProject: (dto: CreateProjectDTO) => Promise<Project>;
+  modifyProject: (id: string, dto: UpdateProjectDTO) => Promise<Project | null>;
+  removeProject: (id: string) => Promise<boolean>;
+  setActiveProject: (id: string | null) => Promise<void>;
   setSearchQuery: (query: string) => void;
-
-  // 获取过滤后的项目列表
   getFilteredProjects: () => Project[];
-
-  // 清除错误
   clearError: () => void;
-
-  // 初始化（从 localStorage 恢复）
-  initialize: () => void;
-
-  // 从 TOML 导入项目
+  initialize: () => Promise<void>;
   importFromToml: (data: {
     name: string;
     description: string;
@@ -76,9 +46,7 @@ export interface ProjectState {
     tech_stack: string[];
     created_at: string;
     user_journeys: UserJourney[];
-  }) => Project;
-
-  // 合并 TOML 数据到现有项目
+  }) => Promise<Project>;
   mergeTomlToProject: (
     projectId: string,
     data: {
@@ -89,7 +57,7 @@ export interface ProjectState {
       user_journeys: UserJourney[];
     },
     mode?: 'replace' | 'merge'
-  ) => Project | null;
+  ) => Promise<Project | null>;
 }
 
 /**
@@ -98,27 +66,28 @@ export interface ProjectState {
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
-      // 初始状态
       projects: [],
       activeProject: null,
-      isLoading: true, // 初始为加载中，等待 initialize 完成
+      isLoading: true,
       error: null,
       searchQuery: '',
 
-      // 加载所有项目
-      loadProjects: () => {
+      loadProjects: async () => {
         try {
           set({ isLoading: true, error: null });
-          const projects = getProjects();
+          console.log('[Store] Loading projects from DB...');
+          const projects = await getProjects();
           const activeId = getActiveProjectId();
           const activeProject = activeId ? projects.find((p) => p.id === activeId) || null : null;
 
+          console.log('[Store] Loaded', projects.length, 'projects');
           set({
             projects,
             activeProject,
             isLoading: false,
           });
         } catch (error) {
+          console.error('[Store] loadProjects failed:', error);
           set({
             error: error instanceof Error ? error.message : 'Failed to load projects',
             isLoading: false,
@@ -126,23 +95,21 @@ export const useProjectStore = create<ProjectState>()(
         }
       },
 
-      // 设置项目列表
       setProjects: (projects: Project[]) => {
         set({ projects });
       },
 
-      // 创建项目
-      addProject: (dto: CreateProjectDTO) => {
+      addProject: async (dto: CreateProjectDTO) => {
         try {
           set({ error: null });
-          const project = createProject(dto);
+          console.log('[Store] Creating project:', dto.name);
+          const project = await createProject(dto);
+          console.log('[Store] Project created:', project.id);
           const { projects, activeProject } = get();
 
-          // 添加到列表
           const newProjects = [project, ...projects];
           set({ projects: newProjects });
 
-          // 如果没有激活项目，自动激活
           if (!activeProject) {
             setActiveProjectId(project.id);
             set({ activeProject: project });
@@ -156,11 +123,10 @@ export const useProjectStore = create<ProjectState>()(
         }
       },
 
-      // 更新项目
-      modifyProject: (id: string, dto: UpdateProjectDTO) => {
+      modifyProject: async (id: string, dto: UpdateProjectDTO) => {
         try {
           set({ error: null });
-          const updated = updateProject(id, dto);
+          const updated = await updateProject(id, dto);
 
           if (!updated) {
             set({ error: 'Project not found' });
@@ -184,22 +150,15 @@ export const useProjectStore = create<ProjectState>()(
         }
       },
 
-      // 删除项目
-      removeProject: (id: string) => {
+      removeProject: async (id: string) => {
         try {
           set({ error: null });
-          const success = deleteProject(id);
-
-          if (!success) {
-            set({ error: 'Project not found' });
-            return false;
-          }
+          await deleteProject(id);
 
           const { projects, activeProject } = get();
           const newProjects = projects.filter((p) => p.id !== id);
           const newActiveProject = activeProject?.id === id ? null : activeProject;
 
-          // 如果删除了激活项目，更新状态
           if (newActiveProject === null && newProjects.length > 0) {
             setActiveProjectId(newProjects[0].id);
           }
@@ -217,19 +176,16 @@ export const useProjectStore = create<ProjectState>()(
         }
       },
 
-      // 设置当前激活项目
-      setActiveProject: (id: string | null) => {
+      setActiveProject: async (id: string | null) => {
         setActiveProjectId(id);
-        const project = id ? getProjectById(id) : null;
+        const project = id ? await getProjectById(id) : null;
         set({ activeProject: project });
       },
 
-      // 设置搜索查询
       setSearchQuery: (query: string) => {
         set({ searchQuery: query });
       },
 
-      // 获取过滤后的项目列表
       getFilteredProjects: () => {
         const { projects, searchQuery } = get();
 
@@ -237,31 +193,43 @@ export const useProjectStore = create<ProjectState>()(
           return projects;
         }
 
-        return searchProjects(searchQuery);
+        const lowerQuery = searchQuery.toLowerCase();
+        return projects.filter(
+          (p) =>
+            p.name.toLowerCase().includes(lowerQuery) ||
+            p.description?.toLowerCase().includes(lowerQuery) ||
+            p.metadata.tags.some((tag) => tag.toLowerCase().includes(lowerQuery))
+        );
       },
 
-      // 清除错误
       clearError: () => {
         set({ error: null });
       },
 
-      // 初始化
-      initialize: () => {
-        get().loadProjects();
+      initialize: async () => {
+        try {
+          console.log('[Store] Initializing database...');
+          await initializeDatabase();
+          console.log('[Store] Database initialized, loading projects...');
+          await get().loadProjects();
+        } catch (error) {
+          console.error('[Store] Failed to initialize database:', error);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to initialize database',
+            isLoading: false,
+          });
+        }
       },
 
-      // 从 TOML 导入项目
-      importFromToml: (data) => {
+      importFromToml: async (data) => {
         try {
           set({ error: null });
-          const project = createProjectFromToml(data);
-          const { projects, activeProject } = get();
+          const project = await createProjectFromToml(data);
+          const { projects } = get();
 
-          // 添加到列表
           const newProjects = [project, ...projects];
           set({ projects: newProjects });
 
-          // 激活导入的项目
           setActiveProjectId(project.id);
           set({ activeProject: project });
 
@@ -273,11 +241,10 @@ export const useProjectStore = create<ProjectState>()(
         }
       },
 
-      // 合并 TOML 数据到现有项目
-      mergeTomlToProject: (projectId, data, mode = 'merge') => {
+      mergeTomlToProject: async (projectId, data, mode = 'merge') => {
         try {
           set({ error: null });
-          const updatedProject = mergeTomlToProject(projectId, data, mode);
+          const updatedProject = await mergeTomlToProject(projectId, data, mode);
 
           if (!updatedProject) {
             set({ error: 'Project not found' });
@@ -308,7 +275,6 @@ export const useProjectStore = create<ProjectState>()(
     {
       name: 'project-store',
       partialize: (state) => ({
-        // 只持久化搜索查询
         searchQuery: state.searchQuery,
       }),
     }
@@ -318,18 +284,8 @@ export const useProjectStore = create<ProjectState>()(
 /**
  * 项目选择器
  */
-
-// 获取所有项目
 export const selectProjects = (state: ProjectState) => state.projects;
-
-// 获取激活项目
 export const selectActiveProject = (state: ProjectState) => state.activeProject;
-
-// 获取加载状态
 export const selectIsLoading = (state: ProjectState) => state.isLoading;
-
-// 获取错误
 export const selectError = (state: ProjectState) => state.error;
-
-// 获取项目数量
 export const selectProjectCount = (state: ProjectState) => state.projects.length;

@@ -40,17 +40,17 @@ export default function ProjectDetailPage() {
   }, [params.id, projects, loading, router]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleImport = (projectData: any) => {
+  const handleImport = async (projectData: any) => {
     if (projectData._projectId && projectData._mode) {
       // 项目级别导入
-      const projectId = projectData._projectId as string;
+      const pid = projectData._projectId as string;
       const mode = projectData._mode as 'merge' | 'replace';
       delete projectData._projectId;
       delete projectData._mode;
 
-      mergeTomlToProject(projectId, projectData, mode);
+      await mergeTomlToProject(pid, projectData, mode);
       // 刷新当前项目数据
-      const updated = projects.find(p => p.id === projectId);
+      const updated = projects.find(p => p.id === pid);
       setCurrentProject(updated);
     }
   };

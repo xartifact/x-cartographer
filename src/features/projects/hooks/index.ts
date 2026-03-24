@@ -19,7 +19,7 @@ export function useProjectActions() {
   const createProject = useCallback(
     async (dto: CreateProjectDTO) => {
       try {
-        const project = addProject(dto);
+        const project = await addProject(dto);
         toast({
           title: '创建成功',
           description: `已创建项目 "${project.name}"`,
@@ -40,7 +40,7 @@ export function useProjectActions() {
   const updateProject = useCallback(
     async (id: string, dto: UpdateProjectDTO) => {
       try {
-        const project = modifyProject(id, dto);
+        const project = await modifyProject(id, dto);
         if (project) {
           toast({
             title: '更新成功',
@@ -63,7 +63,7 @@ export function useProjectActions() {
   const deleteProject = useCallback(
     async (id: string) => {
       try {
-        const success = removeProject(id);
+        const success = await removeProject(id);
         if (success) {
           toast({
             title: '删除成功',

@@ -106,7 +106,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   }, [displayTasks]);
 
   // 处理状态变更
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
+  const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     // 更新项目数据中的任务状态
     const updatedJourneys = project.user_journeys?.map((journey) => ({
       ...journey,
@@ -120,7 +120,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
 
     if (updatedJourneys) {
       const dto: UpdateProjectDTO = { user_journeys: updatedJourneys };
-      const updated = modifyProject(project.id, dto);
+      const updated = await modifyProject(project.id, dto);
       if (updated) {
         setProject(updated);
       }
