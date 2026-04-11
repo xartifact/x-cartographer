@@ -1,8 +1,9 @@
 [metadata]
 project_name = "任务状态管理"
 feature_name = "任务状态管理"
-version = "1.0"
+version = "1.1"
 created_at = "2026-01-10"
+updated_at = "2026-04-08"
 total_tasks = 16
 estimated_hours = 35
 
@@ -19,15 +20,15 @@ description = "扩展现有 Task 和 UserStory 类型，添加状态字段和状
 type = "technical_task"
 priority = "P0"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = []
 related_story = "US-001"
 tags = ["data-model", "types"]
 tasks = [
-  "在 Task 类型中添加 status 和 status_history 字段",
-  "在 UserStory 类型中添加 status 字段",
-  "定义状态变更记录类型：timestamp, from_status, to_status, operator",
-  "更新 TOML 解析器支持新字段"
+  "在 Task 类型中添加 status 字段（schema/tasks.ts）",
+  "在 UserStory 类型中添加 status 字段（schema/user-stories.ts）",
+  "定义 status_changes 表记录变更历史",
+  "PGlite 数据库 schema 包含所有状态字段"
 ]
 
 [[tasks]]
@@ -37,12 +38,12 @@ description = "创建可复用的状态标签 Badge 组件，支持不同状态�
 type = "technical_task"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-101"]
 related_story = "US-001"
 tags = ["ui", "component"]
 tasks = [
-  "创建 StatusBadge 组件",
+  "创建 StatusBadge 组件（features/tasks/components/status-badge.tsx）",
   "定义状态颜色映射：backlog=gray, todo=slate, in_progress=blue, done=green, cancelled=red",
   "支持尺寸变体（sm, md）",
   "添加 TypeScript 类型导出"
@@ -57,16 +58,16 @@ description = "使用 Zustand 创建状态管理 Store，支持状态更新和�
 type = "technical_task"
 priority = "P0"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-101"]
 related_story = "US-001"
 tags = ["store", "state"]
 tasks = [
-  "创建 task-status-store.ts",
+  "创建 task-status-store.ts（features/tasks/stores/）",
   "实现 updateTaskStatus action",
   "实现 updateStoryStatus action",
   "实现状态变更历史记录",
-  "添加持久化支持"
+  "添加持久化支持（通过 PGlite）"
 ]
 
 [[tasks]]
@@ -76,14 +77,14 @@ description = "修改 Task 列表组件，显示每个任务的状态标签"
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-102", "TASK-103"]
 related_story = "US-001"
 tags = ["ui", "task"]
 tasks = [
-  "修改任务列表模板，添加 StatusBadge",
+  "修改任务列表模板，添加 StatusBadge（features/tasks/components/task-list.tsx）",
   "确保状态标签样式与设计一致",
-  "测试不同状态的显示效果"
+  "状态实时更新"
 ]
 
 # ==================== 故事地图状态标记 ====================
@@ -95,12 +96,12 @@ description = "修改 StoryCard 组件，显示用户故事的状态标签"
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-102"]
 related_story = "US-002"
 tags = ["ui", "story"]
 tasks = [
-  "修改 StoryCard 组件，添加 StatusBadge",
+  "在故事卡片中集成 StatusBadge",
   "支持状态标签的显示/隐藏配置",
   "确保不影响卡片其他功能"
 ]
@@ -112,12 +113,12 @@ description = "在故事地图视图顶部或侧边添加状态概览统计"
 type = "user_story"
 priority = "P0"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-105"]
 related_story = "US-002"
 tags = ["ui", "visualization"]
 tasks = [
-  "创建 StatusOverview 组件",
+  "创建 StatusOverview 组件（features/tasks/components/status-overview.tsx）",
   "显示各状态的数量统计",
   "支持点击跳转到对应状态筛选",
   "响应式布局适配"
@@ -132,12 +133,12 @@ description = "创建显示项目整体进度和统计的组件"
 type = "user_story"
 priority = "P1"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-103"]
 related_story = "US-003"
 tags = ["ui", "dashboard"]
 tasks = [
-  "创建 ProgressStats 组件",
+  "创建 ProgressStats 组件（features/tasks/components/progress-stats.tsx）",
   "计算并显示任务完成百分比",
   "显示各状态任务数量",
   "添加实时更新逻辑"
@@ -152,15 +153,15 @@ description = "在任务卡片上添加状态切换交互，支持点击选择�
 type = "user_story"
 priority = "P0"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-103"]
 related_story = "US-004"
 tags = ["ui", "interaction"]
 tasks = [
-  "创建 StatusSelect 弹出组件",
+  "创建 StatusSelect 弹出组件（features/tasks/components/status-select.tsx）",
   "在 Task 卡片上添加状态切换按钮",
   "实现状态选择后的更新逻辑",
-  "添加状态切换动画效果"
+  "状态切换后同步到 PGlite 数据库"
 ]
 
 [[tasks]]
@@ -170,7 +171,7 @@ description = "在故事卡片上添加状态切换交互"
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-108"]
 related_story = "US-004"
 tags = ["ui", "interaction"]
@@ -187,14 +188,14 @@ description = "支持选中多个任务/故事，一次性更新状态"
 type = "user_story"
 priority = "P1"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-108"]
 related_story = "US-005"
 tags = ["ui", "bulk"]
 tasks = [
   "添加多选功能到列表组件",
-  "创建批量状态更新确认弹窗",
-  "实现批量更新 API",
+  "创建批量状态更新确认弹窗（features/tasks/components/bulk-update-dialog.tsx）",
+  "实现批量更新逻辑",
   "显示更新结果反馈"
 ]
 
@@ -207,14 +208,14 @@ description = "记录每次状态变更的详细信息并支持查询"
 type = "user_story"
 priority = "P2"
 estimation = 4
-status = "todo"
+status = "done"
 dependencies = ["TASK-103"]
 related_story = "US-006"
 tags = ["audit", "history"]
 tasks = [
-  "完善状态变更记录数据结构",
-  "实现历史记录查询方法",
-  "创建 StatusHistory 展示组件",
+  "status_changes 表在 PGlite schema 中已定义",
+  "实现 status-change.repository.ts 查询方法",
+  "创建 StatusHistory 展示组件（features/tasks/components/status-history.tsx）",
   "添加时间线和操作人信息"
 ]
 
@@ -227,12 +228,12 @@ description = "创建可复用的状态筛选器，支持单选和多选"
 type = "technical_task"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-102"]
 related_story = "US-007"
 tags = ["ui", "filter"]
 tasks = [
-  "创建 StatusFilter 组件",
+  "创建 StatusFilter 组件（features/tasks/components/status-filter.tsx）",
   "支持单选和多选模式",
   "支持状态全选/清空",
   "与 Store 集成实现筛选逻辑"
@@ -245,7 +246,7 @@ description = "在任务列表页面集成状态筛选器"
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-112"]
 related_story = "US-007"
 tags = ["ui", "task"]
@@ -262,7 +263,7 @@ description = "在故事地图视图集成状态筛选器"
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-112", "TASK-105"]
 related_story = "US-007"
 tags = ["ui", "story"]
@@ -281,12 +282,12 @@ description = "提供视图切换组件，支持预设的状态视图"
 type = "user_story"
 priority = "P1"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-112"]
 related_story = "US-008"
 tags = ["ui", "view"]
 tasks = [
-  "创建 ViewSwitcher 组件",
+  "创建 ViewSwitcher 组件（features/tasks/components/view-switcher.tsx）",
   "定义预设视图：全部、待办、进行中、已完成",
   "实现视图切换逻辑",
   "记住用户上次视图选择"
@@ -301,14 +302,14 @@ description = "支持将筛选条件保存为预设，方便快速调用"
 type = "user_story"
 priority = "P2"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-112"]
 related_story = "US-009"
 tags = ["feature", "preset"]
 tasks = [
   "设计预设数据结构",
   "实现预设的保存/加载逻辑",
-  "创建 PresetManager 组件",
+  "创建 PresetManager 组件（features/tasks/components/preset-manager.tsx）",
   "支持预设的编辑和删除"
 ]
 
@@ -321,7 +322,7 @@ description = "为核心功能编写单元测试和集成测试"
 type = "technical_task"
 priority = "P2"
 estimation = 3
-status = "todo"
+status = "backlog"
 dependencies = ["TASK-103", "TASK-108"]
 related_story = "US-001"
 tags = ["testing", "quality"]
@@ -329,10 +330,10 @@ tasks = [
   "测试状态更新逻辑",
   "测试状态筛选逻辑",
   "测试批量更新功能",
-  "测试数据持久化"
+  "测试数据持久化（PGlite）"
 ]
 
 [metadata]
-version = "1.0"
+version = "1.1"
 author = "product-designer"
-notes = "基于故事地图 story-map-任务状态管理.toml 生成"
+notes = "2026-04-08 更新：TASK-101 到 TASK-116 全部完成。所有状态管理组件均已实现并集成到 PGlite 数据库持久化方案中。"

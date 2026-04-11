@@ -11,7 +11,14 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import type { TaskStatus, StoryStatus, StatusChangeRecord, Timestamp } from '@/types';
-import { StatusChangeRepository } from '@/lib/db/repositories/status-change.repository';
+import {
+  getAllStatusChanges,
+  createStatusChange,
+  createManyStatusChanges,
+  deleteStatusChange,
+  deleteEntityStatusHistory,
+  deleteAllStatusHistory,
+} from '@/app/actions/status.actions';
 
 // Re-export status options from components for convenience
 export { TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from '../components/status-badge';
@@ -88,19 +95,17 @@ function getCurrentTimestamp(): Timestamp {
   return new Date().toISOString();
 }
 
-const statusChangeRepo = new StatusChangeRepository();
-
 /**
  * 异步持久化状态变更到数据库（fire-and-forget）
  */
 function persistRecord(record: StatusChangeRecord): void {
-  statusChangeRepo.create(record).catch((err) => {
+  createStatusChange(record).catch((err) => {
     console.error('Failed to persist status change:', err);
   });
 }
 
 function persistRecords(records: StatusChangeRecord[]): void {
-  statusChangeRepo.createMany(records).catch((err) => {
+  createManyStatusChanges(records).catch((err) => {
     console.error('Failed to persist status changes:', err);
   });
 }
@@ -123,7 +128,7 @@ export const useTaskStatusStore = create<TaskStatusState>()(
 
       loadStatusHistory: async () => {
         try {
-          const records = await statusChangeRepo.findAll();
+          const records = await getAllStatusChanges();
           set({ statusHistory: records });
         } catch {
           // DB 未初始化时静默失败，使用内存中的数据
@@ -210,7 +215,7 @@ export const useTaskStatusStore = create<TaskStatusState>()(
           ],
         }));
 
-        statusChangeRepo.deleteById(historyId).catch(() => {});
+        deleteStatusChange(historyId).catch(() => {});
         persistRecord(undoRecord);
         return true;
       },
@@ -223,12 +228,12 @@ export const useTaskStatusStore = create<TaskStatusState>()(
         set((state) => ({
           statusHistory: state.statusHistory.filter((h) => h.entity_id !== entityId),
         }));
-        statusChangeRepo.deleteByEntityId(entityId).catch(() => {});
+        deleteEntityStatusHistory(entityId).catch(() => {});
       },
 
       clearAllHistory: () => {
         set({ statusHistory: [] });
-        statusChangeRepo.deleteAll().catch(() => {});
+        deleteAllStatusHistory().catch(() => {});
       },
 
       selectTask: (taskId: string) => {

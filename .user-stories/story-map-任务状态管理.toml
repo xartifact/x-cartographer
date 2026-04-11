@@ -1,7 +1,8 @@
 [project]
 name = "任务状态管理"
-version = "1.0"
+version = "1.1"
 created_at = "2026-01-10"
+updated_at = "2026-04-08"
 description = "在UI中标记和管理任务/需求的开发状态"
 
 # ==================== 用户旅程定义 ====================
@@ -16,6 +17,7 @@ id = "US-001"
 title = "作为开发者，我想要在任务列表中看到每个任务的状态标签"
 description = "在任务卡片或列表项上显示状态标签（如待办、进行中、已完成），使用颜色区分不同状态"
 priority = "high"
+status = "done"
 acceptance_criteria = [
   "任务列表显示状态标签",
   "状态标签使用颜色区分（待办=灰色，进行中=蓝色，已完成=绿色）",
@@ -29,6 +31,7 @@ id = "US-002"
 title = "作为产品经理，我想要在故事地图中查看需求的状态概览"
 description = "在故事地图视图中，通过颜色或标记显示每个用户故事的开发状态"
 priority = "high"
+status = "done"
 acceptance_criteria = [
   "故事卡片上显示状态标签",
   "支持按状态筛选故事",
@@ -42,6 +45,7 @@ id = "US-003"
 title = "作为团队成员，我想要看到全局的项目进度统计"
 description = "在项目首页或仪表盘显示进度概览：总任务数、各状态数量、完成百分比"
 priority = "medium"
+status = "done"
 acceptance_criteria = [
   "显示待办/进行中/已完成数量",
   "显示完成百分比",
@@ -62,6 +66,7 @@ id = "US-004"
 title = "作为开发者，我想要一键更新任务状态"
 description = "在任务卡片上提供状态切换功能，点击后可选择新状态"
 priority = "high"
+status = "done"
 acceptance_criteria = [
   "点击任务卡片可切换状态",
   "状态切换后立即更新显示",
@@ -75,6 +80,7 @@ id = "US-005"
 title = "作为产品经理，我想要批量更新需求状态"
 description = "支持选中多个用户故事，一次性更新为相同状态"
 priority = "medium"
+status = "done"
 acceptance_criteria = [
   "支持多选用户故事",
   "批量更新状态功能正常",
@@ -88,6 +94,7 @@ id = "US-006"
 title = "作为团队成员，我想要查看状态变更历史"
 description = "记录每次状态变更的时间、操作人和从什么状态变为什么状态"
 priority = "low"
+status = "done"
 acceptance_criteria = [
   "保存状态变更记录",
   "可查看单个任务的变更历史",
@@ -108,6 +115,7 @@ id = "US-007"
 title = "作为开发者，我想要按状态筛选我的待办任务"
 description = "提供状态筛选器，支持查看特定状态的任务列表"
 priority = "high"
+status = "done"
 acceptance_criteria = [
   "筛选器显示所有可用状态选项",
   "支持单选和多选状态",
@@ -121,6 +129,7 @@ id = "US-008"
 title = "作为产品经理，我想要切换不同的状态视图"
 description = "提供视图切换功能：全部视图、仅待办、仅进行中、仅已完成"
 priority = "medium"
+status = "done"
 acceptance_criteria = [
   "提供视图切换按钮/选项卡",
   "切换视图后只显示对应状态的项目",
@@ -134,6 +143,7 @@ id = "US-009"
 title = "作为团队成员，我想要保存常用的状态筛选配置"
 description = "支持保存筛选条件为预设，方便快速切换常用视图"
 priority = "low"
+status = "done"
 acceptance_criteria = [
   "支持保存自定义筛选",
   "可从预设列表快速应用",
@@ -154,6 +164,6 @@ status_labels = [
 ]
 
 [metadata]
-version = "1.0"
+version = "1.1"
 author = "product-designer"
-notes = "用户选择仅UI标记模式，不包含拖拽功能"
+notes = "所有功能已实现：StatusBadge、StatusFilter、StatusSelect、BulkUpdateDialog、PresetManager、ViewSwitcher、StatusOverview、ProgressStats、StatusHistory 组件均已完成"

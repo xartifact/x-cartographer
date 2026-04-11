@@ -64,9 +64,6 @@ export interface ProjectSettings {
   /** LLM 提供商 */
   llm_provider: LLMProvider;
 
-  /** LLM 模型 */
-  llm_model: string;
-
   /** 自动保存 */
   auto_save: boolean;
 

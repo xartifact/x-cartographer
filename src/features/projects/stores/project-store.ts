@@ -6,18 +6,31 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Project, CreateProjectDTO, UpdateProjectDTO, UserJourney } from '@/types';
 import {
-  initializeDatabase,
   getProjects,
   getProjectById,
   createProject,
   updateProject,
   deleteProject,
-  setActiveProjectId,
-  getActiveProjectId,
   searchProjects,
   createProjectFromToml,
   mergeTomlToProject,
 } from '../api';
+
+const ACTIVE_PROJECT_KEY = 'x-product-roadmap-active-project';
+
+function getActiveProjectId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(ACTIVE_PROJECT_KEY);
+}
+
+function setActiveProjectId(id: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (id === null) {
+    localStorage.removeItem(ACTIVE_PROJECT_KEY);
+  } else {
+    localStorage.setItem(ACTIVE_PROJECT_KEY, id);
+  }
+}
 
 /**
  * 项目状态接口
@@ -207,18 +220,7 @@ export const useProjectStore = create<ProjectState>()(
       },
 
       initialize: async () => {
-        try {
-          console.log('[Store] Initializing database...');
-          await initializeDatabase();
-          console.log('[Store] Database initialized, loading projects...');
-          await get().loadProjects();
-        } catch (error) {
-          console.error('[Store] Failed to initialize database:', error);
-          set({
-            error: error instanceof Error ? error.message : 'Failed to initialize database',
-            isLoading: false,
-          });
-        }
+        await get().loadProjects();
       },
 
       importFromToml: async (data) => {

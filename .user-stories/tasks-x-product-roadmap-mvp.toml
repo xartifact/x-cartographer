@@ -137,38 +137,38 @@ tags = ["data", "parser"]
 [[tasks]]
 id = "TASK-011"
 title = "创建 LLM API 客户端封装"
-description = "封装 OpenAI API 或其他 LLM API，提供统一接口"
+description = "封装 OpenAI API 和 Anthropic API，提供统一接口（lib/llm/client.ts）"
 type = "technical_task"
 priority = "P2"
 estimation = 3
-status = "backlog"
+status = "done"
 dependencies = ["TASK-002"]
 related_story = "US-002"
-tags = ["ai", "api", "integration", "backlog"]
+tags = ["ai", "api", "integration"]
 
 [[tasks]]
 id = "TASK-012"
 title = "实现 API 密钥配置管理"
-description = "创建安全的 API 密钥存储和读取机制（加密存储到 localStorage）"
+description = "创建安全的 API 密钥存储和读取机制（AES 加密存储到 localStorage，lib/storage/api-keys.ts）"
 type = "technical_task"
 priority = "P2"
 estimation = 3
-status = "backlog"
+status = "done"
 dependencies = ["TASK-011"]
 related_story = "US-018"
-tags = ["security", "config", "backlog"]
+tags = ["security", "config"]
 
 [[tasks]]
 id = "TASK-013"
 title = "设计 LLM Prompt 模板系统"
-description = "创建可复用的 Prompt 模板，用于需求分析、故事生成、任务拆解等场景"
+description = "创建可复用的 Prompt 模板，用于需求分析、故事生成、任务拆解等场景（lib/llm/prompts.ts）"
 type = "technical_task"
 priority = "P2"
 estimation = 3
-status = "backlog"
+status = "done"
 dependencies = ["TASK-011"]
 related_story = "US-002"
-tags = ["ai", "prompts", "backlog"]
+tags = ["ai", "prompts"]
 
 [[tasks]]
 id = "TASK-014"
@@ -213,10 +213,10 @@ description = "编写和测试任务拆解 Prompt，将用户故事分解为 2-4
 type = "technical_task"
 priority = "P2"
 estimation = 3
-status = "backlog"
+status = "done"
 dependencies = ["TASK-013"]
 related_story = "US-011"
-tags = ["ai", "prompts", "tasks", "backlog"]
+tags = ["ai", "prompts", "tasks"]
 
 # ==================== 需求输入界面 (US-001 相关) ====================
 
@@ -277,10 +277,10 @@ description = "调用 LLM API 分析用户输入文本，返回结构化结果"
 type = "user_story"
 priority = "P2"
 estimation = 3
-status = "backlog"
+status = "done"
 dependencies = ["TASK-011", "TASK-014", "TASK-021"]
 related_story = "US-002"
-tags = ["api", "ai", "backlog"]
+tags = ["api", "ai"]
 
 [[tasks]]
 id = "TASK-023"
@@ -289,22 +289,22 @@ description = "解析 LLM 返回的 JSON 结果，提取用户角色、功能点
 type = "user_story"
 priority = "P2"
 estimation = 2
-status = "backlog"
+status = "done"
 dependencies = ["TASK-022"]
 related_story = "US-002"
-tags = ["data", "parser", "backlog"]
+tags = ["data", "parser"]
 
 [[tasks]]
 id = "TASK-024"
 title = "创建需求分析结果展示组件"
-description = "以结构化卡片形式展示分析结果：用户角色列表、功能点列表、场景描述"
+description = "以结构化卡片形式展示分析结果（features/requirements/components/analysis-result.tsx）"
 type = "user_story"
 priority = "P2"
 estimation = 3
-status = "backlog"
+status = "done"
 dependencies = ["TASK-023"]
 related_story = "US-002"
-tags = ["ui", "display", "backlog"]
+tags = ["ui", "display"]
 
 [[tasks]]
 id = "TASK-025"
@@ -313,10 +313,10 @@ description = "允许用户修改、删除、添加分析结果中的条目"
 type = "user_story"
 priority = "P2"
 estimation = 3
-status = "backlog"
+status = "done"
 dependencies = ["TASK-024"]
 related_story = "US-002"
-tags = ["ui", "edit", "backlog"]
+tags = ["ui", "edit"]
 
 [[tasks]]
 id = "TASK-026"
@@ -325,7 +325,7 @@ description = "显示加载动画和进度提示，提升用户体验"
 type = "user_story"
 priority = "P3"
 estimation = 2
-status = "backlog"
+status = "done"
 dependencies = ["TASK-022"]
 related_story = "US-002"
 tags = ["ui", "loading", "backlog"]
@@ -537,7 +537,7 @@ description = "适配不同屏幕尺寸，移动端优化"
 type = "user_story"
 priority = "P1"
 estimation = 3
-status = "in_progress"
+status = "done"
 dependencies = ["TASK-041"]
 related_story = "US-007"
 tags = ["ui", "responsive"]
@@ -693,11 +693,11 @@ tags = ["data", "parser"]
 [[tasks]]
 id = "TASK-056"
 title = "创建任务列表展示组件"
-description = "以列表或表格形式展示拆解后的任务"
+description = "以列表或表格形式展示拆解后的任务（features/tasks/components/task-list.tsx）"
 type = "user_story"
 priority = "P0"
 estimation = 3
-status = "in_progress"
+status = "done"
 dependencies = ["TASK-055"]
 related_story = "US-011"
 tags = ["ui", "list"]
@@ -709,7 +709,7 @@ description = "用颜色或图标区分任务类型（user_story/technical_task/
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "in_progress"
+status = "done"
 dependencies = ["TASK-056"]
 related_story = "US-011"
 tags = ["ui", "visual"]
@@ -797,7 +797,7 @@ description = "提供导出按钮，生成 TOML 文件并触发浏览器下载"
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "in_progress"
+status = "done"
 dependencies = ["TASK-063"]
 related_story = "US-013"
 tags = ["ui", "download"]
@@ -809,7 +809,7 @@ description = "导出前验证 TOML 格式正确性，提供错误提示"
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "in_progress"
+status = "done"
 dependencies = ["TASK-063"]
 related_story = "US-013"
 tags = ["validation", "error-handling"]
@@ -1019,7 +1019,7 @@ description = "记录和显示 API 调用次数、Token 使用量等统计信息
 type = "user_story"
 priority = "P1"
 estimation = 3
-status = "in_progress"
+status = "done"
 dependencies = ["TASK-011"]
 related_story = "US-018"
 tags = ["analytics", "monitoring"]
@@ -1045,7 +1045,7 @@ description = "撰写核心功能使用说明，包含截图和示例"
 type = "user_story"
 priority = "P1"
 estimation = 3
-status = "in_progress"
+status = "done"
 dependencies = ["TASK-083"]
 related_story = "US-019"
 tags = ["content", "documentation"]
@@ -1069,7 +1069,7 @@ description = "允许用户跳过向导，并在设置中重新打开"
 type = "user_story"
 priority = "P1"
 estimation = 2
-status = "in_progress"
+status = "done"
 dependencies = ["TASK-083"]
 related_story = "US-019"
 tags = ["ui", "navigation"]
@@ -1148,16 +1148,16 @@ dependencies = ["TASK-001"]
 related_story = "DevOps"
 tags = ["deployment", "ci-cd"]
 
-# ==================== 任务状态管理 (新增) ====================
+# ==================== 任务状态管理 (已全部完成) ====================
 
 [[tasks]]
 id = "TASK-101"
 title = "设计任务状态数据模型扩展"
-description = "扩展现有 Task 和 UserStory 类型，添加状态字段和状态变更历史"
+description = "扩展 Task/UserStory 类型添加状态字段，定义 status_changes 表"
 type = "technical_task"
 priority = "P0"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = []
 related_story = "US-001"
 tags = ["data-model", "types"]
@@ -1165,11 +1165,11 @@ tags = ["data-model", "types"]
 [[tasks]]
 id = "TASK-102"
 title = "创建状态标签组件"
-description = "创建可复用的状态标签 Badge 组件，支持不同状态的样式"
+description = "StatusBadge 组件（features/tasks/components/status-badge.tsx）"
 type = "technical_task"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-101"]
 related_story = "US-001"
 tags = ["ui", "component"]
@@ -1177,11 +1177,11 @@ tags = ["ui", "component"]
 [[tasks]]
 id = "TASK-103"
 title = "创建任务状态管理 Store"
-description = "使用 Zustand 创建状态管理 Store，支持状态更新和历史记录"
+description = "Zustand Store（features/tasks/stores/task-status-store.ts）"
 type = "technical_task"
 priority = "P0"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-101"]
 related_story = "US-001"
 tags = ["store", "state"]
@@ -1189,7 +1189,7 @@ tags = ["store", "state"]
 [[tasks]]
 id = "TASK-104"
 title = "在任务列表组件中添加状态标签"
-description = "修改 Task 列表组件，显示每个任务的状态标签"
+description = "task-list.tsx 集成 StatusBadge"
 type = "user_story"
 priority = "P0"
 estimation = 2
@@ -1201,7 +1201,7 @@ tags = ["ui", "task"]
 [[tasks]]
 id = "TASK-105"
 title = "在故事卡片中添加状态标签"
-description = "修改 StoryCard 组件，显示用户故事的状态标签"
+description = "StoryCard 组件集成 StatusBadge"
 type = "user_story"
 priority = "P0"
 estimation = 2
@@ -1213,11 +1213,11 @@ tags = ["ui", "story"]
 [[tasks]]
 id = "TASK-106"
 title = "在故事地图画布中添加状态概览"
-description = "在故事地图视图顶部或侧边添加状态概览统计"
+description = "StatusOverview 组件（features/tasks/components/status-overview.tsx）"
 type = "user_story"
 priority = "P0"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-105"]
 related_story = "US-002"
 tags = ["ui", "visualization"]
@@ -1225,11 +1225,11 @@ tags = ["ui", "visualization"]
 [[tasks]]
 id = "TASK-107"
 title = "创建项目进度统计组件"
-description = "创建显示项目整体进度和统计的组件"
+description = "ProgressStats 组件（features/tasks/components/progress-stats.tsx）"
 type = "user_story"
 priority = "P1"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-103"]
 related_story = "US-003"
 tags = ["ui", "dashboard"]
@@ -1237,11 +1237,11 @@ tags = ["ui", "dashboard"]
 [[tasks]]
 id = "TASK-108"
 title = "实现任务状态切换功能"
-description = "在任务卡片上添加状态切换交互，支持点击选择新状态"
+description = "StatusSelect 组件（features/tasks/components/status-select.tsx）"
 type = "user_story"
 priority = "P0"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-103"]
 related_story = "US-004"
 tags = ["ui", "interaction"]
@@ -1249,11 +1249,11 @@ tags = ["ui", "interaction"]
 [[tasks]]
 id = "TASK-109"
 title = "实现用户故事状态切换功能"
-description = "在故事卡片上添加状态切换交互"
+description = "StoryCard 集成 StatusSelect"
 type = "user_story"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-108"]
 related_story = "US-004"
 tags = ["ui", "interaction"]
@@ -1261,11 +1261,11 @@ tags = ["ui", "interaction"]
 [[tasks]]
 id = "TASK-110"
 title = "实现批量状态更新功能"
-description = "支持选中多个任务/故事，一次性更新状态"
+description = "BulkUpdateDialog 组件（features/tasks/components/bulk-update-dialog.tsx）"
 type = "user_story"
 priority = "P1"
 estimation = 3
-status = "todo"
+status = "done"
 dependencies = ["TASK-108"]
 related_story = "US-005"
 tags = ["ui", "bulk"]
@@ -1273,11 +1273,11 @@ tags = ["ui", "bulk"]
 [[tasks]]
 id = "TASK-111"
 title = "实现状态变更历史记录功能"
-description = "记录每次状态变更的详细信息并支持查询"
+description = "StatusHistory 组件 + status-change.repository.ts"
 type = "user_story"
 priority = "P2"
 estimation = 4
-status = "todo"
+status = "done"
 dependencies = ["TASK-103"]
 related_story = "US-006"
 tags = ["audit", "history"]
@@ -1285,11 +1285,11 @@ tags = ["audit", "history"]
 [[tasks]]
 id = "TASK-112"
 title = "创建状态筛选器组件"
-description = "创建可复用的状态筛选器，支持单选和多选"
+description = "StatusFilter 组件（features/tasks/components/status-filter.tsx）"
 type = "technical_task"
 priority = "P0"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-102"]
 related_story = "US-007"
 tags = ["ui", "filter"]
@@ -1297,7 +1297,7 @@ tags = ["ui", "filter"]
 [[tasks]]
 id = "TASK-113"
 title = "在任务列表中添加状态筛选"
-description = "在任务列表页面集成状态筛选器"
+description = "TasksPage 集成 StatusFilter"
 type = "user_story"
 priority = "P0"
 estimation = 2
@@ -1309,7 +1309,7 @@ tags = ["ui", "task"]
 [[tasks]]
 id = "TASK-114"
 title = "在故事地图中添加状态筛选"
-description = "在故事地图视图集成状态筛选器"
+description = "故事地图视图集成 StatusFilter"
 type = "user_story"
 priority = "P0"
 estimation = 2
@@ -1321,11 +1321,11 @@ tags = ["ui", "story"]
 [[tasks]]
 id = "TASK-115"
 title = "实现状态视图切换功能"
-description = "提供视图切换组件，支持预设的状态视图"
+description = "ViewSwitcher 组件（features/tasks/components/view-switcher.tsx）"
 type = "user_story"
 priority = "P1"
 estimation = 2
-status = "todo"
+status = "done"
 dependencies = ["TASK-112"]
 related_story = "US-008"
 tags = ["ui", "view"]
@@ -1333,7 +1333,7 @@ tags = ["ui", "view"]
 [[tasks]]
 id = "TASK-116"
 title = "实现筛选预设保存功能"
-description = "支持将筛选条件保存为预设，方便快速调用"
+description = "PresetManager 组件（features/tasks/components/preset-manager.tsx）"
 type = "user_story"
 priority = "P2"
 estimation = 3
@@ -1353,3 +1353,53 @@ status = "backlog"
 dependencies = ["TASK-103", "TASK-108"]
 related_story = "US-001"
 tags = ["testing", "quality"]
+
+# ==================== 数据库持久化升级 (PGlite) ====================
+
+[[tasks]]
+id = "TASK-118"
+title = "集成 PGlite 浏览器端数据库"
+description = "使用 @electric-sql/pglite 在 IndexedDB 上运行 PostgreSQL（lib/db/client.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 4
+status = "done"
+dependencies = ["TASK-006"]
+related_story = "US-021"
+tags = ["database", "pglite", "indexeddb"]
+
+[[tasks]]
+id = "TASK-119"
+title = "定义 Drizzle ORM Schema"
+description = "使用 Drizzle 定义所有表的类型安全 Schema（lib/db/schema/）"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-118"]
+related_story = "US-022"
+tags = ["drizzle", "schema", "types"]
+
+[[tasks]]
+id = "TASK-120"
+title = "实现 Repository 数据访问层"
+description = "按模块实现 Repository（lib/db/repositories/project/journey/story/task/status-change）"
+type = "technical_task"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-119"]
+related_story = "US-022"
+tags = ["repository", "data-access"]
+
+[[tasks]]
+id = "TASK-121"
+title = "修复 TOML 导入日期兼容性"
+description = "safeDate() 函数处理无效 created_at/updated_at 值，避免 Invalid time value 错误"
+type = "technical_task"
+priority = "P0"
+estimation = 1
+status = "done"
+dependencies = ["TASK-120"]
+related_story = "US-023"
+tags = ["bugfix", "date", "toml-import"]

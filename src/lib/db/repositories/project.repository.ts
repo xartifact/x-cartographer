@@ -10,10 +10,15 @@ import type { UserStory } from '@/types';
 import type { Task } from '@/types';
 import { LLMProvider } from '@/types';
 
+function safeDate(value: unknown): Date {
+  if (!value) return new Date();
+  const d = new Date(value as string);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
 function getDefaultSettings(): ProjectSettings {
   return {
     llm_provider: LLMProvider.OPENAI,
-    llm_model: 'gpt-4o',
     auto_save: true,
     display_preferences: {
       show_priority_colors: true,
@@ -253,8 +258,8 @@ export class ProjectRepository {
           description: project.description,
           metadata: project.metadata,
           settings: project.settings,
-          createdAt: new Date(project.created_at),
-          updatedAt: new Date(project.updated_at),
+          createdAt: safeDate(project.created_at),
+          updatedAt: safeDate(project.updated_at),
         })
         .onConflictDoUpdate({
           target: projects.id,
@@ -263,7 +268,7 @@ export class ProjectRepository {
             description: project.description,
             metadata: project.metadata,
             settings: project.settings,
-            updatedAt: new Date(project.updated_at),
+            updatedAt: safeDate(project.updated_at),
           },
         });
 
@@ -279,8 +284,8 @@ export class ProjectRepository {
           description: journey.description,
           persona: journey.persona,
           order: journey.order,
-          createdAt: new Date(journey.created_at),
-          updatedAt: new Date(journey.updated_at),
+          createdAt: safeDate(journey.created_at),
+          updatedAt: safeDate(journey.updated_at),
         });
 
         for (const story of journey.stories || []) {
@@ -296,8 +301,8 @@ export class ProjectRepository {
             status: story.status ?? 'backlog',
             position: story.position ?? null,
             order: story.order,
-            createdAt: new Date(story.created_at),
-            updatedAt: new Date(story.updated_at),
+            createdAt: safeDate(story.created_at),
+            updatedAt: safeDate(story.updated_at),
           });
 
           for (const task of story.tasks || []) {
@@ -313,10 +318,10 @@ export class ProjectRepository {
               dependencies: task.dependencies,
               tags: task.tags,
               assignee: task.assignee ?? null,
-              startedAt: task.started_at ? new Date(task.started_at) : null,
-              completedAt: task.completed_at ? new Date(task.completed_at) : null,
-              createdAt: new Date(task.created_at),
-              updatedAt: new Date(task.updated_at),
+              startedAt: task.started_at ? safeDate(task.started_at) : null,
+              completedAt: task.completed_at ? safeDate(task.completed_at) : null,
+              createdAt: safeDate(task.created_at),
+              updatedAt: safeDate(task.updated_at),
             });
           }
         }

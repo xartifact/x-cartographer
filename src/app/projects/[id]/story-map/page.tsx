@@ -27,21 +27,12 @@ export default function StoryMapRoutePage() {
   }
 
   return (
-    <div className="container py-6">
-      {/* 页面标题 */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">用户故事地图</h1>
-        <p className="text-muted-foreground">可视化展示用户旅程、用户故事和任务</p>
-      </div>
-
-      {/* 故事地图画布 */}
-      <div className="border rounded-lg h-[600px] overflow-hidden">
-        <StoryMapCanvas
-          journeys={project.user_journeys || []}
-          projectId={projectId}
-          className="h-full"
-        />
-      </div>
+    <div className="h-[calc(100vh-9.5rem)] overflow-hidden">
+      <StoryMapCanvas
+        journeys={project.user_journeys || []}
+        projectId={projectId}
+        className="h-full w-full"
+      />
     </div>
   );
 }

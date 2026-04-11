@@ -9,3 +9,4 @@ export {
   userStoriesRelations,
   tasksRelations,
 } from './relations';
+export { appSettings } from './app-settings';

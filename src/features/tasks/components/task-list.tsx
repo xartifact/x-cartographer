@@ -40,6 +40,9 @@ interface TaskListProps {
   /** 是否可编辑状态 */
   editableStatus?: boolean;
 
+  /** 故事/旅程上下文映射 */
+  storyContextMap?: Record<string, { storyTitle: string; journeyName: string }>;
+
   /** 自定义类名 */
   className?: string;
 }
@@ -69,6 +72,7 @@ export function TaskList({
   selectedIds = [],
   showStatusFilter = true,
   editableStatus = false,
+  storyContextMap,
   className,
 }: TaskListProps) {
   const [statusFilter, setStatusFilter] = React.useState<(TaskStatus | StoryStatus)[]>([]);
@@ -162,6 +166,7 @@ export function TaskList({
               onClick={onTaskClick}
               editableStatus={editableStatus}
               onStatusCycle={handleStatusCycle}
+              storyContext={storyContextMap?.[task.story_id]}
             />
           ))}
         </div>
@@ -181,6 +186,7 @@ interface TaskCardProps {
   onClick?: (task: Task) => void;
   editableStatus?: boolean;
   onStatusCycle?: (task: Task) => void;
+  storyContext?: { storyTitle: string; journeyName: string };
 }
 
 function TaskCard({
@@ -191,6 +197,7 @@ function TaskCard({
   onClick,
   editableStatus,
   onStatusCycle,
+  storyContext,
 }: TaskCardProps) {
   const priority = priorityConfig[task.priority];
   const typeInfo = typeConfig[task.type] || typeConfig.technical_task;
@@ -285,12 +292,17 @@ function TaskCard({
                 </div>
               )}
 
-              {/* 所属故事 */}
-              {task.story_id && (
-                <span className="text-xs text-muted-foreground ml-auto">
-                  {task.story_id}
+              {/* 所属故事/旅程 */}
+              {storyContext ? (
+                <span
+                  className="text-xs text-muted-foreground ml-auto truncate max-w-[140px]"
+                  title={`${storyContext.journeyName} › ${storyContext.storyTitle}`}
+                >
+                  {storyContext.journeyName} › {storyContext.storyTitle}
                 </span>
-              )}
+              ) : task.story_id ? (
+                <span className="text-xs text-muted-foreground ml-auto">{task.story_id}</span>
+              ) : null}
             </div>
           </div>
 

@@ -4,7 +4,7 @@
  * 故事地图画布组件
  */
 
-import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -20,14 +20,15 @@ import 'reactflow/dist/style.css';
 import { Loader2, Map } from 'lucide-react';
 import { StoryNode } from './story-node';
 import { StoryDetailPanel } from './story-detail-panel';
+import { StoryEditDialog } from './story-edit-dialog';
 import { FilterPanel } from './filter-panel';
 import { ZoomControls } from './zoom-controls';
 import { useStoryMapStore, filterStories } from '../stores/story-map-store';
-import type { StoryNodeData } from '../types';
 import { Priority } from '@/types';
 import { UserJourney, UserStory } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useProjectStore } from '@/features/projects/stores';
 
 interface StoryMapCanvasProps {
   /** 用户旅程列表 */
@@ -39,7 +40,7 @@ interface StoryMapCanvasProps {
 
 // 列宽和行高配置
 const COLUMN_WIDTH = 280;
-const ROW_HEIGHT = 140;
+const ROW_HEIGHT = 180;
 const HEADER_HEIGHT = 100;
 const COLUMN_GAP = 24;
 
@@ -84,8 +85,11 @@ const allNodeTypes: NodeTypes = {
   empty: EmptyNode as any,
 };
 
-export function StoryMapCanvas({ journeys, className }: StoryMapCanvasProps) {
+export function StoryMapCanvas({ journeys, projectId, className }: StoryMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingStory, setEditingStory] = useState<UserStory | null>(null);
 
   // 从 store 获取状态
   const {
@@ -93,6 +97,19 @@ export function StoryMapCanvas({ journeys, className }: StoryMapCanvasProps) {
     setSelectedStory,
     filter,
   } = useStoryMapStore();
+
+  const { projects, modifyProject } = useProjectStore();
+  const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
+
+  // 从响应式 project 中推导当前选中故事，确保 modifyProject 后数据是最新的
+  const selectedStoryLive = useMemo(() => {
+    if (!selectedStory || !project) return selectedStory;
+    for (const journey of project.user_journeys) {
+      const found = journey.stories?.find((s) => s.id === selectedStory.id);
+      if (found) return found;
+    }
+    return selectedStory;
+  }, [project, selectedStory]);
 
   // 筛选后的旅程
   const filteredJourneys = useMemo(
@@ -201,12 +218,26 @@ export function StoryMapCanvas({ journeys, className }: StoryMapCanvasProps) {
     setSelectedStory(null);
   }, [setSelectedStory]);
 
+  // 保存故事编辑
+  const handleSaveStory = useCallback(async (updated: UserStory) => {
+    if (!project) return;
+    const updatedJourneys = project.user_journeys.map((journey) => ({
+      ...journey,
+      stories: journey.stories?.map((s) => s.id === updated.id ? updated : s),
+    }));
+    await modifyProject(project.id, { user_journeys: updatedJourneys });
+    // 如果当前选中的就是被编辑的故事，更新选中状态
+    if (selectedStory?.id === updated.id) {
+      setSelectedStory(updated);
+    }
+  }, [project, modifyProject, selectedStory, setSelectedStory]);
+
   // 查找选中故事对应的旅程名称
   const selectedJourneyName = useMemo(() => {
-    if (!selectedStory) return undefined;
-    const journey = journeys.find((j) => j.id === selectedStory.journey_id);
+    if (!selectedStoryLive) return undefined;
+    const journey = journeys.find((j) => j.id === selectedStoryLive.journey_id);
     return journey?.name;
-  }, [selectedStory, journeys]);
+  }, [selectedStoryLive, journeys]);
 
   // 空状态
   if (journeys.length === 0) {
@@ -300,13 +331,25 @@ export function StoryMapCanvas({ journeys, className }: StoryMapCanvasProps) {
       </div>
 
       {/* 详情面板 */}
-      <div className="shrink-0">
-        <StoryDetailPanel
-          story={selectedStory}
-          journeyName={selectedJourneyName}
-          onClose={() => setSelectedStory(null)}
-        />
-      </div>
+      {project && (
+        <div className="shrink-0">
+          <StoryDetailPanel
+            story={selectedStoryLive}
+            journeyName={selectedJourneyName}
+            project={project}
+            onClose={() => setSelectedStory(null)}
+            onEdit={(s) => { setEditingStory(s); setEditDialogOpen(true); }}
+          />
+        </div>
+      )}
+
+      {/* 故事编辑对话框 */}
+      <StoryEditDialog
+        open={editDialogOpen}
+        story={editingStory}
+        onOpenChange={setEditDialogOpen}
+        onSave={handleSaveStory}
+      />
     </div>
   );
 }

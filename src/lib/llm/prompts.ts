@@ -181,49 +181,80 @@ export const acceptanceCriteriaPrompt: PromptTemplate = {
 
 /**
  * 任务拆解 Prompt
- * 将用户故事拆解为可执行任务
+ * 将用户故事拆解为可执行任务，结合产品全景上下文避免重复并识别真实依赖
  */
 export const taskBreakdownPrompt: PromptTemplate = {
   system: `你是一位技术负责人，擅长将用户故事拆解为可执行的开发任务。
 
 任务拆解原则：
 - 每个任务应该是 2-4 小时可完成的工作
-- 任务类型：user_story（功能）、technical_task（技术）、bug_fix（修复）、spike（探索）
-- 优先级：P0（必须）、P1（重要）、P2（可选）、P3（未来）
-- 明确任务间的依赖关系
+- 任务类型：user_story（功能实现）、technical_task（技术/基础设施）、bug_fix（修复）、spike（探索/调研）
+- 优先级：P0（必须，阻塞上线）、P1（重要）、P2（可选）、P3（未来迭代）
+- 先做技术基础设施，再做功能实现，最后做 UI
+- 若提供了技术栈，任务标题和描述需结合具体技术（如"编写 Drizzle schema"而非"设计数据表"）
+
+依赖关系规则（重要）：
+- 若依赖【本次生成的任务】：用序号表示，格式为 "task-1"、"task-2"（序号从 1 开始，对应返回数组的下标）
+- 若依赖【已有任务】（会在上下文中提供真实 id）：直接使用其 id，如 "TASK-abc123"
+- 没有依赖时填空数组 []
 
 返回 JSON 格式：
 {
   "tasks": [
     {
-      "title": "任务标题",
-      "description": "任务描述",
+      "title": "任务标题（结合技术栈，具体可执行）",
+      "description": "任务描述（说明做什么、为什么、关键技术点）",
       "type": "user_story|technical_task|bug_fix|spike",
       "priority": "P0|P1|P2|P3",
-      "estimation": 估算工时（小时），
-      "dependencies": ["依赖的任务ID"],
+      "estimation": 估算工时（数字，小时）,
+      "dependencies": ["task-2"] 或 ["TASK-abc123"] 或 [],
       "tags": ["标签1", "标签2"]
     }
   ]
 }
 
-注意：
-- 先做技术基础设施，再做功能实现
-- 考虑前后端分离、API 设计、数据模型等
-- 任务应该按照依赖关系排序`,
+注意：避免生成已在上下文中存在的重复任务。`,
 
-  user: (params) => `将以下用户故事拆解为可执行任务：
+  user: (params) => {
+    const techStack = params.techStack as string[] | undefined;
+    const storyMapSummary = params.storyMapSummary as string | undefined;
+    const currentJourneyTasks = params.currentJourneyTasks as Array<{ id: string; title: string }> | undefined;
 
-用户故事：${params.storyTitle as string}
+    const sections: string[] = [];
 
+    // 产品背景
+    const backgroundLines: string[] = [];
+    if (params.projectName) backgroundLines.push(`名称：${params.projectName}`);
+    if (params.projectDescription) backgroundLines.push(`描述：${params.projectDescription}`);
+    if (techStack?.length) backgroundLines.push(`技术栈：${techStack.join(', ')}`);
+    if (backgroundLines.length) {
+      sections.push(`【产品背景】\n${backgroundLines.join('\n')}`);
+    }
+
+    // 故事地图摘要
+    if (storyMapSummary) {
+      sections.push(`【当前用户故事地图（摘要）】\n${storyMapSummary}`);
+    }
+
+    // 当前旅程已有任务
+    if (currentJourneyTasks?.length) {
+      const taskLines = currentJourneyTasks.map((t) => `- [${t.id}] ${t.title}`).join('\n');
+      sections.push(`【当前旅程已有任务（可在 dependencies 中直接引用其 id）】\n${taskLines}`);
+    }
+
+    // 待拆解的故事
+    const criteriaLines = (params.acceptanceCriteria as string[])
+      .map((c, i) => `${i + 1}. ${c}`)
+      .join('\n');
+
+    sections.push(`【待拆解的用户故事】
+标题：${params.storyTitle as string}
 描述：${params.storyDescription as string}
-
 验收标准：
-${(params.acceptanceCriteria as string[]).map((c, i) => `${i + 1}. ${c}`).join('\n')}
+${criteriaLines}`);
 
-${params.technicalContext ? `技术上下文：${params.technicalContext}` : ''}
-
-请拆解为开发任务，以 JSON 格式返回。`,
+    return sections.join('\n\n') + '\n\n请拆解为开发任务，以 JSON 格式返回。';
+  },
 };
 
 /**

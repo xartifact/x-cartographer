@@ -1,11 +1,12 @@
 import { defineConfig } from 'drizzle-kit';
 
+const databaseUrl = process.env.DATABASE_URL;
+
 export default defineConfig({
   dialect: 'postgresql',
   schema: './src/lib/db/schema/index.ts',
   out: './src/lib/db/migrations',
-  driver: 'pglite',
-  dbCredentials: {
-    url: './data/pglite',
-  },
+  ...(databaseUrl
+    ? { dbCredentials: { url: databaseUrl } }
+    : { driver: 'pglite', dbCredentials: { url: './data/pglite' } }),
 });

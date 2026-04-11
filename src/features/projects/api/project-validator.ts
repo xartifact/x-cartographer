@@ -50,9 +50,6 @@ export function validateProject(project: Project): ValidationResult {
     if (!project.settings.llm_provider) {
       errors.push('LLM provider is required');
     }
-    if (!project.settings.llm_model) {
-      errors.push('LLM model is required');
-    }
   }
 
   // 验证用户旅程

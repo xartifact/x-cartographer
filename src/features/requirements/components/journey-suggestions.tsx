@@ -172,8 +172,11 @@ interface JourneySuggestionsProps {
   /** 切换采纳状态回调 */
   onToggleAdopt: (id: string) => void;
 
-  /** 采纳并添加到项目回调 */
+  /** 单个旅程添加到项目 */
   onApply: (id: string) => void;
+
+  /** 批量添加所有已采纳的旅程到项目 */
+  onApplyAll?: () => void;
 
   /** 是否正在处理 */
   isProcessing: boolean;
@@ -186,6 +189,7 @@ export function JourneySuggestions({
   suggestions,
   onToggleAdopt,
   onApply,
+  onApplyAll,
   isProcessing,
   className,
 }: JourneySuggestionsProps) {
@@ -224,11 +228,7 @@ export function JourneySuggestions({
             <Button
               variant="default"
               size="sm"
-              onClick={() => {
-                suggestions
-                  .filter((s) => s.adopted)
-                  .forEach((s) => onApply(s.id));
-              }}
+              onClick={onApplyAll ?? (() => suggestions.filter((s) => s.adopted).forEach((s) => onApply(s.id)))}
               disabled={isProcessing}
             >
               <Sparkles className="h-4 w-4 mr-1" />

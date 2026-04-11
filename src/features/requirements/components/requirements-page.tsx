@@ -15,7 +15,12 @@ import { useDraftAutosave } from '../hooks/use-draft-autosave';
 import { RequirementInput } from './requirement-input';
 import { AnalysisResult } from './analysis-result';
 import { JourneySuggestions } from './journey-suggestions';
+import { useProjectStore } from '@/features/projects/stores';
 import { cn } from '@/lib/utils';
+import { nanoid } from 'nanoid';
+import type { UserJourney, UserStory } from '@/types';
+import { Priority } from '@/types';
+import type { JourneySuggestion } from '../types';
 
 /**
  * 视图模式
@@ -28,6 +33,8 @@ type ViewMode = 'split' | 'input' | 'result';
 export function RequirementsPage() {
   const params = useParams();
   const projectId = params.id as string;
+
+  const { projects, modifyProject } = useProjectStore();
 
   // 从 Hook 获取状态和方法
   const {
@@ -96,17 +103,81 @@ export function RequirementsPage() {
     }
   };
 
+  // 将 JourneySuggestion 转换为 UserJourney
+  function suggestionToJourney(s: JourneySuggestion, order: number): UserJourney {
+    const now = new Date().toISOString();
+    const stories: UserStory[] = s.suggestedStories.map((title, idx) => ({
+      id: `US-${nanoid(8)}`,
+      journey_id: '', // 稍后由 modifyProject 关联
+      title,
+      description: '',
+      priority: Priority.MEDIUM,
+      estimation: 0,
+      acceptance_criteria: [],
+      tags: [],
+      tasks: [],
+      order: idx,
+      status: 'backlog' as const,
+      created_at: now,
+      updated_at: now,
+    }));
+
+    const journey: UserJourney = {
+      id: `UJ-${nanoid(8)}`,
+      project_id: projectId,
+      name: s.name,
+      description: s.description,
+      persona: s.persona,
+      stories,
+      order,
+      created_at: now,
+      updated_at: now,
+    };
+
+    // 补充 story.journey_id
+    journey.stories = stories.map((st) => ({ ...st, journey_id: journey.id }));
+    return journey;
+  }
+
+  // 批量添加所有已采纳的旅程到项目（一次事务）
+  const handleApplyAllAdopted = async () => {
+    const adopted = journeySuggestions.filter((s) => s.adopted);
+    if (!adopted.length) return;
+
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return;
+
+    setIsApplyingJourney(true);
+    try {
+      const base = project.user_journeys ?? [];
+      const newJourneys = adopted.map((s, i) => suggestionToJourney(s, base.length + i));
+      await modifyProject(projectId, { user_journeys: [...base, ...newJourneys] });
+      adopted.forEach((s) => adoptJourney(s.id));
+    } finally {
+      setIsApplyingJourney(false);
+    }
+  };
+
   // 处理添加到项目
   const handleApplyJourney = async (id: string) => {
+    const suggestion = journeySuggestions.find((s) => s.id === id);
+    if (!suggestion) return;
+
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return;
+
     setIsApplyingJourney(true);
-
-    // 模拟添加到项目
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // 这里可以调用项目的 store 来实际添加旅程
-    console.log('添加到项目:', id);
-
-    setIsApplyingJourney(false);
+    try {
+      const existingJourneys = project.user_journeys ?? [];
+      const newJourney = suggestionToJourney(suggestion, existingJourneys.length);
+      await modifyProject(projectId, {
+        user_journeys: [...existingJourneys, newJourney],
+      });
+      // 标记为已采纳
+      adoptJourney(id);
+    } finally {
+      setIsApplyingJourney(false);
+    }
   };
 
   // 加载状态
@@ -198,6 +269,7 @@ export function RequirementsPage() {
               suggestions={journeySuggestions}
               onToggleAdopt={handleToggleAdopt}
               onApply={handleApplyJourney}
+              onApplyAll={handleApplyAllAdopted}
               isProcessing={isApplyingJourney}
             />
           </div>

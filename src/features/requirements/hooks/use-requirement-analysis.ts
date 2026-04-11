@@ -1,5 +1,8 @@
 /**
  * 需求分析 Hook
+ *
+ * 调用服务端 LLM Server Actions 分析需求文本。
+ * API Key 存储在服务端 DB，客户端只传递 provider / model 配置。
  */
 
 'use client';
@@ -7,6 +10,8 @@
 import { useCallback } from 'react';
 import { nanoid } from 'nanoid';
 import { useRequirementStore } from '../stores/requirement-store';
+import { useProjectStore } from '@/features/projects/stores';
+import { analyzeRequirements, generateJourneySuggestions } from '@/app/actions/llm.actions';
 import type {
   RequirementAnalysis,
   UserPersona,
@@ -14,138 +19,17 @@ import type {
   UseScenario,
   JourneySuggestion,
 } from '../types';
+import { LLMProvider } from '@/types';
 
-/**
- * 模拟 LLM 分析函数
- * 实际项目中这里应该调用真实的 LLM API
- */
-async function mockAnalyzeRequirement(
-  projectId: string,
-  text: string
-): Promise<RequirementAnalysis> {
-  // 模拟 API 延迟
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+// ─── 辅助：获取项目 LLM provider ─────────────────────────────────────────────
 
-  // 解析需求文本，生成模拟分析结果
-  const personas: UserPersona[] = [
-    {
-      name: '产品用户',
-      description: '使用产品的目标用户群体',
-      goals: ['提高工作效率', '简化操作流程'],
-      painPoints: ['功能复杂难以上手', '缺少自动化功能'],
-    },
-  ];
-
-  const features: FeaturePoint[] = [
-    {
-      name: '用户认证',
-      description: '用户注册、登录和权限管理功能',
-      priority: 'high',
-      complexity: 'medium',
-    },
-    {
-      name: '数据管理',
-      description: '数据的增删改查操作',
-      priority: 'high',
-      complexity: 'simple',
-    },
-    {
-      name: '报表导出',
-      description: '支持多种格式的数据导出',
-      priority: 'medium',
-      complexity: 'medium',
-    },
-  ];
-
-  const scenarios: UseScenario[] = [
-    {
-      name: '新用户注册',
-      description: '新用户完成注册流程',
-      trigger: '用户访问注册页面',
-      outcome: '用户成功创建账户并收到确认邮件',
-      relatedPersonas: ['产品用户'],
-      relatedFeatures: ['用户认证'],
-    },
-    {
-      name: '数据查询',
-      description: '用户查询特定数据',
-      trigger: '用户进入数据列表页面',
-      outcome: '用户看到筛选后的数据结果',
-      relatedPersonas: ['产品用户'],
-      relatedFeatures: ['数据管理'],
-    },
-  ];
-
-  return {
-    id: nanoid(),
-    projectId,
-    originalText: text,
-    personas,
-    features,
-    scenarios,
-    analyzedAt: new Date().toISOString(),
-    confidenceScore: 0.85,
-  };
+function getLLMProvider(projectId: string, projects: ReturnType<typeof useProjectStore.getState>['projects']): LLMProvider {
+  const project = projects.find((p) => p.id === projectId);
+  return project?.settings?.llm_provider ?? LLMProvider.OPENAI;
 }
 
-/**
- * 模拟生成旅程建议函数
- */
-async function mockGenerateJourneySuggestions(
-  analysis: RequirementAnalysis
-): Promise<JourneySuggestion[]> {
-  // 模拟 API 延迟
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+// ─── Hook ────────────────────────────────────────────────────────────────────
 
-  return [
-    {
-      id: nanoid(),
-      name: '新用户注册流程',
-      description: '引导新用户完成注册和个人信息设置',
-      persona: '产品用户',
-      stepCount: 4,
-      priority: 'high',
-      adopted: false,
-      suggestedStories: [
-        '作为新用户，我希望能够通过邮箱注册账户',
-        '作为新用户，我希望能够设置个人资料',
-        '作为注册用户，我希望能够通过邮箱登录',
-      ],
-    },
-    {
-      id: nanoid(),
-      name: '数据管理流程',
-      description: '用户进行数据的增删改查操作',
-      persona: '产品用户',
-      stepCount: 6,
-      priority: 'high',
-      adopted: false,
-      suggestedStories: [
-        '作为用户，我希望能够创建新的数据条目',
-        '作为用户，我希望能够查看数据列表',
-        '作为用户，我希望能够编辑已有数据',
-        '作为用户，我希望能够删除不需要的数据',
-      ],
-    },
-    {
-      id: nanoid(),
-      name: '报表导出流程',
-      description: '用户导出数据报表',
-      persona: '产品用户',
-      stepCount: 3,
-      priority: 'medium',
-      adopted: false,
-      suggestedStories: [
-        '作为用户，我希望能够选择导出格式',
-        '作为用户，我希望能够下载导出文件',
-      ],
-    },
-  ];
-}
-
-/**
- * 需求分析 Hook
- */
 export function useRequirementAnalysis() {
   const {
     inputText,
@@ -163,8 +47,10 @@ export function useRequirementAnalysis() {
     clearAnalysis,
   } = useRequirementStore();
 
+  const { projects } = useProjectStore();
+
   /**
-   * 分析需求文本
+   * 分析需求文本（调用 LLM Server Action）
    */
   const analyze = useCallback(
     async (projectId: string) => {
@@ -173,21 +59,63 @@ export function useRequirementAnalysis() {
         return;
       }
 
+      const provider = getLLMProvider(projectId, projects);
+
       setAnalyzing(true);
       setError(null);
 
       try {
-        const result = await mockAnalyzeRequirement(projectId, inputText);
+        const data = await analyzeRequirements(inputText, provider);
+
+        const personas: UserPersona[] = (data.personas ?? []).map((p) => ({
+          name: p.name ?? '',
+          description: p.description ?? '',
+          goals: p.goals ?? [],
+          painPoints: [],
+        }));
+
+        const features: FeaturePoint[] = (data.features ?? []).map((f) => ({
+          name: f.name ?? '',
+          description: f.description ?? '',
+          priority: f.priority ?? 'medium',
+          complexity: 'medium',
+        }));
+
+        const scenarios: UseScenario[] = (data.scenarios ?? []).map((s) => {
+          const steps = s.steps ?? [];
+          return {
+            name: s.name ?? '',
+            description: s.description ?? '',
+            trigger: steps[0] ?? '',
+            outcome: steps[steps.length - 1] ?? '',
+            relatedPersonas: [],
+            relatedFeatures: [],
+          };
+        });
+
+        const result: RequirementAnalysis = {
+          id: nanoid(),
+          projectId,
+          originalText: inputText,
+          personas,
+          features,
+          scenarios,
+          analyzedAt: new Date().toISOString(),
+          confidenceScore: 0.9,
+        };
+
         setAnalysis(result);
-      } catch {
-        setError('需求分析失败，请稍后重试');
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '需求分析失败，请稍后重试');
+      } finally {
+        setAnalyzing(false);
       }
     },
-    [inputText, setAnalyzing, setError, setAnalysis]
+    [inputText, projects, setAnalyzing, setError, setAnalysis]
   );
 
   /**
-   * 生成用户旅程建议
+   * 基于分析结果生成用户旅程建议（调用 LLM Server Action）
    */
   const generateJourneys = useCallback(async () => {
     if (!analysis) {
@@ -195,36 +123,48 @@ export function useRequirementAnalysis() {
       return;
     }
 
+    const provider = getLLMProvider(analysis.projectId, projects);
+
     setGeneratingJourneys(true);
     setError(null);
 
     try {
-      const suggestions = await mockGenerateJourneySuggestions(analysis);
+      const data = await generateJourneySuggestions(analysis, provider);
+
+      const priorities: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
+
+      const suggestions: JourneySuggestion[] = (data.journeys ?? []).map((j, idx) => ({
+        id: nanoid(),
+        name: j.name ?? '',
+        description: j.description ?? '',
+        persona: j.persona ?? '',
+        stepCount: j.steps?.length ?? 0,
+        priority: priorities[Math.min(idx, 2)],
+        adopted: false,
+        suggestedStories: (j.steps ?? []).map((s) => s.name),
+      }));
+
       setJourneySuggestions(suggestions);
-    } catch {
-      setError('旅程建议生成失败，请稍后重试');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '旅程建议生成失败，请稍后重试');
+    } finally {
+      setGeneratingJourneys(false);
     }
-  }, [analysis, setGeneratingJourneys, setError, setJourneySuggestions]);
+  }, [analysis, projects, setGeneratingJourneys, setError, setJourneySuggestions]);
 
   /**
    * 采纳旅程建议
    */
-  const adoptJourney = useCallback(
-    (suggestionId: string) => {
-      useRequirementStore.getState().setJourneyAdopted(suggestionId, true);
-    },
-    []
-  );
+  const adoptJourney = useCallback((suggestionId: string) => {
+    useRequirementStore.getState().setJourneyAdopted(suggestionId, true);
+  }, []);
 
   /**
    * 取消采纳旅程建议
    */
-  const unadoptJourney = useCallback(
-    (suggestionId: string) => {
-      useRequirementStore.getState().setJourneyAdopted(suggestionId, false);
-    },
-    []
-  );
+  const unadoptJourney = useCallback((suggestionId: string) => {
+    useRequirementStore.getState().setJourneyAdopted(suggestionId, false);
+  }, []);
 
   /**
    * 重置分析状态
@@ -235,7 +175,6 @@ export function useRequirementAnalysis() {
   }, [clearAnalysis, setError]);
 
   return {
-    // 状态
     inputText,
     analysis,
     journeySuggestions,
@@ -244,7 +183,6 @@ export function useRequirementAnalysis() {
     error,
     hasAnalysis: !!analysis,
 
-    // 方法
     setInputText,
     analyze,
     generateJourneys,

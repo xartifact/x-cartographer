@@ -62,8 +62,10 @@ export function RequirementInput({
     clearDraft();
   };
 
+  const MIN_LENGTH = 10;
   const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
   const charCount = value.length;
+  const tooShort = value.trim().length > 0 && value.trim().length < MIN_LENGTH;
 
   return (
     <Card className={cn('h-full', className)}>
@@ -143,6 +145,9 @@ export function RequirementInput({
             <span>字数: {wordCount}</span>
             <span>字符: {charCount}</span>
           </div>
+          {tooShort && (
+            <span className="text-orange-500">至少输入 {MIN_LENGTH} 个字符</span>
+          )}
         </div>
 
         {/* 错误提示 */}
@@ -156,7 +161,7 @@ export function RequirementInput({
         <div className="flex gap-2 pt-2">
           <Button
             onClick={onAnalyze}
-            disabled={isAnalyzing || !value.trim()}
+            disabled={isAnalyzing || !value.trim() || tooShort}
             className="flex-1"
           >
             {isAnalyzing ? (

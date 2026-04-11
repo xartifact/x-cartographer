@@ -15,7 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProjectStore } from '@/features/projects/stores';
 import { TaskList, StatusFilterBar, TaskListEmpty, StatusBadge } from '@/features/tasks/components';
 import { TaskImportDialog } from './task-import-dialog';
-import type { Task, TaskStatus, Project } from '@/types';
+import { TaskCreateDialog } from './task-create-dialog';
+import type { Task, TaskStatus, StoryStatus, Project } from '@/types';
 import type { UpdateProjectDTO } from '@/types';
 import type { AppTask } from '@/lib/toml/task-parser';
 
@@ -27,9 +28,11 @@ interface TasksPageProps {
 export function TasksPage({ project: initialProject }: TasksPageProps) {
   const { modifyProject } = useProjectStore();
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<(TaskStatus | StoryStatus)[]>([]);
   const [selectedTaskIds, setSelectedTaskIds] = React.useState<string[]>([]);
   const [project, setProject] = React.useState(initialProject);
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [importedTasks, setImportedTasks] = React.useState<AppTask[]>([]);
   const [importMeta, setImportMeta] = React.useState<{ projectName: string; createdAt: string } | null>(null);
 
@@ -74,18 +77,35 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
     return [...allTasks, ...imported];
   }, [allTasks, importedTasks]);
 
+  // 故事/旅程上下文 map，用于任务卡片显示归属
+  const storyContextMap = React.useMemo(() => {
+    const map: Record<string, { storyTitle: string; journeyName: string }> = {};
+    project.user_journeys?.forEach((journey) => {
+      journey.stories?.forEach((story) => {
+        map[story.id] = { storyTitle: story.title, journeyName: journey.name };
+      });
+    });
+    return map;
+  }, [project]);
+
   // 过滤任务
   const filteredTasks = React.useMemo(() => {
-    if (!searchQuery) return displayTasks;
-    const query = searchQuery.toLowerCase();
-    return displayTasks.filter(
-      (task) =>
-        task.title.toLowerCase().includes(query) ||
-        task.description.toLowerCase().includes(query) ||
-        task.id.toLowerCase().includes(query) ||
-        task.tags?.some((tag) => tag.toLowerCase().includes(query))
-    );
-  }, [displayTasks, searchQuery]);
+    let result = displayTasks;
+    if (statusFilter.length > 0) {
+      result = result.filter((task) => statusFilter.includes(task.status as TaskStatus | StoryStatus));
+    }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (task) =>
+          task.title.toLowerCase().includes(query) ||
+          task.description.toLowerCase().includes(query) ||
+          task.id.toLowerCase().includes(query) ||
+          task.tags?.some((tag) => tag.toLowerCase().includes(query))
+      );
+    }
+    return result;
+  }, [displayTasks, statusFilter, searchQuery]);
 
   // 按状态分组统计
   const statusStats = React.useMemo(() => {
@@ -132,6 +152,22 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   const totalCount = displayTasks.length;
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  // 处理新建任务（绑定到指定故事）
+  const handleCreateTask = async (storyId: string, task: Task) => {
+    const updatedJourneys = project.user_journeys?.map((journey) => ({
+      ...journey,
+      stories: journey.stories?.map((story) =>
+        story.id === storyId
+          ? { ...story, tasks: [...(story.tasks ?? []), task] }
+          : story
+      ),
+    }));
+    if (updatedJourneys) {
+      const updated = await modifyProject(project.id, { user_journeys: updatedJourneys });
+      if (updated) setProject(updated);
+    }
+  };
+
   // 处理导入
   const handleImport = (tasks: AppTask[], metadata: { project_name: string; created_at: string }) => {
     setImportedTasks(tasks);
@@ -157,8 +193,8 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
             className="w-64"
           />
           <StatusFilterBar
-            selectedStatuses={[]}
-            onStatusChange={() => {}}
+            selectedStatuses={statusFilter}
+            onStatusChange={setStatusFilter}
             isTask={true}
             placeholder="所有状态"
           />
@@ -172,7 +208,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
             <Download className="h-4 w-4 mr-2" />
             导出
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             新建任务
           </Button>
@@ -250,8 +286,9 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
               onStatusChange={handleStatusChange}
               onSelectionChange={setSelectedTaskIds}
               selectedIds={selectedTaskIds}
-              showStatusFilter={true}
+              showStatusFilter={false}
               editableStatus={true}
+              storyContextMap={storyContextMap}
             />
           ) : (
             <TaskListEmpty message="暂无任务，请先创建用户故事并拆解任务" />
@@ -324,6 +361,14 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
         onImport={handleImport}
+      />
+
+      {/* 新建任务对话框 */}
+      <TaskCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        project={project}
+        onSave={handleCreateTask}
       />
     </div>
   );

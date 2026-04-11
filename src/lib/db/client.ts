@@ -1,11 +1,13 @@
+import fs from 'fs';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import * as schema from './schema';
 
 type DbInstance = ReturnType<typeof drizzlePglite<typeof schema>>;
 
 let db: DbInstance | null = null;
-let pgliteClient: PGlite | null = null;
 let initPromise: Promise<void> | null = null;
 
 const TABLE_SQLS = [
@@ -70,32 +72,39 @@ const TABLE_SQLS = [
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS "app_settings" (
+    "key" text PRIMARY KEY NOT NULL,
+    "value" text NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  )`,
 ];
 
-function createPgliteClient(): PGlite {
-  if (typeof window !== 'undefined') {
-    return new PGlite('idb://x-product-roadmap');
-  }
-  return new PGlite('./data/pglite');
-}
-
 async function initializeDb(): Promise<void> {
-  if (!pgliteClient) {
-    console.log('[DB] Creating PGlite client...');
-    pgliteClient = createPgliteClient();
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (databaseUrl) {
+    console.log('[DB] Connecting to PostgreSQL...');
+    const pool = new Pool({ connectionString: databaseUrl });
+    for (const sql of TABLE_SQLS) {
+      await pool.query(sql);
+    }
+    db = drizzlePg(pool, { schema }) as unknown as DbInstance;
+    console.log('[DB] PostgreSQL ready');
+  } else {
+    console.log('[DB] Starting PGlite (file)...');
+    const pgliteDir = `${process.cwd()}/data/pglite`;
+    fs.mkdirSync(pgliteDir, { recursive: true });
+    const pglite = new PGlite(pgliteDir);
+    for (const sql of TABLE_SQLS) {
+      await pglite.exec(sql);
+    }
+    db = drizzlePglite(pglite, { schema });
+    console.log('[DB] PGlite ready');
   }
-  // 逐条执行建表 SQL
-  for (const sql of TABLE_SQLS) {
-    await pgliteClient.exec(sql);
-  }
-  console.log('[DB] Tables created successfully');
-  db = drizzlePglite(pgliteClient, { schema });
-  console.log('[DB] Drizzle instance ready');
 }
 
 export async function ensureDb(): Promise<DbInstance> {
   if (db) return db;
-
   if (!initPromise) {
     initPromise = initializeDb();
   }

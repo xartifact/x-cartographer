@@ -145,8 +145,9 @@ export function ProjectNav({
           const href = normalizeHref(item.href);
           const active = isActive(href);
 
-          const content = (
+          return (
             <Link
+              key={item.href}
               href={href}
               className={cn(
                 'flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap',
@@ -161,8 +162,6 @@ export function ProjectNav({
               <span>{item.label}</span>
             </Link>
           );
-
-          return content;
         })}
       </nav>
     </div>
