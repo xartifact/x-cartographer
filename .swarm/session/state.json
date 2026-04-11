@@ -1,0 +1,147 @@
+{
+  "version": 2,
+  "writtenAt": 1775727911547,
+  "toolAggregates": {
+    "glob": {
+      "tool": "glob",
+      "count": 1,
+      "successCount": 1,
+      "failureCount": 0,
+      "totalDuration": 23
+    },
+    "question": {
+      "tool": "question",
+      "count": 1,
+      "successCount": 1,
+      "failureCount": 0,
+      "totalDuration": 11378
+    },
+    "bash": {
+      "tool": "bash",
+      "count": 6,
+      "successCount": 6,
+      "failureCount": 0,
+      "totalDuration": 286
+    },
+    "todowrite": {
+      "tool": "todowrite",
+      "count": 2,
+      "successCount": 2,
+      "failureCount": 0,
+      "totalDuration": 13
+    }
+  },
+  "activeAgent": {
+    "ses_28e5ffc20ffedMKNTffqSW5Lwj": "build"
+  },
+  "delegationChains": {},
+  "agentSessions": {
+    "ses_28e5ffc20ffedMKNTffqSW5Lwj": {
+      "agentName": "build",
+      "lastToolCallTime": 1775727911540,
+      "lastAgentEventTime": 1775727805452,
+      "delegationActive": true,
+      "activeInvocationId": 1,
+      "lastInvocationIdByAgent": {
+        "build": 1
+      },
+      "windows": {
+        "build:1": {
+          "id": 1,
+          "agentName": "build",
+          "startedAtMs": 1775727805452,
+          "toolCalls": 10,
+          "consecutiveErrors": 0,
+          "hardLimitHit": false,
+          "lastSuccessTimeMs": 1775727911546,
+          "recentToolCalls": [
+            {
+              "tool": "glob",
+              "argsHash": 6666332593111630000,
+              "timestamp": 1775727818116
+            },
+            {
+              "tool": "question",
+              "argsHash": 5679010815922845000,
+              "timestamp": 1775727829305
+            },
+            {
+              "tool": "bash",
+              "argsHash": 2126144048570932000,
+              "timestamp": 1775727848778
+            },
+            {
+              "tool": "bash",
+              "argsHash": 7959154821669609000,
+              "timestamp": 1775727857518
+            },
+            {
+              "tool": "bash",
+              "argsHash": 9426100058361078000,
+              "timestamp": 1775727865419
+            },
+            {
+              "tool": "bash",
+              "argsHash": 16374238403072535000,
+              "timestamp": 1775727875052
+            },
+            {
+              "tool": "todowrite",
+              "argsHash": 1046342869809629400,
+              "timestamp": 1775727884007
+            },
+            {
+              "tool": "bash",
+              "argsHash": 8850919070851862000,
+              "timestamp": 1775727894129
+            },
+            {
+              "tool": "bash",
+              "argsHash": 2076347818369803800,
+              "timestamp": 1775727903097
+            },
+            {
+              "tool": "todowrite",
+              "argsHash": 1046342869809629400,
+              "timestamp": 1775727911540
+            }
+          ],
+          "warningIssued": false,
+          "warningReason": ""
+        }
+      },
+      "lastCompactionHint": 0,
+      "architectWriteCount": 0,
+      "lastCoderDelegationTaskId": null,
+      "currentTaskId": null,
+      "turboMode": false,
+      "gateLog": {},
+      "reviewerCallCount": {},
+      "lastGateFailure": null,
+      "partialGateWarningsIssuedForTask": [],
+      "selfFixAttempted": false,
+      "selfCodingWarnedAtCount": 0,
+      "catastrophicPhaseWarnings": [],
+      "lastPhaseCompleteTimestamp": 0,
+      "lastPhaseCompletePhase": 0,
+      "phaseAgentsDispatched": [
+        "build"
+      ],
+      "lastCompletedPhaseAgentsDispatched": [],
+      "qaSkipCount": 0,
+      "qaSkipTaskIds": [],
+      "pendingAdvisoryMessages": [],
+      "taskWorkflowStates": {},
+      "scopeViolationDetected": false,
+      "model_fallback_index": 0,
+      "modelFallbackExhausted": false,
+      "coderRevisions": 0,
+      "revisionLimitHit": false,
+      "fullAutoMode": false,
+      "fullAutoInteractionCount": 0,
+      "fullAutoDeadlockCount": 0,
+      "fullAutoLastQuestionHash": null,
+      "sessionRehydratedAt": 0
+    }
+  }
+}
