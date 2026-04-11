@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { nanoid } from 'nanoid';
+import { createLogger } from '@/lib/logger';
 import { Plus, Trash2, Wand2, Loader2, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,6 +69,8 @@ function buildUpdatedJourneys(project: Project, storyId: string, newTasks: Task[
     ),
   }));
 }
+
+const log = createLogger('storyTaskPanel');
 
 export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
   const { modifyProject } = useProjectStore();
@@ -158,12 +161,13 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
       currentJourneyTasks,
     };
 
-    console.log(
-      `[StoryTaskPanel] AI decompose start: story="${story.id}" "${story.title}"` +
-      ` | journeys=${project.user_journeys.length}` +
-      ` | currentJourneyTasks=${currentJourneyTasks.length}` +
-      ` | techStack=[${(project.metadata?.tech_stack ?? []).join(', ')}]`
-    );
+    log.info('decompose.start', {
+      storyId: story.id,
+      story: story.title,
+      journeys: project.user_journeys.length,
+      currentJourneyTasks: currentJourneyTasks.length,
+      techStack: project.metadata?.tech_stack ?? [],
+    });
 
     setIsDecomposing(true);
     try {
@@ -194,10 +198,10 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
         updated_at: now,
       }));
 
-      console.log(`[StoryTaskPanel] AI decompose done: ${generated.length} tasks added to story "${story.id}"`);
+      log.info('decompose.done', { storyId: story.id, taskCount: generated.length });
       await saveTasks([...tasks, ...generated]);
     } catch (err) {
-      console.error(`[StoryTaskPanel] AI decompose error:`, err instanceof Error ? err.message : err);
+      log.error('decompose.error', { storyId: story.id, message: err instanceof Error ? err.message : String(err) });
       setAiError(err instanceof Error ? err.message : '请求失败，请检查 API Key 配置');
     } finally {
       setIsDecomposing(false);
