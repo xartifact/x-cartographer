@@ -37,6 +37,9 @@ export { TaskList, TaskListEmpty } from './task-list';
 // 任务页面
 export { TasksPage } from './tasks-page';
 
+// AI 执行
+export { ExecuteDialog } from './execute-dialog';
+
 // 筛选预设管理
 export { PresetManager, PresetSelector, DEFAULT_PRESETS } from './preset-manager';
 export type { FilterPreset, FilterConditions, PresetManagerProps } from './preset-manager';

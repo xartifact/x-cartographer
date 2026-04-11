@@ -4,6 +4,11 @@ import { tasks } from '../schema/tasks';
 import type { CreateTaskDTO, UpdateTaskDTO } from '@/types';
 
 export class TaskRepository {
+  async findById(id: string) {
+    const db = await ensureDb();
+    return db.query.tasks.findFirst({ where: eq(tasks.id, id) });
+  }
+
   async findByStoryId(storyId: string) {
     const db = await ensureDb();
     return db.query.tasks.findMany({

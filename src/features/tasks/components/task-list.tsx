@@ -7,7 +7,7 @@
 'use client';
 
 import * as React from 'react';
-import { Clock, Tag, MoreHorizontal, Calendar } from 'lucide-react';
+import { Clock, Tag, MoreHorizontal, Calendar, Play, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -43,6 +43,12 @@ interface TaskListProps {
   /** 故事/旅程上下文映射 */
   storyContextMap?: Record<string, { storyTitle: string; journeyName: string }>;
 
+  /** 触发 AI 执行回调 */
+  onExecute?: (task: Task) => void;
+
+  /** 正在执行中的任务 ID 列表 */
+  isExecutingIds?: string[];
+
   /** 自定义类名 */
   className?: string;
 }
@@ -73,6 +79,8 @@ export function TaskList({
   showStatusFilter = true,
   editableStatus = false,
   storyContextMap,
+  onExecute,
+  isExecutingIds = [],
   className,
 }: TaskListProps) {
   const [statusFilter, setStatusFilter] = React.useState<(TaskStatus | StoryStatus)[]>([]);
@@ -167,6 +175,8 @@ export function TaskList({
               editableStatus={editableStatus}
               onStatusCycle={handleStatusCycle}
               storyContext={storyContextMap?.[task.story_id]}
+              onExecute={onExecute}
+              isExecuting={isExecutingIds.includes(task.id)}
             />
           ))}
         </div>
@@ -187,6 +197,8 @@ interface TaskCardProps {
   editableStatus?: boolean;
   onStatusCycle?: (task: Task) => void;
   storyContext?: { storyTitle: string; journeyName: string };
+  onExecute?: (task: Task) => void;
+  isExecuting?: boolean;
 }
 
 function TaskCard({
@@ -198,6 +210,8 @@ function TaskCard({
   editableStatus,
   onStatusCycle,
   storyContext,
+  onExecute,
+  isExecuting = false,
 }: TaskCardProps) {
   const priority = priorityConfig[task.priority];
   const typeInfo = typeConfig[task.type] || typeConfig.technical_task;
@@ -317,6 +331,21 @@ function TaskCard({
               <DropdownMenuItem onClick={() => onClick?.(task)}>
                 查看详情
               </DropdownMenuItem>
+              {onExecute && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={(e) => { e.stopPropagation(); onExecute(task); }}
+                    disabled={isExecuting}
+                  >
+                    {isExecuting ? (
+                      <><Loader2 className="h-3 w-3 mr-2 animate-spin" />AI 执行中…</>
+                    ) : (
+                      <><Play className="h-3 w-3 mr-2" />AI 执行任务</>
+                    )}
+                  </DropdownMenuItem>
+                </>
+              )}
               {editableStatus && onStatusChange && (
                 <>
                   <DropdownMenuSeparator />

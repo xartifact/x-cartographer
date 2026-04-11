@@ -4,6 +4,11 @@ import { userStories } from '../schema/user-stories';
 import type { CreateUserStoryDTO, UpdateUserStoryDTO } from '@/types';
 
 export class StoryRepository {
+  async findById(id: string) {
+    const db = await ensureDb();
+    return db.query.userStories.findFirst({ where: eq(userStories.id, id) });
+  }
+
   async findByJourneyId(journeyId: string) {
     const db = await ensureDb();
     return db.query.userStories.findMany({

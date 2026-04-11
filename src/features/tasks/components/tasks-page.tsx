@@ -16,6 +16,8 @@ import { useProjectStore } from '@/features/projects/stores';
 import { TaskList, StatusFilterBar, TaskListEmpty, StatusBadge } from '@/features/tasks/components';
 import { TaskImportDialog } from './task-import-dialog';
 import { TaskCreateDialog } from './task-create-dialog';
+import { ExecuteDialog } from './execute-dialog';
+import { useExecutionStore } from '../stores/execution-store';
 import type { Task, TaskStatus, StoryStatus, Project } from '@/types';
 import type { UpdateProjectDTO } from '@/types';
 import type { AppTask } from '@/lib/toml/task-parser';
@@ -33,8 +35,16 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   const [project, setProject] = React.useState(initialProject);
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
+  const [executeTarget, setExecuteTarget] = React.useState<Task | null>(null);
+  const [executeDialogOpen, setExecuteDialogOpen] = React.useState(false);
   const [importedTasks, setImportedTasks] = React.useState<AppTask[]>([]);
   const [importMeta, setImportMeta] = React.useState<{ projectName: string; createdAt: string } | null>(null);
+
+  const { executions } = useExecutionStore();
+  const executingIds = React.useMemo(
+    () => Object.values(executions).filter((e) => e.status === 'running').map((e) => e.taskId),
+    [executions]
+  );
 
   // 同步项目数据
   React.useEffect(() => {
@@ -289,6 +299,8 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
               showStatusFilter={false}
               editableStatus={true}
               storyContextMap={storyContextMap}
+              onExecute={(task) => { setExecuteTarget(task); setExecuteDialogOpen(true); }}
+              isExecutingIds={executingIds}
             />
           ) : (
             <TaskListEmpty message="暂无任务，请先创建用户故事并拆解任务" />
@@ -369,6 +381,14 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         onOpenChange={setCreateDialogOpen}
         project={project}
         onSave={handleCreateTask}
+      />
+
+      {/* AI 执行任务对话框 */}
+      <ExecuteDialog
+        task={executeTarget}
+        open={executeDialogOpen}
+        onOpenChange={setExecuteDialogOpen}
+        onStatusChange={handleStatusChange}
       />
     </div>
   );
