@@ -17,6 +17,7 @@ import { TaskList, StatusFilterBar, TaskListEmpty, StatusBadge } from '@/feature
 import { TaskImportDialog } from './task-import-dialog';
 import { TaskCreateDialog } from './task-create-dialog';
 import { ExecuteDialog } from './execute-dialog';
+import type { ExecuteDialogStoryContext, ExecuteDialogProjectContext } from './execute-dialog';
 import { useExecutionStore } from '../stores/execution-store';
 import type { Task, TaskStatus, StoryStatus, Project } from '@/types';
 import type { UpdateProjectDTO } from '@/types';
@@ -45,6 +46,30 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
     () => Object.values(executions).filter((e) => e.status === 'running').map((e) => e.taskId),
     [executions]
   );
+
+  // 执行对话框所需的 story / project 上下文（派生自当前 project 数据）
+  const executeStoryContext = React.useMemo<ExecuteDialogStoryContext | undefined>(() => {
+    if (!executeTarget) return undefined;
+    for (const journey of project.user_journeys ?? []) {
+      for (const story of journey.stories ?? []) {
+        if (story.id === executeTarget.story_id) {
+          return {
+            id: story.id,
+            title: story.title,
+            description: story.description ?? '',
+            acceptance_criteria: story.acceptance_criteria ?? [],
+          };
+        }
+      }
+    }
+    return undefined;
+  }, [executeTarget, project]);
+
+  const executeProjectContext = React.useMemo<ExecuteDialogProjectContext>(() => ({
+    name: project.name,
+    description: project.description,
+    tech_stack: project.metadata?.tech_stack ?? [],
+  }), [project]);
 
   // 同步项目数据
   React.useEffect(() => {
@@ -389,6 +414,8 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         open={executeDialogOpen}
         onOpenChange={setExecuteDialogOpen}
         onStatusChange={handleStatusChange}
+        story={executeStoryContext}
+        project={executeProjectContext}
       />
     </div>
   );

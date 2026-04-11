@@ -16,13 +16,29 @@ import { Badge } from '@/components/ui/badge';
 import { getExecutorConfig, saveExecutorConfig } from '@/app/actions/executor.actions';
 import { useExecutionStore } from '../stores/execution-store';
 import type { Task, TaskStatus } from '@/types';
-import type { ExecutionEvent, ExecutorType } from '@/lib/executor/types';
+import type { ExecutionEvent, ExecutorType, PromptContext } from '@/lib/executor/types';
+import type { ExecuteTaskBody } from '@/app/api/tasks/[id]/execute/route';
+
+export interface ExecuteDialogStoryContext {
+  id: string;
+  title: string;
+  description: string;
+  acceptance_criteria: string[];
+}
+
+export interface ExecuteDialogProjectContext {
+  name: string;
+  description?: string;
+  tech_stack: string[];
+}
 
 interface ExecuteDialogProps {
   task: Task | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
+  story?: ExecuteDialogStoryContext;
+  project?: ExecuteDialogProjectContext;
 }
 
 const EXECUTOR_OPTIONS: { value: ExecutorType; label: string; desc: string }[] = [
@@ -30,12 +46,19 @@ const EXECUTOR_OPTIONS: { value: ExecutorType; label: string; desc: string }[] =
   { value: 'opencode', label: 'OpenCode', desc: 'OpenCode AI 编码助手' },
 ];
 
-export function ExecuteDialog({ task, open, onOpenChange, onStatusChange }: ExecuteDialogProps) {
+export function ExecuteDialog({
+  task,
+  open,
+  onOpenChange,
+  onStatusChange,
+  story,
+  project,
+}: ExecuteDialogProps) {
   const [executorType, setExecutorType] = React.useState<ExecutorType>('claude-code');
   const [workspaceDir, setWorkspaceDir] = React.useState('');
   const [isRunning, setIsRunning] = React.useState(false);
   const outputRef = React.useRef<HTMLDivElement>(null);
-  const eventSourceRef = React.useRef<EventSource | null>(null);
+  const abortRef = React.useRef<AbortController | null>(null);
 
   const { startExecution, appendOutput, completeExecution, failExecution, executions } =
     useExecutionStore();
@@ -51,10 +74,10 @@ export function ExecuteDialog({ task, open, onOpenChange, onStatusChange }: Exec
     });
   }, [open]);
 
-  // 重置运行状态（对话框关闭后）
+  // 对话框关闭时中止正在进行的请求
   React.useEffect(() => {
     if (!open) {
-      eventSourceRef.current?.close();
+      abortRef.current?.abort();
       setIsRunning(false);
     }
   }, [open]);
@@ -66,53 +89,104 @@ export function ExecuteDialog({ task, open, onOpenChange, onStatusChange }: Exec
     }
   }, [execution?.outputLines.length]);
 
-  function handleStart() {
+  async function handleStart() {
     if (!task || !workspaceDir.trim() || isRunning) return;
 
     setIsRunning(true);
     startExecution(task.id);
-
-    // 保存工作目录配置
     saveExecutorConfig({ preferred_executor: executorType, default_workspace_dir: workspaceDir });
 
-    const url = `/api/tasks/${task.id}/execute?executor=${executorType}&workspaceDir=${encodeURIComponent(workspaceDir)}`;
-    const es = new EventSource(url);
-    eventSourceRef.current = es;
+    const ac = new AbortController();
+    abortRef.current = ac;
 
-    es.onmessage = (e) => {
-      const event = JSON.parse(e.data as string) as ExecutionEvent;
-      switch (event.type) {
-        case 'output':
-          if (event.data) appendOutput(task.id, event.data);
-          break;
-        case 'status_update':
-          if (event.newStatus) {
-            onStatusChange?.(task.id, event.newStatus as TaskStatus);
-          }
-          break;
-        case 'complete':
-          completeExecution(task.id, event.exitCode ?? 0);
-          setIsRunning(false);
-          es.close();
-          break;
-        case 'error':
-          failExecution(task.id, event.error ?? '未知错误');
-          setIsRunning(false);
-          es.close();
-          break;
+    // 通知父组件状态变为 in_progress
+    onStatusChange?.(task.id, 'in_progress' as TaskStatus);
+
+    const context: PromptContext = {
+      task: {
+        id: task.id,
+        title: task.title,
+        description: task.description ?? '',
+        type: task.type ?? 'technical_task',
+        priority: task.priority ?? 'P2',
+        tags: task.tags ?? [],
+        dependencies: task.dependencies ?? [],
+      },
+      story,
+      project,
+    };
+
+    const body: ExecuteTaskBody = {
+      executor: executorType,
+      workspaceDir,
+      context,
+    };
+
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: ac.signal,
+      });
+
+      if (!response.ok) {
+        const err = (await response.json()) as { error?: string };
+        failExecution(task.id, err.error ?? `HTTP ${response.status}`);
+        setIsRunning(false);
+        return;
       }
-    };
 
-    es.onerror = () => {
-      failExecution(task.id, 'SSE 连接中断');
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      // 读取 SSE 流
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buf += decoder.decode(value, { stream: true });
+        const chunks = buf.split('\n\n');
+        buf = chunks.pop() ?? '';
+
+        for (const chunk of chunks) {
+          const line = chunk.replace(/^data: /, '').trim();
+          if (!line) continue;
+          try {
+            const event = JSON.parse(line) as ExecutionEvent;
+            handleEvent(event, task.id);
+          } catch {
+            // 非 JSON 行忽略
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
+      failExecution(task.id, (err as Error).message ?? '请求失败');
+    } finally {
       setIsRunning(false);
-      es.close();
-    };
+    }
+  }
+
+  function handleEvent(event: ExecutionEvent, taskId: string) {
+    switch (event.type) {
+      case 'output':
+        if (event.data) appendOutput(taskId, event.data);
+        break;
+      case 'complete':
+        completeExecution(taskId, event.exitCode ?? 0);
+        onStatusChange?.(taskId, 'in_review' as TaskStatus);
+        break;
+      case 'error':
+        failExecution(taskId, event.error ?? '未知错误');
+        break;
+    }
   }
 
   function handleStop() {
-    eventSourceRef.current?.close();
-    eventSourceRef.current = null;
+    abortRef.current?.abort();
+    abortRef.current = null;
     if (task) failExecution(task.id, '用户手动停止');
     setIsRunning(false);
   }
