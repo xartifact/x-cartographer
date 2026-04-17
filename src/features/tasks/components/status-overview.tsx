@@ -8,7 +8,7 @@
 
 import { cn } from '@/lib/utils';
 import { StatusBadge, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from './status-badge';
-import type { TaskStatus, StoryStatus, StatusConfig } from '@/types';
+import type { TaskStatus, StoryStatus } from '@/types';
 
 export interface StatusOverviewProps {
   /** 各状态的数量统计 */

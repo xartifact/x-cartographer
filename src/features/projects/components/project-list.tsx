@@ -6,7 +6,17 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, FolderOpen, Calendar, MapPin, MoreHorizontal, Trash2, Edit2, Upload } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  FolderOpen,
+  Calendar,
+  MapPin,
+  MoreHorizontal,
+  Trash2,
+  Edit2,
+  Upload,
+} from 'lucide-react';
 import { useProjectStore } from '@/features/projects/stores';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatDate, formatRelativeTime } from '@/utils/format';
+import { formatRelativeTime } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { ImportDialog } from './import-dialog';
 
@@ -45,6 +55,7 @@ function ProjectCard({
   isActive,
   onSelect,
   onDelete,
+  onEdit,
 }: {
   project: {
     id: string;
@@ -53,11 +64,16 @@ function ProjectCard({
     created_at: string;
     updated_at: string;
     user_journeys?: Array<{ id: string }>;
-    metadata?: { total_stories?: number; total_tasks?: number; tags?: string[] };
+    metadata?: {
+      total_stories?: number;
+      total_tasks?: number;
+      tags?: string[];
+    };
   };
   isActive: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const stats = formatProjectStats(project);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -66,7 +82,9 @@ function ProjectCard({
     e.preventDefault();
     e.stopPropagation();
 
-    if (window.confirm(`确定要删除项目 "${project.name}" 吗？此操作不可撤销。`)) {
+    if (
+      window.confirm(`确定要删除项目 "${project.name}" 吗？此操作不可撤销。`)
+    ) {
       setIsDeleting(true);
       try {
         await onDelete();
@@ -80,7 +98,7 @@ function ProjectCard({
     <Link href={`/projects/${project.id}`} onClick={onSelect}>
       <Card
         className={cn(
-          'h-full transition-all duration-200 hover:shadow-md cursor-pointer group',
+          'group h-full cursor-pointer transition-all duration-200 hover:shadow-md',
           isActive && 'ring-2 ring-primary'
         )}
       >
@@ -88,20 +106,30 @@ function ProjectCard({
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <FolderOpen className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-lg font-semibold truncate">{project.name}</CardTitle>
+              <CardTitle className="truncate text-lg font-semibold">
+                {project.name}
+              </CardTitle>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+                >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href={`/projects/${project.id}/edit`}>
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    编辑
-                  </Link>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEdit();
+                  }}
+                >
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  编辑
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -109,14 +137,16 @@ function ProjectCard({
                   disabled={isDeleting}
                   className="text-destructive focus:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="mr-2 h-4 w-4" />
                   {isDeleting ? '删除中...' : '删除'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
           {project.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-2">{project.description}</p>
+            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+              {project.description}
+            </p>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
@@ -148,7 +178,7 @@ function ProjectCard({
           )}
 
           {/* 更新时间 */}
-          <div className="flex items-center gap-1 text-xs text-muted-foreground pt-2 border-t">
+          <div className="flex items-center gap-1 border-t pt-2 text-xs text-muted-foreground">
             <Calendar className="h-3 w-3" />
             <span>更新于 {formatRelativeTime(project.updated_at)}</span>
           </div>
@@ -166,7 +196,7 @@ function ProjectSearch() {
 
   return (
     <div className="relative">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         placeholder="搜索项目..."
         value={searchQuery}
@@ -183,13 +213,13 @@ function ProjectSearch() {
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <Card className="flex flex-col items-center justify-center py-12">
-      <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-semibold mb-2">还没有项目</h3>
-      <p className="text-sm text-muted-foreground mb-4 text-center max-w-sm">
+      <FolderOpen className="mb-4 h-12 w-12 text-muted-foreground" />
+      <h3 className="mb-2 text-lg font-semibold">还没有项目</h3>
+      <p className="mb-4 max-w-sm text-center text-sm text-muted-foreground">
         创建您的第一个项目，开始管理产品路线图和用户故事地图
       </p>
       <Button onClick={onCreate}>
-        <Plus className="h-4 w-4 mr-2" />
+        <Plus className="mr-2 h-4 w-4" />
         创建项目
       </Button>
     </Card>
@@ -206,13 +236,13 @@ function LoadingState() {
         <Card key={i} className="animate-pulse">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-5 bg-muted rounded" />
-              <div className="h-6 w-32 bg-muted rounded" />
+              <div className="h-5 w-5 rounded bg-muted" />
+              <div className="h-6 w-32 rounded bg-muted" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-4 w-full bg-muted rounded mb-2" />
-            <div className="h-4 w-3/4 bg-muted rounded" />
+            <div className="mb-2 h-4 w-full rounded bg-muted" />
+            <div className="h-4 w-3/4 rounded bg-muted" />
           </CardContent>
         </Card>
       ))}
@@ -224,8 +254,19 @@ function LoadingState() {
  * 项目列表主组件
  */
 export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
-  const { projects, getFilteredProjects, setActiveProject, removeProject, isLoading, error, clearError } = useProjectStore();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const {
+    projects,
+    getFilteredProjects,
+    setActiveProject,
+    removeProject,
+    isLoading,
+    error,
+    clearError,
+  } = useProjectStore();
+  const [_viewMode, _setViewMode] = useState<'grid' | 'list'>('grid');
+  const [editingProject, setEditingProject] = useState<
+    (typeof projects)[0] | null
+  >(null);
 
   const filteredProjects = getFilteredProjects();
 
@@ -236,7 +277,7 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
   if (error) {
     return (
       <Card className="p-6 text-center">
-        <p className="text-destructive mb-4">{error}</p>
+        <p className="mb-4 text-destructive">{error}</p>
         <Button variant="outline" onClick={clearError}>
           重试
         </Button>
@@ -251,8 +292,8 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
   if (filteredProjects.length === 0) {
     return (
       <Card className="flex flex-col items-center justify-center py-12">
-        <Search className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">未找到项目</h3>
+        <Search className="mb-4 h-12 w-12 text-muted-foreground" />
+        <h3 className="mb-2 text-lg font-semibold">未找到项目</h3>
         <p className="text-sm text-muted-foreground">尝试不同的搜索关键词</p>
       </Card>
     );
@@ -261,7 +302,7 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
   return (
     <div className="space-y-6">
       {/* 搜索和工具栏 */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <ProjectSearch />
         <div className="flex items-center gap-2">
           {/* 视图切换 */}
@@ -278,17 +319,29 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
             isActive={false}
             onSelect={() => setActiveProject(project.id)}
             onDelete={() => removeProject(project.id)}
+            onEdit={() => setEditingProject(project)}
           />
         ))}
       </div>
 
       {/* 项目数量统计 */}
-      <div className="text-sm text-muted-foreground text-center">
+      <div className="text-center text-sm text-muted-foreground">
         共 {filteredProjects.length} 个项目
         {filteredProjects.length !== projects.length && (
           <span>（已筛选 {projects.length - filteredProjects.length} 个）</span>
         )}
       </div>
+
+      {/* 项目编辑对话框 */}
+      {editingProject && (
+        <ProjectEditDialog
+          project={editingProject}
+          open={!!editingProject}
+          onOpenChange={(open) => {
+            if (!open) setEditingProject(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -323,19 +376,21 @@ export default function ProjectListPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between mb-8">
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">项目管理</h1>
-          <p className="text-muted-foreground mt-1">管理您的产品路线图和用户故事</p>
+          <p className="mt-1 text-muted-foreground">
+            管理您的产品路线图和用户故事
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleImportClick}>
-            <Upload className="h-4 w-4 mr-2" />
+            <Upload className="mr-2 h-4 w-4" />
             导入 TOML
           </Button>
           <Button onClick={handleCreateClick}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             新建项目
           </Button>
         </div>
@@ -365,16 +420,4 @@ export default function ProjectListPage() {
 // 导入缺失的依赖
 import { useRouter } from 'next/navigation';
 import { ProjectCreateDialog } from './project-create-dialog';
-
-// 导入缺失的 UI 组件
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { ProjectEditDialog } from './project-edit-dialog';

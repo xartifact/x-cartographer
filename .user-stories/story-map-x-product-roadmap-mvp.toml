@@ -418,3 +418,170 @@ acceptance_criteria = [
   "导入成功后数据在页面刷新后仍然存在"
 ]
 tags = ["数据迁移", "TOML导入", "容错处理"]
+
+# ==================== 用户旅程 8: AI 编码代理任务执行 ====================
+[[user_journeys]]
+id = "UJ-008"
+name = "AI 编码代理任务执行"
+description = "将拆解后的开发任务通过 AI 编码代理（Claude Code / OpenCode）自动执行，实现从需求到代码的闭环"
+persona = "技术负责人、开发者"
+
+[[user_journeys.stories]]
+id = "US-024"
+title = "作为技术负责人，我想要选择 AI 编码代理来执行开发任务，以便自动化编码工作"
+description = "在任务卡片上提供 AI 执行入口，支持选择 Claude Code 或 OpenCode 作为执行器，指定工作目录后启动自动编码"
+priority = "high"
+status = "done"
+estimation = 13
+acceptance_criteria = [
+  "任务卡片 DropdownMenu 中提供'AI 执行任务'入口",
+  "弹窗中支持选择执行器类型（Claude Code / OpenCode）",
+  "支持输入绝对路径的工作目录",
+  "工作目录必须是有效的绝对路径且存在于磁盘上",
+  "支持记住用户上次选择的执行器和工作目录偏好"
+]
+tags = ["AI执行", "核心功能", "Claude Code", "OpenCode"]
+
+[[user_journeys.stories]]
+id = "US-025"
+title = "作为开发者，我想要实时查看 AI 编码代理的执行输出，以便了解执行进度"
+description = "通过 SSE 流式传输执行输出到前端，以终端风格实时展示执行日志，包括工具调用、代码生成等信息"
+priority = "high"
+status = "done"
+estimation = 8
+acceptance_criteria = [
+  "黑底绿字终端风格的输出区域",
+  "支持实时流式输出（SSE）",
+  "输出自动滚动到最新内容",
+  "输出行数上限 500 行防止内存溢出",
+  "显示执行状态指示器（运行中动画 / 完成 / 失败）",
+  "Claude Code 执行器解析 stream-json 格式并格式化显示"
+]
+tags = ["AI执行", "实时输出", "SSE"]
+
+[[user_journeys.stories]]
+id = "US-026"
+title = "作为技术负责人，我想要构建包含完整上下文的执行提示词，以便 AI 编码代理理解任务全貌"
+description = "自动从项目、用户故事、任务中提取上下文信息，构建结构化的 Markdown 提示词，包含项目背景、所属用户故事、任务详情和执行要求"
+priority = "high"
+status = "done"
+estimation = 5
+acceptance_criteria = [
+  "提示词包含项目背景（名称、描述、技术栈）",
+  "提示词包含所属用户故事（ID、标题、描述、验收标准）",
+  "提示词包含当前任务详情（ID、标题、类型、优先级、标签、依赖、描述）",
+  "提示词包含执行要求指引",
+  "提示词为中文 Markdown 格式"
+]
+tags = ["AI执行", "提示词工程"]
+
+[[user_journeys.stories]]
+id = "US-027"
+title = "作为开发者，我想要随时停止正在执行的 AI 编码任务，以便在出现问题时及时中断"
+description = "提供停止按钮，支持通过 AbortController 中断 SSE 流和服务端子进程，服务端通过 SIGTERM + SIGKILL 确保进程终止"
+priority = "medium"
+status = "done"
+estimation = 3
+acceptance_criteria = [
+  "执行过程中显示'停止'按钮",
+  "点击停止后中断 SSE 流",
+  "服务端正确终止子进程（SIGTERM → 500ms → SIGKILL）",
+  "停止后任务标记为'用户手动停止'",
+  "关闭弹窗时自动中止执行"
+]
+tags = ["AI执行", "中断控制"]
+
+[[user_journeys.stories]]
+id = "US-028"
+title = "作为技术负责人，我想要执行完成后自动更新任务状态，以便追踪开发进度"
+description = "AI 编码代理执行成功后，自动将任务状态从 in_progress 变更为 in_review，执行失败时保持当前状态"
+priority = "medium"
+status = "done"
+estimation = 3
+acceptance_criteria = [
+  "执行开始时任务状态自动变为 in_progress",
+  "执行成功后（exitCode === 0）任务状态自动变为 in_review",
+  "执行失败时任务状态不变",
+  "状态变更通过现有的状态管理流程持久化到数据库"
+]
+tags = ["AI执行", "状态流转"]
+
+[[user_journeys.stories]]
+id = "US-029"
+title = "作为技术负责人，我想要配置默认的 AI 编码代理偏好，以便减少重复操作"
+description = "在应用设置中配置默认执行器类型、工作目录和超时时间，执行弹窗自动加载保存的偏好"
+priority = "medium"
+status = "done"
+estimation = 3
+acceptance_criteria = [
+  "设置中可配置默认执行器类型",
+  "设置中可配置默认工作目录",
+  "设置中可配置执行超时时间（默认 300 秒）",
+  "偏好通过 Server Action 持久化到 app_settings 表",
+  "执行弹窗打开时自动加载保存的偏好"
+]
+tags = ["AI执行", "配置管理"]
+
+[[user_journeys.stories]]
+id = "US-030"
+title = "作为开发者，我想要增强 OpenCode 执行器的输出解析能力，以便获得与 Claude Code 同等的执行体验"
+description = "当前 OpenCode 执行器仅做原始文本透传（56行），缺少 JSON 流解析和格式化输出，需对齐 Claude Code 执行器的实现质量"
+priority = "medium"
+status = "backlog"
+estimation = 8
+acceptance_criteria = [
+  "解析 OpenCode 的结构化输出格式",
+  "格式化显示工具调用和代码生成",
+  "显示执行耗时统计",
+  "错误信息结构化展示",
+  "输出质量与 Claude Code 执行器对齐"
+]
+tags = ["AI执行", "OpenCode增强", "backlog"]
+
+[[user_journeys.stories]]
+id = "US-031"
+title = "作为技术负责人，我想要查看任务的执行历史记录，以便回溯和对比不同执行结果"
+description = "记录每次 AI 编码代理执行的详细信息（执行器类型、开始/结束时间、退出码、输出摘要），支持在任务详情中查看历史"
+priority = "low"
+status = "backlog"
+estimation = 8
+acceptance_criteria = [
+  "每次执行的完整记录持久化到数据库",
+  "记录包含：执行器类型、工作目录、开始时间、结束时间、退出码、输出摘要",
+  "任务详情面板中可查看执行历史列表",
+  "支持展开查看单次执行的完整输出",
+  "支持执行结果对比"
+]
+tags = ["AI执行", "执行历史", "backlog"]
+
+[[user_journeys.stories]]
+id = "US-032"
+title = "作为技术负责人，我想要支持更多 AI 编码代理类型，以便适应不同团队的工具链"
+description = "扩展执行器工厂，支持更多 AI 编码代理（如 Cursor Agent、Aider、Cline 等），提供统一的接口和配置方式"
+priority = "low"
+status = "backlog"
+estimation = 13
+acceptance_criteria = [
+  "执行器接口（IExecutor）保持向后兼容",
+  "至少新增 1-2 个执行器实现",
+  "执行器选择 UI 动态适配可用执行器列表",
+  "每个执行器提供独立的配置项",
+  "提供执行器插件化扩展机制"
+]
+tags = ["AI执行", "执行器扩展", "backlog"]
+
+[[user_journeys.stories]]
+id = "US-033"
+title = "作为技术负责人，我想要支持批量执行多个关联任务，以便提高开发效率"
+description = "根据任务依赖关系，按拓扑排序依次执行多个任务，前置任务成功后自动启动后续任务"
+priority = "low"
+status = "backlog"
+estimation = 13
+acceptance_criteria = [
+  "支持选择多个任务进行批量执行",
+  "按依赖关系自动排序执行顺序",
+  "前置任务失败时暂停后续任务",
+  "提供批量执行进度概览",
+  "支持单独重试失败的任务"
+]
+tags = ["AI执行", "批量执行", "backlog"]

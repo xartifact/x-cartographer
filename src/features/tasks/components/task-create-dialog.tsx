@@ -52,7 +52,7 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
   const [estimation, setEstimation] = useState(2);
   const [saving, setSaving] = useState(false);
 
-  const journeys = project.user_journeys ?? [];
+  const journeys = useMemo(() => project.user_journeys ?? [], [project.user_journeys]);
 
   const storiesInJourney = useMemo(() => {
     if (!selectedJourneyId) return [];

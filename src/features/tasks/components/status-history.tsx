@@ -6,7 +6,7 @@
 
 'use client';
 
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { RotateCcw, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';

@@ -3,7 +3,6 @@
  */
 
 import type { Project } from '@/types';
-import { Priority } from '@/types';
 
 /**
  * 验证结果

@@ -1403,3 +1403,385 @@ status = "done"
 dependencies = ["TASK-120"]
 related_story = "US-023"
 tags = ["bugfix", "date", "toml-import"]
+
+# ==================== AI 编码代理任务执行 (US-024 ~ US-033 相关) ====================
+
+# --- US-024: AI 编码代理选择与执行入口 ---
+
+[[tasks]]
+id = "TASK-122"
+title = "定义执行器类型系统和接口"
+description = "定义 ExecutorType 枚举（claude-code/opencode）、IExecutor 接口、ExecutionResult、RawOutputEvent、PromptContext 等类型（lib/executor/types.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = []
+related_story = "US-024"
+tags = ["executor", "types", "interface"]
+
+[[tasks]]
+id = "TASK-123"
+title = "实现 Claude Code 执行器"
+description = "通过 spawn 调用 claude CLI（--print --output-format stream-json），解析 stream-json 格式输出，支持 system/init、assistant、tool_use、result 等事件（lib/executor/claude-code-executor.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-122"]
+related_story = "US-024"
+tags = ["executor", "claude-code", "subprocess"]
+
+[[tasks]]
+id = "TASK-124"
+title = "实现 OpenCode 执行器"
+description = "通过 spawn 调用 opencode CLI（run --no-interactive），stdout/stderr 原始透传（lib/executor/opencode-executor.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-122"]
+related_story = "US-024"
+tags = ["executor", "opencode", "subprocess"]
+
+[[tasks]]
+id = "TASK-125"
+title = "实现执行器工厂"
+description = "根据 ExecutorType 创建对应的执行器实例（lib/executor/executor-factory.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 1
+status = "done"
+dependencies = ["TASK-123", "TASK-124"]
+related_story = "US-024"
+tags = ["executor", "factory-pattern"]
+
+[[tasks]]
+id = "TASK-126"
+title = "创建执行弹窗 UI 组件"
+description = "实现 ExecuteDialog 组件，包含执行器选择卡片、工作目录输入、开始/停止按钮（features/tasks/components/execute-dialog.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-125"]
+related_story = "US-024"
+tags = ["ui", "dialog", "executor"]
+
+[[tasks]]
+id = "TASK-127"
+title = "在任务卡片 DropdownMenu 中添加 AI 执行入口"
+description = "在 TaskCard 的 DropdownMenu 中添加'AI 执行任务'菜单项，执行中显示 loading 状态（features/tasks/components/task-list.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-126"]
+related_story = "US-024"
+tags = ["ui", "task-card", "menu"]
+
+# --- US-025: 实时执行输出展示 ---
+
+[[tasks]]
+id = "TASK-128"
+title = "实现任务执行 SSE API 端点"
+description = "POST /api/tasks/[id]/execute 端点，验证请求参数、构建提示词、创建执行器、通过 ReadableStream 返回 SSE 事件（app/api/tasks/[id]/execute/route.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-125"]
+related_story = "US-025"
+tags = ["api", "sse", "streaming"]
+
+[[tasks]]
+id = "TASK-129"
+title = "创建执行状态 Zustand Store"
+description = "实现 useExecutionStore，管理执行状态（running/completed/failed）、输出行列表（上限500行）、开始/追加/完成/失败操作（features/tasks/stores/execution-store.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = []
+related_story = "US-025"
+tags = ["zustand", "store", "state"]
+
+[[tasks]]
+id = "TASK-130"
+title = "实现终端风格输出渲染"
+description = "黑底绿字 monospace 输出区域，自动滚动，闪烁光标，状态指示器（运行中/完成/失败）（execute-dialog.tsx 输出区域）"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-129"]
+related_story = "US-025"
+tags = ["ui", "terminal", "output"]
+
+[[tasks]]
+id = "TASK-131"
+title = "实现 SSE 客户端解析逻辑"
+description = "通过 ReadableStream reader 读取 SSE 流，按 \\n\\n 分割事件，JSON.parse 解析 ExecutionEvent，分发到 handleEvent（execute-dialog.tsx handleStart）"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-128", "TASK-129"]
+related_story = "US-025"
+tags = ["sse", "client", "parsing"]
+
+# --- US-026: 上下文感知的提示词构建 ---
+
+[[tasks]]
+id = "TASK-132"
+title = "实现提示词构建器"
+description = "从 PromptContext 中提取项目背景、用户故事、任务详情，组装为结构化中文 Markdown 提示词（lib/executor/prompt-builder.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-122"]
+related_story = "US-026"
+tags = ["prompt", "builder", "context"]
+
+[[tasks]]
+id = "TASK-133"
+title = "在 TasksPage 中提取故事和项目上下文"
+description = "通过 useMemo 从项目嵌套数据中提取 executeStoryContext 和 executeProjectContext，传递给 ExecuteDialog（features/tasks/components/tasks-page.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-132"]
+related_story = "US-026"
+tags = ["context", "data-extraction"]
+
+# --- US-027: 执行中断控制 ---
+
+[[tasks]]
+id = "TASK-134"
+title = "实现客户端 AbortController 中断"
+description = "执行弹窗维护 AbortController ref，停止按钮 abort 中断 fetch 请求，关闭弹窗时自动 abort（execute-dialog.tsx handleStop）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-131"]
+related_story = "US-027"
+tags = ["abort", "client", "control"]
+
+[[tasks]]
+id = "TASK-135"
+title = "实现服务端进程终止机制"
+description = "API 端点监听 request.signal abort 事件，执行器发送 SIGTERM 后 500ms 发送 SIGKILL 确保进程终止（route.ts + executor）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-128"]
+related_story = "US-027"
+tags = ["abort", "server", "sigterm"]
+
+[[tasks]]
+id = "TASK-136"
+title = "实现超时自动中断"
+description = "服务端 300 秒超时保护，通过 setTimeout + AbortController 自动终止超时执行（route.ts）"
+type = "technical_task"
+priority = "P1"
+estimation = 1
+status = "done"
+dependencies = ["TASK-135"]
+related_story = "US-027"
+tags = ["timeout", "abort", "protection"]
+
+# --- US-028: 执行后状态自动流转 ---
+
+[[tasks]]
+id = "TASK-137"
+title = "实现执行状态自动流转"
+description = "执行开始时 onStatusChange → in_progress，成功完成时 → in_review，失败时保持当前状态（execute-dialog.tsx handleEvent）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-131"]
+related_story = "US-028"
+tags = ["status", "auto-transition"]
+
+[[tasks]]
+id = "TASK-138"
+title = "实现状态变更持久化"
+description = "通过 TasksPage 的 handleStatusChange 深克隆项目数据、更新任务状态、调用 modifyProject 持久化到数据库（tasks-page.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-137"]
+related_story = "US-028"
+tags = ["status", "persistence", "database"]
+
+# --- US-029: 执行器偏好配置 ---
+
+[[tasks]]
+id = "TASK-139"
+title = "实现执行器配置 Server Actions"
+description = "getExecutorConfig / saveExecutorConfig Server Actions，读写 app_settings 表中的 executor_preferred、executor_workspace_dir、executor_timeout_ms（app/actions/executor.actions.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = []
+related_story = "US-029"
+tags = ["server-action", "config", "settings"]
+
+[[tasks]]
+id = "TASK-140"
+title = "执行弹窗自动加载偏好配置"
+description = "ExecuteDialog 打开时调用 getExecutorConfig() 自动填充执行器类型和工作目录，执行时调用 saveExecutorConfig() 保存偏好"
+type = "user_story"
+priority = "P1"
+estimation = 1
+status = "done"
+dependencies = ["TASK-139", "TASK-126"]
+related_story = "US-029"
+tags = ["config", "auto-load", "ui"]
+
+# --- US-030: OpenCode 执行器增强 (backlog) ---
+
+[[tasks]]
+id = "TASK-141"
+title = "研究 OpenCode CLI 输出格式"
+description = "分析 opencode run --no-interactive 的输出格式，确定是否支持 JSON 流或其他结构化输出"
+type = "spike"
+priority = "P2"
+estimation = 2
+status = "backlog"
+dependencies = []
+related_story = "US-030"
+tags = ["research", "opencode", "output-format"]
+
+[[tasks]]
+id = "TASK-142"
+title = "实现 OpenCode 输出解析器"
+description = "根据 OpenCode 输出格式实现结构化解析，格式化显示工具调用、代码生成、耗时统计等信息"
+type = "technical_task"
+priority = "P2"
+estimation = 5
+status = "backlog"
+dependencies = ["TASK-141"]
+related_story = "US-030"
+tags = ["opencode", "parser", "formatter"]
+
+# --- US-031: 执行历史记录 (backlog) ---
+
+[[tasks]]
+id = "TASK-143"
+title = "设计执行历史数据模型"
+description = "定义 execution_history 表 schema：executor_type、workspace_dir、started_at、completed_at、exit_code、output_summary、task_id 外键"
+type = "technical_task"
+priority = "P2"
+estimation = 2
+status = "backlog"
+dependencies = []
+related_story = "US-031"
+tags = ["data-model", "schema", "execution-history"]
+
+[[tasks]]
+id = "TASK-144"
+title = "实现执行历史 Repository"
+description = "execution-history.repository.ts，支持 create/findByTaskId/findLatest 等操作"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-143"]
+related_story = "US-031"
+tags = ["repository", "data-access"]
+
+[[tasks]]
+id = "TASK-145"
+title = "创建执行历史展示组件"
+description = "在任务详情面板中添加执行历史列表，支持展开查看单次执行的完整输出"
+type = "user_story"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-144"]
+related_story = "US-031"
+tags = ["ui", "history", "display"]
+
+# --- US-032: 扩展更多执行器 (backlog) ---
+
+[[tasks]]
+id = "TASK-146"
+title = "设计执行器插件化架构"
+description = "重构 IExecutor 接口，增加 metadata（名称、描述、检测命令）、执行器自注册机制"
+type = "technical_task"
+priority = "P3"
+estimation = 5
+status = "backlog"
+dependencies = ["TASK-125"]
+related_story = "US-032"
+tags = ["architecture", "plugin", "extensibility"]
+
+[[tasks]]
+id = "TASK-147"
+title = "实现 Aider 执行器"
+description = "集成 Aider CLI 作为新的执行器实现"
+type = "technical_task"
+priority = "P3"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-146"]
+related_story = "US-032"
+tags = ["executor", "aider", "integration"]
+
+[[tasks]]
+id = "TASK-148"
+title = "动态执行器列表 UI"
+description = "执行弹窗中的执行器选择卡片动态渲染，基于已注册的执行器列表和本地可用性检测"
+type = "user_story"
+priority = "P3"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-146"]
+related_story = "US-032"
+tags = ["ui", "dynamic", "executor-list"]
+
+# --- US-033: 批量任务执行 (backlog) ---
+
+[[tasks]]
+id = "TASK-149"
+title = "实现任务依赖拓扑排序"
+description = "基于任务 dependencies 字段进行拓扑排序，确定批量执行的正确顺序"
+type = "technical_task"
+priority = "P3"
+estimation = 3
+status = "backlog"
+dependencies = []
+related_story = "US-033"
+tags = ["algorithm", "topological-sort", "dependencies"]
+
+[[tasks]]
+id = "TASK-150"
+title = "实现批量执行编排器"
+description = "按拓扑排序依次执行任务，前置任务失败时暂停队列，支持重试失败任务"
+type = "technical_task"
+priority = "P3"
+estimation = 5
+status = "backlog"
+dependencies = ["TASK-149", "TASK-128"]
+related_story = "US-033"
+tags = ["orchestrator", "batch", "execution"]
+
+[[tasks]]
+id = "TASK-151"
+title = "创建批量执行进度 UI"
+description = "批量执行进度概览面板，显示队列状态、当前执行任务、已完成/失败/等待中的任务列表"
+type = "user_story"
+priority = "P3"
+estimation = 5
+status = "backlog"
+dependencies = ["TASK-150"]
+related_story = "US-033"
+tags = ["ui", "batch", "progress"]

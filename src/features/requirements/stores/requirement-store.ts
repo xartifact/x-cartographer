@@ -71,14 +71,14 @@ export const useRequirementStore = create<RequirementStore>()(
         })),
 
       setAnalysis: (analysis: RequirementAnalysis | null) =>
-        set((state) => ({
+        set((_state) => ({
           analysis,
           isAnalyzing: false,
           error: null,
         })),
 
       setJourneySuggestions: (suggestions: JourneySuggestion[]) =>
-        set((state) => ({
+        set((_state) => ({
           journeySuggestions: suggestions,
           isGeneratingJourneys: false,
         })),
@@ -108,7 +108,7 @@ export const useRequirementStore = create<RequirementStore>()(
         set(initialState),
 
       clearAnalysis: () =>
-        set((state) => ({
+        set((_state) => ({
           analysis: null,
           journeySuggestions: [],
           error: null,

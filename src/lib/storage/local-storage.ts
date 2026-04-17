@@ -3,6 +3,10 @@
  * 提供类型安全的 localStorage 操作
  */
 
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('localStorage');
+
 /**
  * 保存数据到 localStorage
  */
@@ -11,7 +15,10 @@ export function saveToLocalStorage<T>(key: string, data: T): void {
     const serialized = JSON.stringify(data);
     localStorage.setItem(key, serialized);
   } catch (error) {
-    console.error(`Failed to save to localStorage (key: ${key}):`, error);
+    log.error('localStorage.save.failed', {
+      key,
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw new Error('Failed to save data');
   }
 }
@@ -27,7 +34,10 @@ export function loadFromLocalStorage<T>(key: string): T | null {
     }
     return JSON.parse(serialized) as T;
   } catch (error) {
-    console.error(`Failed to load from localStorage (key: ${key}):`, error);
+    log.error('localStorage.load.failed', {
+      key,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -39,7 +49,10 @@ export function removeFromLocalStorage(key: string): void {
   try {
     localStorage.removeItem(key);
   } catch (error) {
-    console.error(`Failed to remove from localStorage (key: ${key}):`, error);
+    log.error('localStorage.remove.failed', {
+      key,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -50,7 +63,9 @@ export function clearLocalStorage(): void {
   try {
     localStorage.clear();
   } catch (error) {
-    console.error('Failed to clear localStorage:', error);
+    log.error('localStorage.clear.failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 

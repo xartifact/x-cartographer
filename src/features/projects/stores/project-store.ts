@@ -4,17 +4,24 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Project, CreateProjectDTO, UpdateProjectDTO, UserJourney } from '@/types';
+import { createLogger } from '@/lib/logger';
+import type {
+  Project,
+  CreateProjectDTO,
+  UpdateProjectDTO,
+  UserJourney,
+} from '@/types';
 import {
   getProjects,
   getProjectById,
   createProject,
   updateProject,
   deleteProject,
-  searchProjects,
   createProjectFromToml,
   mergeTomlToProject,
 } from '../api';
+
+const log = createLogger('projectStore');
 
 const ACTIVE_PROJECT_KEY = 'x-product-roadmap-active-project';
 
@@ -88,21 +95,28 @@ export const useProjectStore = create<ProjectState>()(
       loadProjects: async () => {
         try {
           set({ isLoading: true, error: null });
-          console.log('[Store] Loading projects from DB...');
+          log.debug('store.loading', { message: 'Loading projects from DB' });
           const projects = await getProjects();
           const activeId = getActiveProjectId();
-          const activeProject = activeId ? projects.find((p) => p.id === activeId) || null : null;
+          const activeProject = activeId
+            ? projects.find((p) => p.id === activeId) || null
+            : null;
 
-          console.log('[Store] Loaded', projects.length, 'projects');
+          log.debug('store.loaded', { count: projects.length });
           set({
             projects,
             activeProject,
             isLoading: false,
           });
         } catch (error) {
-          console.error('[Store] loadProjects failed:', error);
+          log.error('store.load.failed', {
+            error: error instanceof Error ? error.message : String(error),
+          });
           set({
-            error: error instanceof Error ? error.message : 'Failed to load projects',
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Failed to load projects',
             isLoading: false,
           });
         }
@@ -115,9 +129,9 @@ export const useProjectStore = create<ProjectState>()(
       addProject: async (dto: CreateProjectDTO) => {
         try {
           set({ error: null });
-          console.log('[Store] Creating project:', dto.name);
+          log.debug('store.creating', { name: dto.name });
           const project = await createProject(dto);
-          console.log('[Store] Project created:', project.id);
+          log.debug('store.created', { projectId: project.id });
           const { projects, activeProject } = get();
 
           const newProjects = [project, ...projects];
@@ -130,7 +144,8 @@ export const useProjectStore = create<ProjectState>()(
 
           return project;
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Failed to create project';
+          const message =
+            error instanceof Error ? error.message : 'Failed to create project';
           set({ error: message });
           throw error;
         }
@@ -148,7 +163,8 @@ export const useProjectStore = create<ProjectState>()(
 
           const { projects, activeProject } = get();
           const newProjects = projects.map((p) => (p.id === id ? updated : p));
-          const newActiveProject = activeProject?.id === id ? updated : activeProject;
+          const newActiveProject =
+            activeProject?.id === id ? updated : activeProject;
 
           set({
             projects: newProjects,
@@ -157,7 +173,8 @@ export const useProjectStore = create<ProjectState>()(
 
           return updated;
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Failed to update project';
+          const message =
+            error instanceof Error ? error.message : 'Failed to update project';
           set({ error: message });
           throw error;
         }
@@ -170,7 +187,8 @@ export const useProjectStore = create<ProjectState>()(
 
           const { projects, activeProject } = get();
           const newProjects = projects.filter((p) => p.id !== id);
-          const newActiveProject = activeProject?.id === id ? null : activeProject;
+          const newActiveProject =
+            activeProject?.id === id ? null : activeProject;
 
           if (newActiveProject === null && newProjects.length > 0) {
             setActiveProjectId(newProjects[0].id);
@@ -183,7 +201,8 @@ export const useProjectStore = create<ProjectState>()(
 
           return true;
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Failed to delete project';
+          const message =
+            error instanceof Error ? error.message : 'Failed to delete project';
           set({ error: message });
           return false;
         }
@@ -211,7 +230,9 @@ export const useProjectStore = create<ProjectState>()(
           (p) =>
             p.name.toLowerCase().includes(lowerQuery) ||
             p.description?.toLowerCase().includes(lowerQuery) ||
-            p.metadata.tags.some((tag) => tag.toLowerCase().includes(lowerQuery))
+            p.metadata.tags.some((tag) =>
+              tag.toLowerCase().includes(lowerQuery)
+            )
         );
       },
 
@@ -237,7 +258,8 @@ export const useProjectStore = create<ProjectState>()(
 
           return project;
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Failed to import project';
+          const message =
+            error instanceof Error ? error.message : 'Failed to import project';
           set({ error: message });
           throw error;
         }
@@ -246,7 +268,11 @@ export const useProjectStore = create<ProjectState>()(
       mergeTomlToProject: async (projectId, data, mode = 'merge') => {
         try {
           set({ error: null });
-          const updatedProject = await mergeTomlToProject(projectId, data, mode);
+          const updatedProject = await mergeTomlToProject(
+            projectId,
+            data,
+            mode
+          );
 
           if (!updatedProject) {
             set({ error: 'Project not found' });
@@ -268,7 +294,9 @@ export const useProjectStore = create<ProjectState>()(
           return updatedProject;
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : 'Failed to merge project data';
+            error instanceof Error
+              ? error.message
+              : 'Failed to merge project data';
           set({ error: message });
           throw error;
         }
@@ -290,4 +318,5 @@ export const selectProjects = (state: ProjectState) => state.projects;
 export const selectActiveProject = (state: ProjectState) => state.activeProject;
 export const selectIsLoading = (state: ProjectState) => state.isLoading;
 export const selectError = (state: ProjectState) => state.error;
-export const selectProjectCount = (state: ProjectState) => state.projects.length;
+export const selectProjectCount = (state: ProjectState) =>
+  state.projects.length;

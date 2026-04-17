@@ -8,8 +8,6 @@
 
 import { TrendingUp, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { StatusConfig } from '@/types';
-import { StatusBadge } from './status-badge';
 
 export interface ProgressStatsProps {
   /** 任务统计 */

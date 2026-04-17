@@ -72,3 +72,72 @@
     color: hsl(var(--foreground));
   }
 }
+
+/* ===== React Flow 拖拽样式 ===== */
+
+/* 拖拽手柄光标 */
+.drag-handle {
+  cursor: grab;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* 节点拖拽中：阴影提升 + 半透明 + 缩放 + 旋转 */
+.react-flow__node.dragging {
+  opacity: 0.85;
+  z-index: 1000 !important;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.15));
+  transform-origin: center center;
+}
+.react-flow__node.dragging .drag-handle {
+  cursor: grabbing;
+}
+
+/* 拖拽中的故事卡片 - 微旋转给「拿起」的感觉 */
+.react-flow__node.dragging[data-nodetype='story'] {
+  rotate: 2deg;
+}
+
+/* 拖拽中的旅程头 - 不旋转，只提升 */
+.react-flow__node.dragging[data-nodetype='journeyHeader'] {
+  rotate: 0deg;
+  opacity: 0.9;
+}
+
+/* 拖拽悬停目标列高亮动画 */
+.drag-column-highlight {
+  transition:
+    opacity 150ms ease,
+    left 100ms ease;
+  border-radius: 12px;
+  animation: drag-column-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes drag-column-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 拖拽位置指示线动画 */
+.drag-insert-line {
+  transition:
+    top 100ms ease,
+    left 100ms ease;
+  animation: drag-line-pulse 1s ease-in-out infinite;
+}
+
+@keyframes drag-line-pulse {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}

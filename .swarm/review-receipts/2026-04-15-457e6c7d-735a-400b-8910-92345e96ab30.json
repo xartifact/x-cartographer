@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "457e6c7d-735a-400b-8910-92345e96ab30",
+  "receipt_type": "rejected",
+  "verdict": "rejected",
+  "reviewer": {
+    "agent": "curator"
+  },
+  "reviewed_at": "2026-04-15T03:11:49.668Z",
+  "scope_fingerprint": {
+    "hash": "afbc54a7b32688220ec2efa7483806b33943cd10851047231a570a84edeb6ace",
+    "scope_description": "phase-digest",
+    "content_length": 66
+  },
+  "blocking_findings": [
+    {
+      "location": "phase-2",
+      "summary": "Agent 'reviewer' required but not dispatched in phase 2",
+      "severity": "medium"
+    }
+  ],
+  "evidence_references": [],
+  "pass_conditions": [
+    "resolve all compliance warnings before phase completion"
+  ]
+}

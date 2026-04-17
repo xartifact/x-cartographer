@@ -161,26 +161,36 @@ export const useStoryMapStore = create<StoryMapState>((set, get) => ({
 
 /**
  * 根据筛选条件过滤故事
+ *
+ * 当没有任何筛选条件激活时，保留所有旅程（包括空旅程），
+ * 以便用户能在画布上看到新创建的空旅程。
+ * 当有筛选条件激活时，隐藏没有匹配故事的旅程。
  */
 export function filterStories(
   journeys: UserJourney[],
   filter: StoryMapFilter
 ): UserJourney[] {
+  const hasActiveFilter =
+    filter.priorities.length > 0 ||
+    filter.journeyIds.length > 0 ||
+    filter.statuses.length > 0 ||
+    filter.searchQuery.length > 0;
+
   return journeys
     .map((journey) => {
+      // 旅程筛选：如果指定了旅程 ID，且该旅程不在列表中，整个旅程跳过
+      if (
+        filter.journeyIds.length > 0 &&
+        !filter.journeyIds.includes(journey.id)
+      ) {
+        return null;
+      }
+
       const filteredStories = (journey.stories || []).filter((story) => {
         // 优先级筛选
         if (
           filter.priorities.length > 0 &&
           !filter.priorities.includes(story.priority)
-        ) {
-          return false;
-        }
-
-        // 旅程筛选
-        if (
-          filter.journeyIds.length > 0 &&
-          !filter.journeyIds.includes(journey.id)
         ) {
           return false;
         }
@@ -212,7 +222,13 @@ export function filterStories(
         stories: filteredStories,
       };
     })
-    .filter((journey) => journey.stories.length > 0);
+    .filter((journey): journey is UserJourney => {
+      if (journey === null) return false;
+      // 无筛选条件时：保留所有旅程（包括空旅程）
+      // 有筛选条件时：仅保留有匹配故事的旅程
+      if (!hasActiveFilter) return true;
+      return journey.stories.length > 0;
+    });
 }
 
 /**

@@ -68,7 +68,7 @@ export function StatusFilter({
   showAllOption = true,
   allowedStatuses = [],
   showQuickFilters = true,
-  className,
+  className: _className,
   triggerClassName,
 }: StatusFilterProps) {
   const [open, setOpen] = React.useState(false);

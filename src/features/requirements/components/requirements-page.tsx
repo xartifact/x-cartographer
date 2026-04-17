@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Grid3X3, Loader2 } from 'lucide-react';
+import { Grid3X3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRequirementAnalysis } from '../hooks/use-requirement-analysis';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
@@ -55,11 +55,18 @@ export function RequirementsPage() {
   const handleToggleAdopt = (id: string) => {
     const suggestion = journeySuggestions.find((s) => s.id === id);
     if (suggestion) {
-      suggestion.adopted ? unadoptJourney(id) : adoptJourney(id);
+      if (suggestion.adopted) {
+        unadoptJourney(id);
+      } else {
+        adoptJourney(id);
+      }
     }
   };
 
-  function suggestionToJourney(s: JourneySuggestion, order: number): UserJourney {
+  function suggestionToJourney(
+    s: JourneySuggestion,
+    order: number
+  ): UserJourney {
     const now = new Date().toISOString();
     const stories: UserStory[] = s.suggestedStories.map((title, idx) => ({
       id: `US-${nanoid(8)}`,
@@ -103,8 +110,12 @@ export function RequirementsPage() {
     setIsApplyingJourney(true);
     try {
       const base = project.user_journeys ?? [];
-      const newJourneys = adopted.map((s, i) => suggestionToJourney(s, base.length + i));
-      await modifyProject(projectId, { user_journeys: [...base, ...newJourneys] });
+      const newJourneys = adopted.map((s, i) =>
+        suggestionToJourney(s, base.length + i)
+      );
+      await modifyProject(projectId, {
+        user_journeys: [...base, ...newJourneys],
+      });
       adopted.forEach((s) => adoptJourney(s.id));
     } finally {
       setIsApplyingJourney(false);
@@ -121,8 +132,13 @@ export function RequirementsPage() {
     setIsApplyingJourney(true);
     try {
       const existingJourneys = project.user_journeys ?? [];
-      const newJourney = suggestionToJourney(suggestion, existingJourneys.length);
-      await modifyProject(projectId, { user_journeys: [...existingJourneys, newJourney] });
+      const newJourney = suggestionToJourney(
+        suggestion,
+        existingJourneys.length
+      );
+      await modifyProject(projectId, {
+        user_journeys: [...existingJourneys, newJourney],
+      });
       adoptJourney(id);
     } finally {
       setIsApplyingJourney(false);
@@ -133,14 +149,14 @@ export function RequirementsPage() {
   const showRight = viewMode === 'split' || viewMode === 'result';
 
   return (
-    <div className="flex flex-col h-full gap-3">
+    <div className="flex h-full flex-col gap-3">
       {/* 顶部工具栏 */}
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex shrink-0 items-center justify-between">
         <span className="text-xs text-muted-foreground">
           {lastSavedTime ? '草稿已自动保存' : ''}
         </span>
 
-        <div className="flex items-center border rounded-md p-0.5">
+        <div className="flex items-center rounded-md border p-0.5">
           <Button
             variant={viewMode === 'input' ? 'secondary' : 'ghost'}
             size="sm"
@@ -171,7 +187,7 @@ export function RequirementsPage() {
       {/* 主内容区 */}
       <div
         className={cn(
-          'flex-1 min-h-0 grid gap-4',
+          'grid min-h-0 flex-1 gap-4',
           viewMode === 'split' ? 'grid-cols-2' : 'grid-cols-1'
         )}
       >
@@ -189,7 +205,7 @@ export function RequirementsPage() {
 
         {/* 右侧：分析结果 + 旅程建议 */}
         {showRight && (
-          <div className="flex flex-col gap-4 overflow-auto min-h-0">
+          <div className="flex min-h-0 flex-col gap-4 overflow-auto">
             <AnalysisResult
               analysis={analysis}
               canReanalyze={hasAnalysis}

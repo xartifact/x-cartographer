@@ -68,7 +68,7 @@ export function StatusSelect({
   showLabel = true,
   showIndicator = true,
   allowedStatuses = [],
-  className,
+  className: _className,
   triggerClassName,
 }: StatusSelectProps) {
   // 使用正确的 Button size 类型

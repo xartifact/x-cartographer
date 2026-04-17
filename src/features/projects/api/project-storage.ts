@@ -1,7 +1,14 @@
 'use server';
 
 import { v4 as uuidv4 } from 'uuid';
-import type { Project, CreateProjectDTO, UpdateProjectDTO, ProjectSettings, UserJourney, UserStory } from '@/types';
+import type {
+  Project,
+  CreateProjectDTO,
+  UpdateProjectDTO,
+  ProjectSettings,
+  UserJourney,
+  UserStory,
+} from '@/types';
 import { LLMProvider } from '@/types';
 import { ProjectRepository } from '@/lib/db/repositories/project.repository';
 import { validateProject } from './project-validator';
@@ -17,6 +24,7 @@ function getDefaultSettings(): ProjectSettings {
       show_estimation: true,
       default_view: 'map',
     },
+    workspace_dir: undefined,
   };
 }
 
@@ -47,6 +55,10 @@ export async function createProject(dto: CreateProjectDTO): Promise<Project> {
     settings: getDefaultSettings(),
   };
 
+  if (dto.workspace_dir) {
+    project.settings.workspace_dir = dto.workspace_dir;
+  }
+
   const validation = validateProject(project);
   if (!validation.valid) {
     throw new Error(`Invalid project: ${validation.errors.join(', ')}`);
@@ -56,14 +68,21 @@ export async function createProject(dto: CreateProjectDTO): Promise<Project> {
   return project;
 }
 
-export async function updateProject(id: string, dto: UpdateProjectDTO): Promise<Project | null> {
+export async function updateProject(
+  id: string,
+  dto: UpdateProjectDTO
+): Promise<Project | null> {
   const project = await repo.findById(id);
   if (!project) return null;
 
   if (dto.name !== undefined) project.name = dto.name;
   if (dto.description !== undefined) project.description = dto.description;
-  if (dto.settings !== undefined) project.settings = { ...project.settings, ...dto.settings };
-  if (dto.user_journeys !== undefined) project.user_journeys = dto.user_journeys;
+  if (dto.settings !== undefined)
+    project.settings = { ...project.settings, ...dto.settings };
+  if (dto.metadata !== undefined)
+    project.metadata = { ...project.metadata, ...dto.metadata };
+  if (dto.user_journeys !== undefined)
+    project.user_journeys = dto.user_journeys;
   project.updated_at = new Date().toISOString();
 
   const validation = validateProject(project);
@@ -85,7 +104,10 @@ export async function getProjectCount(): Promise<number> {
   return projects.length;
 }
 
-export async function isProjectNameExists(name: string, excludeId?: string): Promise<boolean> {
+export async function isProjectNameExists(
+  name: string,
+  excludeId?: string
+): Promise<boolean> {
   const projects = await repo.findAll();
   return projects.some(
     (p) => p.name.toLowerCase() === name.toLowerCase() && p.id !== excludeId
@@ -146,7 +168,9 @@ export async function mergeTomlToProject(
   const project = await repo.findById(projectId);
   if (!project) return null;
 
-  const existingJourneyMap = new Map(project.user_journeys.map((j) => [j.id, j]));
+  const existingJourneyMap = new Map(
+    project.user_journeys.map((j) => [j.id, j])
+  );
   let mergedJourneys = project.user_journeys;
 
   if (mode === 'replace') {
@@ -160,16 +184,26 @@ export async function mergeTomlToProject(
           const existingStoryMap = new Map(
             (existing.stories || []).map((s: UserStory) => [s.id, s])
           );
-          const mergedStories = (tomlJourney.stories || []).map((tomlStory: UserStory) => {
-            const existingStory = existingStoryMap.get(tomlStory.id);
-            return existingStory ? { ...existingStory, ...tomlStory } : tomlStory;
-          });
+          const mergedStories = (tomlJourney.stories || []).map(
+            (tomlStory: UserStory) => {
+              const existingStory = existingStoryMap.get(tomlStory.id);
+              return existingStory
+                ? { ...existingStory, ...tomlStory }
+                : tomlStory;
+            }
+          );
           (existing.stories || []).forEach((story: UserStory) => {
-            if (!tomlJourney.stories?.find((s: UserStory) => s.id === story.id)) {
+            if (
+              !tomlJourney.stories?.find((s: UserStory) => s.id === story.id)
+            ) {
               mergedStories.push(story);
             }
           });
-          mergedJourneys[index] = { ...existing, ...tomlJourney, stories: mergedStories };
+          mergedJourneys[index] = {
+            ...existing,
+            ...tomlJourney,
+            stories: mergedStories,
+          };
         }
       } else {
         mergedJourneys.push(tomlJourney);

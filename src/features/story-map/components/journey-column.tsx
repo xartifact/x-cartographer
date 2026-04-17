@@ -88,7 +88,7 @@ function StoryCard({ story, journeyName, isSelected, onSelect }: {
 }
 
 export const JourneyColumn = memo<JourneyColumnProps>(
-  ({ journey, stories, journeyName, columnWidth, rowHeight, onStorySelect, selectedStoryId }) => {
+  ({ journey: _journey, stories, journeyName, columnWidth, rowHeight, onStorySelect, selectedStoryId }) => {
     return (
       <div
         className="flex flex-col gap-4"

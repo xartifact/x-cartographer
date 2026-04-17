@@ -1,0 +1,19 @@
+{
+  "taskId": "1.1",
+  "required_gates": [
+    "reviewer",
+    "test_engineer"
+  ],
+  "gates": {
+    "reviewer": {
+      "sessionId": "ses_27606dfbfffe50cAX0G6Jf13HL",
+      "timestamp": "2026-04-15T09:16:47.513Z",
+      "agent": "reviewer"
+    },
+    "test_engineer": {
+      "sessionId": "ses_27606dfbfffe50cAX0G6Jf13HL",
+      "timestamp": "2026-04-15T09:26:51.511Z",
+      "agent": "test_engineer"
+    }
+  }
+}

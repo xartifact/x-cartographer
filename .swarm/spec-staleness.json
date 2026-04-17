@@ -1,0 +1,9 @@
+{
+  "type": "spec_stale_detected",
+  "timestamp": "2026-04-15T03:21:03.410Z",
+  "phase": 1,
+  "specHash_plan": "0ccedbd1b6c08038611a4899544d69c7f9b82713d38dde16ae1720070be2cc5b",
+  "specHash_current": "439401b91aaa031933aa46ffe3c602db5fe1e006aa45d449655c1ffafc8a29b0",
+  "reason": "spec.md has been modified since plan was saved",
+  "planTitle": "AI 执行任务失败记录修复"
+}

@@ -4,7 +4,10 @@
  */
 
 import CryptoJS from 'crypto-js';
+import { createLogger } from '@/lib/logger';
 import type { LLMProvider } from '@/types';
+
+const log = createLogger('apiKeys');
 
 /**
  * API 密钥存储键名
@@ -87,7 +90,9 @@ export function getApiKeys(): ApiKeys {
 
     return JSON.parse(decrypted) as ApiKeys;
   } catch (error) {
-    console.error('Failed to decrypt API keys:', error);
+    log.error('apiKeys.decrypt.failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return {};
   }
 }
@@ -126,7 +131,10 @@ export function hasApiKey(provider: LLMProvider): boolean {
 /**
  * 验证 API 密钥格式
  */
-export function validateApiKeyFormat(provider: LLMProvider, apiKey: string): {
+export function validateApiKeyFormat(
+  provider: LLMProvider,
+  apiKey: string
+): {
   valid: boolean;
   error?: string;
 } {
@@ -137,7 +145,10 @@ export function validateApiKeyFormat(provider: LLMProvider, apiKey: string): {
   switch (provider) {
     case 'openai':
       if (!apiKey.startsWith('sk-')) {
-        return { valid: false, error: 'OpenAI API key should start with "sk-"' };
+        return {
+          valid: false,
+          error: 'OpenAI API key should start with "sk-"',
+        };
       }
       if (apiKey.length < 40) {
         return { valid: false, error: 'OpenAI API key seems too short' };

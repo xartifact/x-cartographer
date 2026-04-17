@@ -6,6 +6,9 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useRequirementStore } from '../stores/requirement-store';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('draftAutosave');
 
 /**
  * 自动保存配置
@@ -58,7 +61,7 @@ export function useDraftAutosave(projectId: string | undefined) {
         }
       } catch {
         // 解析失败，忽略错误
-        console.warn('Failed to parse draft from localStorage');
+        log.warn('draft.parse.failed');
       }
     }
   }, [projectId, setInputText, inputText]);
@@ -76,7 +79,7 @@ export function useDraftAutosave(projectId: string | undefined) {
     try {
       localStorage.setItem(storageKey, JSON.stringify(draft));
     } catch {
-      console.warn('Failed to save draft to localStorage');
+      log.warn('draft.save.failed');
     }
   }, [inputText]);
 

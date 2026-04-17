@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { parseTomlFile, parseTomlStoryMap } from '@/lib/toml';
 import { validateTomlStoryMap, formatValidationErrors } from '@/lib/toml/validator';
-import type { Project, TomlStoryMap } from '@/features/projects/types';
+import type { TomlStoryMap } from '@/features/projects/types';
 
 interface ImportDialogProps {
   open: boolean;
@@ -201,7 +201,7 @@ export function ImportDialog({
             {preview && validationErrors.length === 0 && (
               <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg text-green-600">
                 <CheckCircle2 className="h-4 w-4" />
-                <div className="text-sm">文件解析成功！切换到"预览数据"标签查看详情</div>
+                <div className="text-sm">文件解析成功！切换到&ldquo;预览数据&rdquo;标签查看详情</div>
               </div>
             )}
           </TabsContent>

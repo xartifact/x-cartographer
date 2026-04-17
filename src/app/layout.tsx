@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AppLayout } from '@/components/layout';
+import { Toaster } from '@/components/ui/toaster';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -19,19 +20,20 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body
-          className={inter.className}
-          suppressHydrationWarning
-          data-atm-ext-installed={typeof window !== 'undefined' ? '1.29.12' : undefined}
-        >
+        className={inter.className}
+        suppressHydrationWarning
+        data-atm-ext-installed={
+          typeof window !== 'undefined' ? '1.29.12' : undefined
+        }
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <AppLayout showSidebar>
-            {children}
-          </AppLayout>
+          <AppLayout showSidebar>{children}</AppLayout>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

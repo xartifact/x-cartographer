@@ -29,6 +29,7 @@ interface CreateFormData {
   name: string;
   description: string;
   tags: string;
+  workspace_dir: string;
 }
 
 /**
@@ -53,6 +54,7 @@ export function ProjectCreateDialog({
     name: '',
     description: '',
     tags: '',
+    workspace_dir: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -94,6 +96,7 @@ export function ProjectCreateDialog({
           .split(',')
           .map((t) => t.trim())
           .filter(Boolean),
+        workspace_dir: formData.workspace_dir.trim() || undefined,
       });
 
       toast({
@@ -122,6 +125,7 @@ export function ProjectCreateDialog({
       name: '',
       description: '',
       tags: '',
+      workspace_dir: '',
     });
     setErrors({});
   };
@@ -154,10 +158,14 @@ export function ProjectCreateDialog({
               id="name"
               placeholder="输入项目名称"
               value={formData.name}
-              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               className={errors.name ? 'border-destructive' : ''}
             />
-            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+            {errors.name && (
+              <p className="text-sm text-destructive">{errors.name}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -166,7 +174,12 @@ export function ProjectCreateDialog({
               id="description"
               placeholder="输入项目描述（可选）"
               value={formData.description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
               rows={3}
             />
             {errors.description && (
@@ -180,9 +193,30 @@ export function ProjectCreateDialog({
               id="tags"
               placeholder="React, TypeScript, Node.js（用逗号分隔）"
               value={formData.tags}
-              onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, tags: e.target.value }))
+              }
             />
             <p className="text-xs text-muted-foreground">用逗号分隔多个标签</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="workspace-dir">源代码工作空间</Label>
+            <Input
+              id="workspace-dir"
+              placeholder="/path/to/your/project"
+              value={formData.workspace_dir}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  workspace_dir: e.target.value,
+                }))
+              }
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              AI 编码代理执行任务时的工作目录（可选，支持后续修改）
+            </p>
           </div>
         </div>
 

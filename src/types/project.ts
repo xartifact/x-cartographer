@@ -69,6 +69,9 @@ export interface ProjectSettings {
 
   /** 显示偏好 */
   display_preferences: DisplayPreferences;
+
+  /** 源代码工作空间绝对路径 */
+  workspace_dir?: string;
 }
 
 /**
@@ -92,6 +95,7 @@ export interface CreateProjectDTO {
   name: string;
   description?: string;
   tech_stack?: string[];
+  workspace_dir?: string;
 }
 
 /**
@@ -101,5 +105,6 @@ export interface UpdateProjectDTO {
   name?: string;
   description?: string;
   settings?: Partial<ProjectSettings>;
+  metadata?: Partial<ProjectMetadata>;
   user_journeys?: UserJourney[];
 }

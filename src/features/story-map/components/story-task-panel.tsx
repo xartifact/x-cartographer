@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { StatusBadge, TASK_STATUS_OPTIONS } from '@/features/tasks/components/status-badge';
+import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { useProjectStore } from '@/features/projects/stores';
 import { decomposeStory, type DecomposeStoryContext } from '@/app/actions/llm.actions';
 import type { Task, TaskType, TaskPriority, Project } from '@/types';

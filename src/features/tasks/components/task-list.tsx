@@ -7,13 +7,26 @@
 'use client';
 
 import * as React from 'react';
-import { Clock, Tag, MoreHorizontal, Calendar, Play, Loader2 } from 'lucide-react';
+import {
+  Clock,
+  Tag,
+  MoreHorizontal,
+  Calendar,
+  Play,
+  Loader2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { StatusFilterBar } from './status-filter';
 import { StatusBadge, TASK_STATUS_OPTIONS } from './status-badge';
 import type { Task, TaskStatus, TaskPriority, StoryStatus } from '@/types';
@@ -53,7 +66,10 @@ interface TaskListProps {
   className?: string;
 }
 
-const priorityConfig: Record<TaskPriority, { label: string; variant: 'destructive' | 'secondary' | 'default' }> = {
+const priorityConfig: Record<
+  TaskPriority,
+  { label: string; variant: 'destructive' | 'secondary' | 'default' }
+> = {
   P0: { label: 'P0', variant: 'destructive' },
   P1: { label: 'P1', variant: 'default' },
   P2: { label: 'P2', variant: 'secondary' },
@@ -83,13 +99,18 @@ export function TaskList({
   isExecutingIds = [],
   className,
 }: TaskListProps) {
-  const [statusFilter, setStatusFilter] = React.useState<(TaskStatus | StoryStatus)[]>([]);
-  const [localSelectedIds, setLocalSelectedIds] = React.useState<string[]>(selectedIds);
+  const [statusFilter, setStatusFilter] = React.useState<
+    (TaskStatus | StoryStatus)[]
+  >([]);
+  const [localSelectedIds, setLocalSelectedIds] =
+    React.useState<string[]>(selectedIds);
 
   // 根据状态筛选任务
   const filteredTasks = React.useMemo(() => {
     if (statusFilter.length === 0) return tasks;
-    return tasks.filter((task) => statusFilter.includes(task.status as TaskStatus | StoryStatus));
+    return tasks.filter((task) =>
+      statusFilter.includes(task.status as TaskStatus | StoryStatus)
+    );
   }, [tasks, statusFilter]);
 
   // 处理选择变更
@@ -117,7 +138,9 @@ export function TaskList({
     onStatusChange(task.id, statuses[nextIndex] as TaskStatus);
   };
 
-  const isAllSelected = filteredTasks.length > 0 && localSelectedIds.length === filteredTasks.length;
+  const isAllSelected =
+    filteredTasks.length > 0 &&
+    localSelectedIds.length === filteredTasks.length;
   const hasSelection = localSelectedIds.length > 0;
 
   return (
@@ -136,7 +159,11 @@ export function TaskList({
               <span className="text-sm text-muted-foreground">
                 已选 {localSelectedIds.length} 项
               </span>
-              <Button variant="outline" size="sm" onClick={() => handleSelectAll(false)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSelectAll(false)}
+              >
                 取消全选
               </Button>
             </div>
@@ -146,13 +173,13 @@ export function TaskList({
 
       {/* 任务列表 */}
       {filteredTasks.length === 0 ? (
-        <div className="text-center py-8">
+        <div className="py-8 text-center">
           <p className="text-muted-foreground">暂无任务</p>
         </div>
       ) : (
         <div className="space-y-2">
           {/* 全选复选框 */}
-          <div className="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-2">
             <Checkbox
               checked={isAllSelected}
               onCheckedChange={(checked) => handleSelectAll(checked === true)}
@@ -220,7 +247,8 @@ function TaskCard({
     <Card
       className={cn(
         'transition-all duration-200',
-        isSelected && 'ring-2 ring-primary bg-primary/5',
+        isSelected && 'bg-primary/5 ring-2 ring-primary',
+        isExecuting && 'border-blue-400/50 bg-blue-50/30 dark:bg-blue-950/20',
         onClick && 'cursor-pointer hover:shadow-md'
       )}
       onClick={() => onClick?.(task)}
@@ -235,33 +263,44 @@ function TaskCard({
           />
 
           {/* 任务内容 */}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             {/* 标题行 */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono text-muted-foreground">{task.id}</span>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="font-mono text-xs text-muted-foreground">
+                {task.id}
+              </span>
               <Badge variant={priority.variant} className="text-xs">
                 {priority.label}
               </Badge>
+              {isExecuting && (
+                <Badge
+                  variant="outline"
+                  className="gap-1 border-blue-400 text-xs text-blue-600 dark:text-blue-400"
+                >
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  AI 执行中
+                </Badge>
+              )}
               <span className="text-xs" title={typeInfo.label}>
                 {typeInfo.icon}
               </span>
-              <span className="text-xs text-muted-foreground truncate">
+              <span className="truncate text-xs text-muted-foreground">
                 {task.type === 'user_story' ? '用户故事' : task.type}
               </span>
             </div>
 
             {/* 任务标题 */}
-            <h4 className="text-sm font-medium line-clamp-2">{task.title}</h4>
+            <h4 className="line-clamp-2 text-sm font-medium">{task.title}</h4>
 
             {/* 描述预览 */}
             {task.description && (
-              <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
                 {task.description}
               </p>
             )}
 
             {/* 底部信息 */}
-            <div className="flex items-center gap-4 mt-3">
+            <div className="mt-3 flex items-center gap-4">
               {/* 状态标签 */}
               <button
                 type="button"
@@ -271,15 +310,11 @@ function TaskCard({
                 }}
                 disabled={!editableStatus}
                 className={cn(
-                  'border-0 p-0 bg-transparent cursor-pointer',
+                  'cursor-pointer border-0 bg-transparent p-0',
                   editableStatus && 'hover:opacity-80'
                 )}
               >
-                <StatusBadge
-                  status={task.status}
-                  isTask={true}
-                  size="sm"
-                />
+                <StatusBadge status={task.status} isTask={true} size="sm" />
               </button>
 
               {/* 估算工时 */}
@@ -309,13 +344,15 @@ function TaskCard({
               {/* 所属故事/旅程 */}
               {storyContext ? (
                 <span
-                  className="text-xs text-muted-foreground ml-auto truncate max-w-[140px]"
+                  className="ml-auto max-w-[140px] truncate text-xs text-muted-foreground"
                   title={`${storyContext.journeyName} › ${storyContext.storyTitle}`}
                 >
                   {storyContext.journeyName} › {storyContext.storyTitle}
                 </span>
               ) : task.story_id ? (
-                <span className="text-xs text-muted-foreground ml-auto">{task.story_id}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {task.story_id}
+                </span>
               ) : null}
             </div>
           </div>
@@ -335,13 +372,22 @@ function TaskCard({
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={(e) => { e.stopPropagation(); onExecute(task); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onExecute(task);
+                    }}
                     disabled={isExecuting}
                   >
                     {isExecuting ? (
-                      <><Loader2 className="h-3 w-3 mr-2 animate-spin" />AI 执行中…</>
+                      <>
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        AI 执行中…
+                      </>
                     ) : (
-                      <><Play className="h-3 w-3 mr-2" />AI 执行任务</>
+                      <>
+                        <Play className="mr-2 h-3 w-3" />
+                        AI 执行任务
+                      </>
                     )}
                   </DropdownMenuItem>
                 </>
@@ -349,7 +395,10 @@ function TaskCard({
               {editableStatus && onStatusChange && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                  <DropdownMenuItem
+                    disabled
+                    className="text-xs text-muted-foreground"
+                  >
                     更改状态
                   </DropdownMenuItem>
                   {TASK_STATUS_OPTIONS.map((option) => (
@@ -358,16 +407,24 @@ function TaskCard({
                       onClick={() => onStatusChange(task.id, option.value)}
                     >
                       <span
-                        className="w-2 h-2 rounded-full mr-2"
+                        className="mr-2 h-2 w-2 rounded-full"
                         style={{
                           backgroundColor:
-                            option.color === 'gray' ? '#9ca3af' :
-                            option.color === 'slate' ? '#64748b' :
-                            option.color === 'blue' ? '#3b82f6' :
-                            option.color === 'green' ? '#22c55e' :
-                            option.color === 'red' ? '#ef4444' :
-                            option.color === 'yellow' ? '#eab308' :
-                            option.color === 'purple' ? '#a855f7' : '#f97316'
+                            option.color === 'gray'
+                              ? '#9ca3af'
+                              : option.color === 'slate'
+                                ? '#64748b'
+                                : option.color === 'blue'
+                                  ? '#3b82f6'
+                                  : option.color === 'green'
+                                    ? '#22c55e'
+                                    : option.color === 'red'
+                                      ? '#ef4444'
+                                      : option.color === 'yellow'
+                                        ? '#eab308'
+                                        : option.color === 'purple'
+                                          ? '#a855f7'
+                                          : '#f97316',
                         }}
                       />
                       {option.label}
@@ -389,7 +446,7 @@ function TaskCard({
 export function TaskListEmpty({ message = '暂无任务' }: { message?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="text-4xl mb-4">📋</div>
+      <div className="mb-4 text-4xl">📋</div>
       <p className="text-muted-foreground">{message}</p>
     </div>
   );

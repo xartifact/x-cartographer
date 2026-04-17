@@ -7,18 +7,25 @@
 'use client';
 
 import * as React from 'react';
-import { Star, Save, Trash2, Download, Upload, Plus, Settings, X, Check } from 'lucide-react';
+import {
+  Star,
+  Save,
+  Trash2,
+  Download,
+  Upload,
+  Settings,
+  Check,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { createLogger } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
@@ -32,6 +39,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { TaskStatus, Priority } from '@/types';
 import type { StoryStatus } from '@/types';
+
+const log = createLogger('presetManager');
 
 /**
  * 预设存储键名
@@ -181,14 +190,18 @@ export function PresetManager({
   onApplyPreset,
   presets = DEFAULT_PRESETS,
   onPresetsChange,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isTask = true,
   className,
 }: PresetManagerProps) {
-  const [localPresets, setLocalPresets] = React.useState<FilterPreset[]>(presets);
+  const [localPresets, setLocalPresets] =
+    React.useState<FilterPreset[]>(presets);
   const [showSaveDialog, setShowSaveDialog] = React.useState(false);
   const [showManageDialog, setShowManageDialog] = React.useState(false);
   const [newPresetName, setNewPresetName] = React.useState('');
-  const [editingPreset, setEditingPreset] = React.useState<FilterPreset | null>(null);
+  const [editingPreset, setEditingPreset] = React.useState<FilterPreset | null>(
+    null
+  );
 
   // 从 localStorage 加载预设
   React.useEffect(() => {
@@ -198,7 +211,9 @@ export function PresetManager({
         const parsed = JSON.parse(savedPresets);
         setLocalPresets(parsed);
       } catch (e) {
-        console.error('Failed to parse saved presets:', e);
+        log.error('presets.parse.failed', {
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
   }, []);
@@ -243,7 +258,9 @@ export function PresetManager({
   // 更新预设
   const updatePreset = (presetId: string, updates: Partial<FilterPreset>) => {
     const newPresets = localPresets.map((p) =>
-      p.id === presetId ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
+      p.id === presetId
+        ? { ...p, ...updates, updatedAt: new Date().toISOString() }
+        : p
     );
     saveToStorage(newPresets);
     setEditingPreset(null);
@@ -271,13 +288,18 @@ export function PresetManager({
       try {
         const imported = JSON.parse(e.target?.result as string);
         if (Array.isArray(imported)) {
-          const newPresets = [...localPresets, ...imported.filter(
-            (p: FilterPreset) => !localPresets.some((lp) => lp.id === p.id)
-          )];
+          const newPresets = [
+            ...localPresets,
+            ...imported.filter(
+              (p: FilterPreset) => !localPresets.some((lp) => lp.id === p.id)
+            ),
+          ];
           saveToStorage(newPresets);
         }
       } catch (error) {
-        console.error('Failed to import presets:', error);
+        log.error('presets.import.failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     };
     reader.readAsText(file);
@@ -291,7 +313,8 @@ export function PresetManager({
         const cond = preset.conditions;
         return (
           JSON.stringify(cond) === JSON.stringify(currentConditions) ||
-          (Object.keys(cond).length === 0 && currentConditions.taskStatuses?.length === 0)
+          (Object.keys(cond).length === 0 &&
+            currentConditions.taskStatuses?.length === 0)
         );
       }) || null
     );
@@ -324,7 +347,7 @@ export function PresetManager({
               {preset.isDefault && <Star className="h-3 w-3 text-yellow-500" />}
               <span className="flex-1">{preset.name}</span>
               {preset.description && (
-                <span className="text-xs text-muted-foreground truncate max-w-[100px]">
+                <span className="max-w-[100px] truncate text-xs text-muted-foreground">
                   {preset.description}
                 </span>
               )}
@@ -335,13 +358,13 @@ export function PresetManager({
 
           {/* 保存当前筛选 */}
           <DropdownMenuItem onClick={() => setShowSaveDialog(true)}>
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="mr-2 h-4 w-4" />
             保存当前筛选
           </DropdownMenuItem>
 
           {/* 管理预设 */}
           <DropdownMenuItem onClick={() => setShowManageDialog(true)}>
-            <Settings className="h-4 w-4 mr-2" />
+            <Settings className="mr-2 h-4 w-4" />
             管理预设
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -360,9 +383,7 @@ export function PresetManager({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>保存筛选预设</DialogTitle>
-            <DialogDescription>
-              将当前筛选条件保存为新的预设
-            </DialogDescription>
+            <DialogDescription>将当前筛选条件保存为新的预设</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Input
@@ -390,16 +411,14 @@ export function PresetManager({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>管理筛选预设</DialogTitle>
-            <DialogDescription>
-              编辑、删除或导入导出预设
-            </DialogDescription>
+            <DialogDescription>编辑、删除或导入导出预设</DialogDescription>
           </DialogHeader>
 
-          <div className="py-4 space-y-4 max-h-[400px] overflow-y-auto">
+          <div className="max-h-[400px] space-y-4 overflow-y-auto py-4">
             {/* 操作按钮 */}
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={exportPresets}>
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="mr-2 h-4 w-4" />
                 导出
               </Button>
               <label>
@@ -411,7 +430,7 @@ export function PresetManager({
                 />
                 <Button variant="outline" size="sm" asChild>
                   <span>
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="mr-2 h-4 w-4" />
                     导入
                   </span>
                 </Button>
@@ -426,11 +445,11 @@ export function PresetManager({
                 <div
                   key={preset.id}
                   className={cn(
-                    'flex items-center justify-between p-3 rounded-lg border',
+                    'flex items-center justify-between rounded-lg border p-3',
                     preset.isDefault && 'bg-muted/50'
                   )}
                 >
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     {editingPreset?.id === preset.id ? (
                       <div className="flex items-center gap-2">
                         <Input
@@ -460,7 +479,7 @@ export function PresetManager({
                           )}
                         </div>
                         {preset.description && (
-                          <p className="text-xs text-muted-foreground truncate">
+                          <p className="truncate text-xs text-muted-foreground">
                             {preset.description}
                           </p>
                         )}
@@ -493,7 +512,10 @@ export function PresetManager({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowManageDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowManageDialog(false)}
+            >
               关闭
             </Button>
           </DialogFooter>
@@ -519,14 +541,16 @@ export function PresetSelector({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className={className}>
-          <Star className="h-4 w-4 mr-2" />
+          <Star className="mr-2 h-4 w-4" />
           预设
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {presets.map((preset) => (
           <DropdownMenuItem key={preset.id} onClick={() => onSelect(preset)}>
-            {preset.isDefault && <Star className="h-3 w-3 mr-2 text-yellow-500" />}
+            {preset.isDefault && (
+              <Star className="mr-2 h-3 w-3 text-yellow-500" />
+            )}
             <span>{preset.name}</span>
           </DropdownMenuItem>
         ))}

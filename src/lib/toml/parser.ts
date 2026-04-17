@@ -2,7 +2,7 @@
  * TOML 导入/导出功能
  */
 
-import { TomlStoryMap, TomlUserJourney, TomlUserStory, Project, UserJourney, UserStory, AcceptanceCriterion } from '@/features/projects/types';
+import { TomlStoryMap, TomlUserJourney, TomlUserStory, Project, UserJourney, UserStory } from '@/features/projects/types';
 
 /**
  * 解析 TOML 格式的用户故事

@@ -10,7 +10,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import type { TaskStatus, StoryStatus, StatusChangeRecord, Timestamp } from '@/types';
+import { createLogger } from '@/lib/logger';
+import type {
+  TaskStatus,
+  StoryStatus,
+  StatusChangeRecord,
+  Timestamp,
+} from '@/types';
 import {
   getAllStatusChanges,
   createStatusChange,
@@ -20,8 +26,13 @@ import {
   deleteAllStatusHistory,
 } from '@/app/actions/status.actions';
 
+const log = createLogger('taskStatusStore');
+
 // Re-export status options from components for convenience
-export { TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from '../components/status-badge';
+export {
+  TASK_STATUS_OPTIONS,
+  STORY_STATUS_OPTIONS,
+} from '../components/status-badge';
 
 /**
  * 状态更新参数
@@ -88,7 +99,10 @@ export interface TaskStatusState {
 
   setStatusFilter: (filter: Partial<StatusFilter>) => void;
   clearFilter: () => void;
-  matchesFilter: (entityType: 'task' | 'story', status: TaskStatus | StoryStatus) => boolean;
+  matchesFilter: (
+    entityType: 'task' | 'story',
+    status: TaskStatus | StoryStatus
+  ) => boolean;
 }
 
 function getCurrentTimestamp(): Timestamp {
@@ -100,13 +114,17 @@ function getCurrentTimestamp(): Timestamp {
  */
 function persistRecord(record: StatusChangeRecord): void {
   createStatusChange(record).catch((err) => {
-    console.error('Failed to persist status change:', err);
+    log.error('status.persist.failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   });
 }
 
 function persistRecords(records: StatusChangeRecord[]): void {
   createManyStatusChanges(records).catch((err) => {
-    console.error('Failed to persist status changes:', err);
+    log.error('status.persist.bulk_failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   });
 }
 
@@ -226,7 +244,9 @@ export const useTaskStatusStore = create<TaskStatusState>()(
 
       clearEntityHistory: (entityId: string) => {
         set((state) => ({
-          statusHistory: state.statusHistory.filter((h) => h.entity_id !== entityId),
+          statusHistory: state.statusHistory.filter(
+            (h) => h.entity_id !== entityId
+          ),
         }));
         deleteEntityStatusHistory(entityId).catch(() => {});
       },
@@ -276,7 +296,9 @@ export const useTaskStatusStore = create<TaskStatusState>()(
 
       deselectStory: (storyId: string) => {
         set((state) => ({
-          selectedStoryIds: state.selectedStoryIds.filter((id) => id !== storyId),
+          selectedStoryIds: state.selectedStoryIds.filter(
+            (id) => id !== storyId
+          ),
         }));
       },
 
@@ -323,9 +345,16 @@ export const useTaskStatusStore = create<TaskStatusState>()(
         });
       },
 
-      matchesFilter: (entityType: 'task' | 'story', status: TaskStatus | StoryStatus) => {
-        const { statuses, entityType: filterEntityType, inProgressOnly, completedOnly } =
-          get().statusFilter;
+      matchesFilter: (
+        entityType: 'task' | 'story',
+        status: TaskStatus | StoryStatus
+      ) => {
+        const {
+          statuses,
+          entityType: filterEntityType,
+          inProgressOnly,
+          completedOnly,
+        } = get().statusFilter;
 
         if (filterEntityType !== 'all' && filterEntityType !== entityType) {
           return false;
@@ -336,9 +365,10 @@ export const useTaskStatusStore = create<TaskStatusState>()(
         }
 
         if (inProgressOnly) {
-          const config = entityType === 'task'
-            ? { isInProgress: status.includes('progress') }
-            : { isInProgress: status === 'in_progress' };
+          const config =
+            entityType === 'task'
+              ? { isInProgress: status.includes('progress') }
+              : { isInProgress: status === 'in_progress' };
           if (!config.isInProgress) {
             return false;
           }
@@ -367,10 +397,14 @@ export const useTaskStatusStore = create<TaskStatusState>()(
 /**
  * 选择器函数
  */
-export const selectStatusHistory = (state: TaskStatusState) => state.statusHistory;
-export const selectSelectedTaskIds = (state: TaskStatusState) => state.selectedTaskIds;
-export const selectSelectedStoryIds = (state: TaskStatusState) => state.selectedStoryIds;
-export const selectStatusFilter = (state: TaskStatusState) => state.statusFilter;
+export const selectStatusHistory = (state: TaskStatusState) =>
+  state.statusHistory;
+export const selectSelectedTaskIds = (state: TaskStatusState) =>
+  state.selectedTaskIds;
+export const selectSelectedStoryIds = (state: TaskStatusState) =>
+  state.selectedStoryIds;
+export const selectStatusFilter = (state: TaskStatusState) =>
+  state.statusFilter;
 export const selectHasSelection = (state: TaskStatusState) =>
   state.selectedTaskIds.length > 0 || state.selectedStoryIds.length > 0;
 export const selectSelectionCount = (state: TaskStatusState) => ({

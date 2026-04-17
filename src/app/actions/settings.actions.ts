@@ -2,8 +2,11 @@
 
 import { AppSettingsRepository } from '@/lib/db/repositories/app-settings.repository';
 import { createModel } from '@/lib/llm/ai-provider';
+import { createLogger } from '@/lib/logger';
 import { LLMProvider } from '@/types';
 import { generateText, APICallError } from 'ai';
+
+const log = createLogger('settings');
 
 const repo = new AppSettingsRepository();
 
@@ -52,7 +55,10 @@ export async function deleteLLMKey(provider: LLMProvider): Promise<void> {
 export async function getLLMKeyStatus(): Promise<
   Record<LLMProvider, { configured: boolean; baseURL?: string; model?: string }>
 > {
-  const result = {} as Record<LLMProvider, { configured: boolean; baseURL?: string; model?: string }>;
+  const result = {} as Record<
+    LLMProvider,
+    { configured: boolean; baseURL?: string; model?: string }
+  >;
   for (const provider of Object.values(LLMProvider)) {
     const key = await repo.get(providerKey(provider));
     const baseURL = await repo.get(baseURLKey(provider));
@@ -80,21 +86,30 @@ export async function testLLMConnection(
   const savedModel = (await repo.get(modelKey(provider))) ?? undefined;
   const resolvedModel = model ?? savedModel;
 
-  console.log(`[LLM Test] provider=${provider} model=${resolvedModel ?? '(default)'} baseURL=${baseURL ?? '(default)'}`);
+  log.info('llm.test.starting', { provider, model: resolvedModel, baseURL });
 
   try {
-    const aiModel = createModel({ provider, apiKey, model: resolvedModel, baseURL });
-    await generateText({ model: aiModel, prompt: 'Say "ok"', maxOutputTokens: 5 });
-    console.log('[LLM Test] success');
+    const aiModel = createModel({
+      provider,
+      apiKey,
+      model: resolvedModel,
+      baseURL,
+    });
+    await generateText({
+      model: aiModel,
+      prompt: 'Say "ok"',
+      maxOutputTokens: 5,
+    });
+    log.info('llm.test.success', { provider });
     return { success: true };
   } catch (err) {
     if (APICallError.isInstance(err)) {
       const detail = `HTTP ${err.statusCode ?? '?'} — ${err.responseBody?.slice(0, 200) ?? err.message}`;
-      console.error('[LLM Test] APICallError:', detail);
+      log.error('llm.test.api_error', { provider, detail });
       return { success: false, error: detail };
     }
     const msg = err instanceof Error ? err.message : '连接失败';
-    console.error('[LLM Test] error:', msg);
+    log.error('llm.test.error', { provider, error: msg });
     return { success: false, error: msg };
   }
 }

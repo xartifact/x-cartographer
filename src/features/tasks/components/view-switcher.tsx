@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox as _Checkbox } from '@/components/ui/checkbox';
 
 export type ViewType = 'list' | 'board' | 'timeline' | 'kanban';
 
@@ -106,7 +106,7 @@ export function ViewSwitcher({
   disabled = false,
   className,
 }: ViewSwitcherProps) {
-  const Icon = VIEW_ICONS[currentView] || List;
+  const _Icon = VIEW_ICONS[currentView] || List;
 
   return (
     <div className={cn('flex items-center gap-1', className)}>
@@ -146,7 +146,7 @@ export function ViewSwitcherWithPresets({
 }: ViewSwitcherWithPresetsProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
-  const Icon = VIEW_ICONS[currentView] || List;
+  const _Icon = VIEW_ICONS[currentView] || List;
 
   return (
     <div className={cn('flex items-center gap-2', className)}>

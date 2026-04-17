@@ -2,7 +2,7 @@
  * 格式化工具函数
  */
 
-import { format, formatDistance, formatRelative } from 'date-fns';
+import { format, formatDistance } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 /**
