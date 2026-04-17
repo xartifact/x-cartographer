@@ -1,20 +1,32 @@
 // 组件导出
 
 // 状态标签
-export { StatusBadge, StatusIndicator, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from './status-badge';
+export {
+  StatusBadge,
+  StatusIndicator,
+  TASK_STATUS_OPTIONS,
+  STORY_STATUS_OPTIONS,
+} from './status-badge';
 
 // 状态选择
 export { StatusSelect, StatusSelectMini, StatusToggle } from './status-select';
 export type { StatusSelectProps, StatusToggleProps } from './status-select';
 
 // 状态筛选
-export { StatusFilter, StatusFilterTags, StatusFilterBar } from './status-filter';
+export {
+  StatusFilter,
+  StatusFilterTags,
+  StatusFilterBar,
+} from './status-filter';
 
 // 状态历史
 export { StatusHistory, StatusHistoryPanel } from './status-history';
 
 // 批量更新
-export { BulkUpdateConfirmDialog, BulkActionToolbar } from './bulk-update-dialog';
+export {
+  BulkUpdateConfirmDialog,
+  BulkActionToolbar,
+} from './bulk-update-dialog';
 
 // 状态概览
 export { StatusOverview, StatusMiniStats } from './status-overview';
@@ -29,17 +41,30 @@ export {
   PresetConfigPanel,
   DEFAULT_PRESET_VIEWS,
 } from './view-switcher';
-export type { ViewType, PresetView, ViewSwitcherProps, ViewSwitcherWithPresetsProps } from './view-switcher';
+export type {
+  ViewType,
+  PresetView,
+  ViewSwitcherProps,
+  ViewSwitcherWithPresetsProps,
+} from './view-switcher';
 
 // 任务列表
 export { TaskList, TaskListEmpty } from './task-list';
 
+// 任务详情抽屉
+export { TaskDetailSheet } from './task-detail-sheet';
+
 // 任务页面
 export { TasksPage } from './tasks-page';
 
-// AI 执行
-export { ExecuteDialog } from './execute-dialog';
-
 // 筛选预设管理
-export { PresetManager, PresetSelector, DEFAULT_PRESETS } from './preset-manager';
-export type { FilterPreset, FilterConditions, PresetManagerProps } from './preset-manager';
+export {
+  PresetManager,
+  PresetSelector,
+  DEFAULT_PRESETS,
+} from './preset-manager';
+export type {
+  FilterPreset,
+  FilterConditions,
+  PresetManagerProps,
+} from './preset-manager';

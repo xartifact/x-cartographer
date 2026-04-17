@@ -4,7 +4,12 @@ import { projects } from '../schema/projects';
 import { userJourneys } from '../schema/user-journeys';
 import { userStories } from '../schema/user-stories';
 import { tasks } from '../schema/tasks';
-import type { Project, CreateProjectDTO, UpdateProjectDTO, ProjectSettings } from '@/types';
+import type {
+  Project,
+  CreateProjectDTO,
+  UpdateProjectDTO,
+  ProjectSettings,
+} from '@/types';
 import type { UserJourney } from '@/types';
 import type { UserStory } from '@/types';
 import type { Task } from '@/types';
@@ -28,7 +33,9 @@ function getDefaultSettings(): ProjectSettings {
   };
 }
 
-function dbRowToProject(row: typeof projects.$inferSelect): Omit<Project, 'user_journeys'> {
+function dbRowToProject(
+  row: typeof projects.$inferSelect
+): Omit<Project, 'user_journeys'> {
   return {
     id: row.id,
     name: row.name,
@@ -195,7 +202,10 @@ export class ProjectRepository {
         where: eq(projects.id, id),
       });
       if (existing) {
-        updateData.settings = { ...(existing.settings as object), ...dto.settings };
+        updateData.settings = {
+          ...(existing.settings as object),
+          ...dto.settings,
+        };
       }
     }
 
@@ -214,7 +224,7 @@ export class ProjectRepository {
     const rows = await db.query.projects.findMany({
       where: or(
         sql`lower(${projects.name}) like ${lowerQuery}`,
-        sql`lower(${projects.description}) like ${lowerQuery}`,
+        sql`lower(${projects.description}) like ${lowerQuery}`
       ),
       orderBy: [desc(projects.createdAt)],
       with: {
@@ -273,7 +283,9 @@ export class ProjectRepository {
         });
 
       // 删除旧的 journeys（cascade 会自动删除 stories 和 tasks）
-      await tx.delete(userJourneys).where(eq(userJourneys.projectId, project.id));
+      await tx
+        .delete(userJourneys)
+        .where(eq(userJourneys.projectId, project.id));
 
       // 插入 journeys、stories、tasks
       for (const journey of project.user_journeys) {
@@ -319,7 +331,9 @@ export class ProjectRepository {
               tags: task.tags,
               assignee: task.assignee ?? null,
               startedAt: task.started_at ? safeDate(task.started_at) : null,
-              completedAt: task.completed_at ? safeDate(task.completed_at) : null,
+              completedAt: task.completed_at
+                ? safeDate(task.completed_at)
+                : null,
               createdAt: safeDate(task.created_at),
               updatedAt: safeDate(task.updated_at),
             });

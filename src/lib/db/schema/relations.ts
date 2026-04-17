@@ -8,13 +8,16 @@ export const projectsRelations = relations(projects, ({ many }) => ({
   userJourneys: many(userJourneys),
 }));
 
-export const userJourneysRelations = relations(userJourneys, ({ one, many }) => ({
-  project: one(projects, {
-    fields: [userJourneys.projectId],
-    references: [projects.id],
-  }),
-  stories: many(userStories),
-}));
+export const userJourneysRelations = relations(
+  userJourneys,
+  ({ one, many }) => ({
+    project: one(projects, {
+      fields: [userJourneys.projectId],
+      references: [projects.id],
+    }),
+    stories: many(userStories),
+  })
+);
 
 export const userStoriesRelations = relations(userStories, ({ one, many }) => ({
   journey: one(userJourneys, {
@@ -24,7 +27,7 @@ export const userStoriesRelations = relations(userStories, ({ one, many }) => ({
   tasks: many(tasks),
 }));
 
-export const tasksRelations = relations(tasks, ({ one }) => ({
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
   story: one(userStories, {
     fields: [tasks.storyId],
     references: [userStories.id],
