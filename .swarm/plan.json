@@ -1,22 +1,22 @@
 {
   "schema_version": "1.0.0",
-  "title": "AI 执行生命周期监控",
+  "title": "故事地图拖拽视觉反馈改进",
   "swarm": "default",
   "current_phase": 1,
   "phases": [
     {
       "id": 1,
-      "name": "状态模型扩展与状态机实现",
+      "name": "幽灵卡片节点与位置预计算",
       "status": "complete",
       "tasks": [
         {
           "id": "1.1",
           "phase": 1,
           "status": "completed",
-          "size": "small",
-          "description": "扩展 ExecutionStatus 类型定义：在 src/lib/executor/types.ts 中新增导出 ExecutionStatus 类型（pending|running|completed|failed|cancelled|timed_out|interrupted）和状态转换验证函数 validateTransition(from, to)，非法转换返回 false 并记录 console.warn；同时修改 execution-registry.ts 引用新类型替代原有的内联 ExecutionStatus (FR-001, FR-002)",
+          "size": "medium",
+          "description": "在 story-map-canvas.tsx 中新增 GhostNode 组件并注册到 allNodeTypes：渲染为半透明（opacity-50）的故事卡片样式，宽度 w-64，显示被拖拽卡片的标题文本，pointer-events-none；同时移除 DropInsertLine 组件及其在 allNodeTypes 中的注册 (FR-001, FR-006)",
           "depends": [],
-          "acceptance": "ExecutionStatus 类型包含 7 个值，validateTransition 函数覆盖所有合法转换路径，非法转换返回 false",
+          "acceptance": "GhostNode 组件已注册到 allNodeTypes，DropInsertLine 已移除，TypeScript 编译通过",
           "files_touched": []
         },
         {
@@ -24,336 +24,29 @@
           "phase": 1,
           "status": "completed",
           "size": "medium",
-          "description": "在 execution-registry 的所有状态变更点集成 validateTransition 调用：startExecution 设置 pending 然后转 running，runExecution 完成时 running→completed/failed，异常时 running→failed (FR-002)",
+          "description": "修改 nodesWithIndicators useMemo：当拖拽故事时，在目标列的 dragOverRowIndex 位置插入 ghost 节点，目标列中 order >= dragOverRowIndex 的故事节点 y 坐标增加 ROW_HEIGHT；如果源列与目标列不同，源列中被拖拽卡片之后的节点 y 坐标减少 ROW_HEIGHT (FR-001, FR-002, FR-003)",
           "depends": [
             "1.1"
           ],
-          "acceptance": "所有状态变更通过 validateTransition 验证，非法转换被拒绝并记录警告",
+          "acceptance": "拖拽时目标位置显示幽灵卡片，目标列其他卡片下移让位，跨列拖拽时源列卡片上移填补",
           "files_touched": []
         },
         {
           "id": "1.3",
           "phase": 1,
           "status": "completed",
-          "size": "medium",
-          "description": "修复停止执行流程：execution-registry 的 stopExecution/abort 逻辑将终止状态设为 cancelled 而非 failed；前端 execute-dialog 的 handleStop 等待服务端 SSE 确认状态后再更新 store，不再前端直接设置 failed (FR-003)",
+          "size": "small",
+          "description": "为故事节点位置变化添加 CSS transition 动画：在 story-map-canvas.tsx 的 ReactFlow 节点样式或 StoryNode 组件中添加 transition: transform 200ms ease 使卡片让位时有平滑过渡效果 (FR-004)",
           "depends": [
             "1.2"
           ],
-          "acceptance": "用户点击停止后，执行记录状态为 cancelled；前端在收到服务端 SSE status 事件后才更新状态",
-          "files_touched": []
-        },
-        {
-          "id": "1.4",
-          "phase": 1,
-          "status": "completed",
-          "size": "small",
-          "description": "区分超时终止状态：execution-registry 的超时 abort 逻辑将终止状态设为 timed_out 而非 failed，通过在 abort reason 或标记中区分用户取消和超时 (FR-004)",
-          "depends": [
-            "1.2"
-          ],
-          "acceptance": "超时执行的数据库记录状态为 timed_out，用户取消的状态为 cancelled",
-          "files_touched": []
-        },
-        {
-          "id": "1.5",
-          "phase": 1,
-          "status": "completed",
-          "size": "small",
-          "description": "修改 cleanupStaleDbRecords：服务重启时将 DB 中 status=running 的记录标记为 interrupted 而非 failed (FR-005)",
-          "depends": [
-            "1.1"
-          ],
-          "acceptance": "服务重启后，之前 running 的记录状态为 interrupted",
-          "files_touched": []
-        },
-        {
-          "id": "1.6",
-          "phase": 1,
-          "status": "completed",
-          "size": "medium",
-          "description": "更新前端 execution-store 和 execute-dialog 的状态处理：completeExecution 和 handleSSEEvent 支持新增的 cancelled、timed_out、interrupted 状态值，UI 为每种状态显示对应的图标和文案 (FR-001)",
-          "depends": [
-            "1.3",
-            "1.4",
-            "1.5"
-          ],
-          "acceptance": "前端能正确渲染 7 种执行状态，每种有不同的颜色/图标/文案",
-          "files_touched": []
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "name": "状态变更审计日志",
-      "status": "complete",
-      "tasks": [
-        {
-          "id": "2.1",
-          "phase": 2,
-          "status": "completed",
-          "size": "small",
-          "description": "创建 execution_status_history 表的 Drizzle schema：包含 id、executionId (FK→executions.id ON DELETE CASCADE)、fromStatus、toStatus、reason、metadata (jsonb)、timestamp 字段 (FR-009)",
-          "depends": [],
-          "acceptance": "schema 文件存在且导出 executionStatusHistory 表定义，relations.ts 中注册了与 executions 的关系",
-          "files_touched": []
-        },
-        {
-          "id": "2.2",
-          "phase": 2,
-          "status": "completed",
-          "size": "small",
-          "description": "在 client.ts 的 TABLE_SQLS 中添加 execution_status_history 表的 CREATE TABLE SQL，确保在 PGlite 初始化时建表 (FR-009)",
-          "depends": [
-            "2.1"
-          ],
-          "acceptance": "PGlite 初始化后 execution_status_history 表存在",
-          "files_touched": []
-        },
-        {
-          "id": "2.3",
-          "phase": 2,
-          "status": "completed",
-          "size": "small",
-          "description": "创建 ExecutionStatusHistoryRepository：提供 create(entry) 和 findByExecutionId(executionId) 方法，并在 repositories/index.ts 中注册导出 (FR-009, FR-010)",
-          "depends": [
-            "2.2"
-          ],
-          "acceptance": "repository 可以插入和查询状态变更记录",
-          "files_touched": []
-        },
-        {
-          "id": "2.4",
-          "phase": 2,
-          "status": "completed",
-          "size": "medium",
-          "description": "在 execution-registry 的每个状态变更点调用 ExecutionStatusHistoryRepository.create 记录审计日志：pending→running、running→completed/failed/cancelled/timed_out、cleanup 时 running→interrupted (FR-009)",
-          "depends": [
-            "2.3",
-            "1.2"
-          ],
-          "acceptance": "每次执行状态变更后，execution_status_history 表中有对应的审计记录，包含正确的 from/to/reason/timestamp",
-          "files_touched": []
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "name": "输出增量持久化",
-      "status": "complete",
-      "tasks": [
-        {
-          "id": "3.1",
-          "phase": 3,
-          "status": "completed",
-          "size": "small",
-          "description": "创建 execution_outputs 表的 Drizzle schema：包含 id、executionId (FK→executions.id ON DELETE CASCADE)、chunkIndex (integer)、lines (jsonb string[])、flushedAt (timestamp) 字段，并添加 (executionId, chunkIndex) 的唯一约束 (FR-006)",
-          "depends": [],
-          "acceptance": "schema 文件导出 executionOutputs 表定义，有 executionId+chunkIndex 唯一约束",
-          "files_touched": []
-        },
-        {
-          "id": "3.2",
-          "phase": 3,
-          "status": "completed",
-          "size": "small",
-          "description": "在 client.ts 的 TABLE_SQLS 中添加 execution_outputs 表的 CREATE TABLE SQL (FR-006)",
-          "depends": [
-            "3.1"
-          ],
-          "acceptance": "PGlite 初始化后 execution_outputs 表存在",
-          "files_touched": []
-        },
-        {
-          "id": "3.3",
-          "phase": 3,
-          "status": "completed",
-          "size": "small",
-          "description": "创建 ExecutionOutputRepository：提供 saveChunk(executionId, chunkIndex, lines)、findByExecutionId(executionId) 返回所有 chunks 按 chunkIndex 排序并合并为完整 lines 数组、deleteByExecutionId(executionId) 方法 (FR-006)",
-          "depends": [
-            "3.2"
-          ],
-          "acceptance": "repository 可以保存分块、查询合并、删除分块",
-          "files_touched": []
-        },
-        {
-          "id": "3.4",
-          "phase": 3,
-          "status": "completed",
-          "size": "large",
-          "description": "在 execution-registry 的 appendOutput 逻辑中实现增量 flush：维护一个 pending buffer 和 chunkIndex 计数器，每累积 100 行或每 10 秒（setInterval）调用 ExecutionOutputRepository.saveChunk 异步写入 DB，flush 操作不阻塞 SSE 推送；执行完成或归档时必须 clearInterval 清理计时器防止泄漏 (FR-006, FR-007, FR-008)",
-          "depends": [
-            "3.3"
-          ],
-          "acceptance": "执行运行期间，每 100 行或 10 秒输出被增量写入 execution_outputs 表；SSE 推送不受影响；执行完成或归档时 setInterval 计时器被 clearInterval 清理",
-          "files_touched": []
-        },
-        {
-          "id": "3.5",
-          "phase": 3,
-          "status": "completed",
-          "size": "medium",
-          "description": "修改执行完成后的 persistToDb 逻辑：将最终剩余的 buffer flush 到 execution_outputs 表，不再将 outputLines 写入 executions 表主记录（或保留为空数组），历史查询时从 execution_outputs 合并获取完整输出 (FR-006)",
-          "depends": [
-            "3.4"
-          ],
-          "acceptance": "执行完成后所有输出存在于 execution_outputs 分块中；查询历史时能从分块合并获取完整输出",
-          "files_touched": []
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "name": "持久化可靠性与异常恢复",
-      "status": "in_progress",
-      "tasks": [
-        {
-          "id": "4.1",
-          "phase": 4,
-          "status": "in_progress",
-          "size": "medium",
-          "description": "实现 PersistQueue 类：内存队列（最大 100 条），提供 enqueue(fn) 方法接受异步持久化函数，后台 30 秒定时处理队列中的待重试项，每项最多重试 3 次，队列满时记录 console.error 警告 (FR-011)",
-          "depends": [],
-          "acceptance": "INPUT: 无外部依赖，纯新文件 src/lib/executor/persist-queue.ts | OUTPUT: 导出 PersistQueue 类，含 enqueue(fn: () => Promise<void>)、destroy() 方法，内部 items: Array<{fn, retries}> 和 30s setInterval | VERIFY: (1) enqueue 100 个 fn 后 queue.length===100 (2) 第 101 个 enqueue 触发 console.error (3) fn 失败后 30s 周期内被重试 (4) 重试 3 次仍失败则从队列移除并 console.error (5) destroy() 后 clearInterval 不再处理",
-          "files_touched": []
-        },
-        {
-          "id": "4.2",
-          "phase": 4,
-          "status": "pending",
-          "size": "small",
-          "description": "将 execution-registry 的 persistToDb 改为通过 PersistQueue 执行：首次尝试同步调用，失败后入队重试，替代当前的单次重试 for 循环 (FR-011)",
-          "depends": [
-            "4.1",
-            "3.5"
-          ],
-          "acceptance": "INPUT: persist-queue.ts 的 PersistQueue 类已就绪 + execution-registry.ts 的 persistToDb 方法 | OUTPUT: persistToDb 内部先 try 直接执行 DB 写入，catch 时调用 persistQueue.enqueue(fn) 入队；移除现有 for 循环重试 | VERIFY: (1) persistToDb 成功时不入队 (2) persistToDb DB 写入抛异常时 fn 被 enqueue (3) execution-registry 导入并持有一个 PersistQueue 单例",
-          "files_touched": []
-        },
-        {
-          "id": "4.3",
-          "phase": 4,
-          "status": "pending",
-          "size": "small",
-          "description": "为 execution-registry 的内存 history Map 添加 LRU 容量限制（上限 50 条）：每次 set 时检查大小，超出时删除最早的条目 (FR-012)",
-          "depends": [],
-          "acceptance": "INPUT: execution-registry.ts 的 history: Map<string, ExecutionRecord> | OUTPUT: set 操作后若 history.size > 50 则 delete 最早 key（Map 迭代顺序=插入顺序） | VERIFY: (1) 插入第 51 条后 history.size===50 (2) 被淘汰的是第 1 条插入的 key (3) 已有 key 的 set 不增加 size",
-          "files_touched": []
-        },
-        {
-          "id": "4.4",
-          "phase": 4,
-          "status": "pending",
-          "size": "medium",
-          "description": "服务端 GET /api/tasks/[id]/execute SSE 端点支持 lastLineIndex 查询参数：重连时从指定行索引开始发送 snapshot，跳过已传输的行 (FR-014)",
-          "depends": [],
-          "acceptance": "INPUT: src/app/api/tasks/[id]/execute/route.ts 的 GET handler + URL 查询参数 lastLineIndex | OUTPUT: 解析 lastLineIndex (integer, default 0)；发送 snapshot 事件时 outputLines 从 lastLineIndex 位置切片；若 lastLineIndex >= outputLines.length 则发送空 snapshot | VERIFY: (1) 无 lastLineIndex 时行为不变（发送全部 outputLines） (2) lastLineIndex=200 时 snapshot.outputLines 从第 200 行开始 (3) lastLineIndex 超出范围时 snapshot.outputLines 为空数组 (4) 后续实时 output 事件不受影响",
-          "files_touched": []
-        },
-        {
-          "id": "4.5",
-          "phase": 4,
-          "status": "pending",
-          "size": "medium",
-          "description": "实现前端 SSE 指数退避自动重连：execute-dialog 的 connectSSE 在连接断开时自动重试（1s, 2s, 4s, 8s, 16s, 30s cap），重连请求携带 lastLineIndex 参数 (FR-013)",
-          "depends": [
-            "4.4"
-          ],
-          "acceptance": "INPUT: src/features/tasks/components/execute-dialog.tsx 的 connectSSE 函数 + execution store 的 outputLines.length | OUTPUT: EventSource onerror 时 setTimeout 重连，delay = min(1000 * 2^attempt, 30000)；重连 URL 追加 lastLineIndex=outputLines.length；成功连接后 reset attempt=0 | VERIFY: (1) 第 1 次断连后 1s 重连 (2) 连续断连 delay 递增 1s→2s→4s→8s→16s→30s (3) 第 6+ 次断连 delay 固定 30s (4) 重连成功后下次断连 delay 重置为 1s (5) 重连 URL 包含 lastLineIndex 参数",
-          "files_touched": []
-        }
-      ]
-    },
-    {
-      "id": 5,
-      "name": "查询能力增强与监控仪表盘",
-      "status": "pending",
-      "tasks": [
-        {
-          "id": "5.1",
-          "phase": 5,
-          "status": "pending",
-          "size": "medium",
-          "description": "增强 ExecutionRepository：添加 findWithFilters(options) 方法支持按状态数组过滤、按时间范围 (startDate, endDate) 筛选、分页 (offset, limit)、返回 total count (FR-017, FR-018)",
-          "depends": [],
-          "acceptance": "INPUT: src/lib/db/repositories/execution.repository.ts | OUTPUT: findWithFilters({status?: string[], startDate?: Date, endDate?: Date, offset?: number, limit?: number}) 返回 {total: number, executions: ExecutionRecord[]} | VERIFY: (1) 空参数返回所有记录 (2) status=['failed','cancelled'] 只返回这两种 (3) dateRange 正确过滤 (4) offset+limit 分页正确 (5) total 是过滤后总数不是分页后",
-          "files_touched": []
-        },
-        {
-          "id": "5.2",
-          "phase": 5,
-          "status": "pending",
-          "size": "medium",
-          "description": "更新 /api/executions 路由：支持 status (逗号分隔多选)、startDate、endDate、offset 查询参数，调用 findWithFilters；保持现有轮询和历史模式的向后兼容 (FR-017, FR-018)",
-          "depends": [
-            "5.1"
-          ],
-          "acceptance": "INPUT: src/app/api/executions/route.ts + findWithFilters 方法 | OUTPUT: GET /api/executions?history=true&status=failed,cancelled&startDate=2026-04-01&offset=0&limit=20 调用 findWithFilters 返回 {total, executions} | VERIFY: (1) 不带新参数时行为不变（向后兼容） (2) status=failed,cancelled 正确解析为数组 (3) 响应包含 total 字段",
-          "files_touched": []
-        },
-        {
-          "id": "5.3",
-          "phase": 5,
-          "status": "pending",
-          "size": "medium",
-          "description": "添加 ExecutionRepository.getMetrics(dateRange?) 方法：查询返回聚合指标 — 总执行数、按状态分组计数、平均耗时、成功率百分比 (FR-015)",
-          "depends": [],
-          "acceptance": "INPUT: src/lib/db/repositories/execution.repository.ts | OUTPUT: getMetrics(opts?: {startDate?: Date, endDate?: Date}) 返回 {total, byStatus: Record<string,number>, avgDurationMs, successRate} | VERIFY: (1) byStatus 包含所有出现过的状态 (2) successRate = completed/total * 100 (3) avgDurationMs 只计算有 duration 的记录 (4) 无记录时返回零值不抛错",
-          "files_touched": []
-        },
-        {
-          "id": "5.4",
-          "phase": 5,
-          "status": "pending",
-          "size": "small",
-          "description": "创建 GET /api/executions/metrics 路由：调用 getMetrics，支持 period 参数（24h, 7d, 30d, all），返回聚合指标 JSON (FR-015, FR-016)",
-          "depends": [
-            "5.3"
-          ],
-          "acceptance": "INPUT: getMetrics 方法 + period 参数映射到 dateRange | OUTPUT: GET /api/executions/metrics?period=7d 返回 {total, byStatus, avgDurationMs, successRate} | VERIFY: (1) period=24h 只聚合最近 24 小时 (2) period=all 或无参数聚合全部 (3) 无效 period 返回 400",
-          "files_touched": []
-        },
-        {
-          "id": "5.5",
-          "phase": 5,
-          "status": "pending",
-          "size": "large",
-          "description": "创建 execution-metrics-dashboard 组件：展示成功率（百分比和环形图）、平均耗时、按状态分布的柱状图、最近执行趋势列表；使用 Radix UI 原生元素实现简单的可视化（不引入图表库），支持时间范围切换 (FR-015, FR-016)",
-          "depends": [
-            "5.4"
-          ],
-          "acceptance": "INPUT: /api/executions/metrics API 返回的聚合数据 | OUTPUT: src/features/tasks/components/execution-metrics-dashboard.tsx 渲染成功率、平均耗时、状态分布、趋势列表 | VERIFY: (1) 组件接受 metrics 数据并渲染 (2) 时间范围切换（24h/7d/30d）触发重新请求 (3) 无数据时显示空状态 (4) 无外部图表库依赖",
-          "files_touched": []
-        },
-        {
-          "id": "5.6",
-          "phase": 5,
-          "status": "pending",
-          "size": "medium",
-          "description": "更新 execution-history-panel：添加状态过滤下拉菜单（多选）和时间范围选择器，调用增强后的 API 并支持分页加载更多 (FR-017)",
-          "depends": [
-            "5.2"
-          ],
-          "acceptance": "INPUT: 增强后的 /api/executions 路由 | OUTPUT: execution-history-panel 新增状态过滤 Select（多选）+ 时间范围选择 + 加载更多按钮 | VERIFY: (1) 选择 failed+cancelled 后列表只显示这两种 (2) 点击加载更多增加 offset 请求下一页 (3) 不选任何过滤时显示全部（向后兼容）",
-          "files_touched": []
-        },
-        {
-          "id": "5.7",
-          "phase": 5,
-          "status": "pending",
-          "size": "medium",
-          "description": "为执行详情添加状态时间线视图：在执行详情区域展示该执行的完整状态变更历史（从 execution_status_history 查询），时间线格式显示每次转换的 from→to、时间戳、原因 (FR-010, SC-004)",
-          "depends": [
-            "2.4",
-            "5.2"
-          ],
-          "acceptance": "INPUT: ExecutionStatusHistoryRepository.findByExecutionId 返回的审计记录数组 | OUTPUT: 执行详情区域新增时间线组件，按时间正序展示每条 from→to + timestamp + reason | VERIFY: (1) 有 3 次状态变更的执行显示 3 条时间线条目 (2) 每条显示 from→to 箭头 + 可读时间 + reason (3) 无状态变更历史时显示空状态提示",
+          "acceptance": "拖拽时卡片让位有平滑动画过渡，无跳变",
           "files_touched": []
         }
       ]
     }
   ],
   "migration_status": "native",
-  "specMtime": "2026-04-15T03:20:57.581Z",
-  "specHash": "439401b91aaa031933aa46ffe3c602db5fe1e006aa45d449655c1ffafc8a29b0"
+  "specMtime": "2026-04-17T09:16:25.950Z",
+  "specHash": "f37831cdd6304c631314d2c1a0f04b038471999f66555df72e6614db6943cac3"
 }

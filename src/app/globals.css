@@ -105,6 +105,11 @@
   opacity: 0.9;
 }
 
+/* 非拖拽的故事节点：位置变化时平滑过渡 */
+.react-flow__node[data-nodetype='story']:not(.dragging) {
+  transition: transform 200ms ease;
+}
+
 /* 拖拽悬停目标列高亮动画 */
 .drag-column-highlight {
   transition:

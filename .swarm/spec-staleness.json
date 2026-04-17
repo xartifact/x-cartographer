@@ -1,9 +1,9 @@
 {
   "type": "spec_stale_detected",
-  "timestamp": "2026-04-15T03:21:03.410Z",
+  "timestamp": "2026-04-17T09:16:26.280Z",
   "phase": 1,
-  "specHash_plan": "0ccedbd1b6c08038611a4899544d69c7f9b82713d38dde16ae1720070be2cc5b",
-  "specHash_current": "439401b91aaa031933aa46ffe3c602db5fe1e006aa45d449655c1ffafc8a29b0",
+  "specHash_plan": "439401b91aaa031933aa46ffe3c602db5fe1e006aa45d449655c1ffafc8a29b0",
+  "specHash_current": "f37831cdd6304c631314d2c1a0f04b038471999f66555df72e6614db6943cac3",
   "reason": "spec.md has been modified since plan was saved",
-  "planTitle": "AI 执行任务失败记录修复"
+  "planTitle": "AI 执行生命周期监控"
 }

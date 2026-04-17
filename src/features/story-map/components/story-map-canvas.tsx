@@ -38,6 +38,7 @@ import { Priority } from '@/types';
 import { UserJourney, UserStory } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -186,18 +187,15 @@ function DropColumnIndicator({ data }: { data: { columnHeight: number } }) {
   );
 }
 
-// 拖拽插入位置指示线节点（水平线 + 两端圆点）
-function DropInsertLine() {
+// 幽灵卡片节点（拖拽占位预览）
+function GhostNode({ data }: { data: { title: string } }) {
   return (
-    <div
-      className="drag-insert-line pointer-events-none"
-      style={{ width: `${COLUMN_WIDTH - 16}px` }}
-    >
-      <div className="flex items-center">
-        <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary shadow-sm shadow-primary/50" />
-        <div className="h-0.5 flex-1 bg-primary shadow-sm shadow-primary/50" />
-        <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary shadow-sm shadow-primary/50" />
-      </div>
+    <div className="pointer-events-none w-64 opacity-50">
+      <Card>
+        <CardHeader>
+          <p className="line-clamp-2 text-sm font-semibold">{data.title}</p>
+        </CardHeader>
+      </Card>
     </div>
   );
 }
@@ -214,7 +212,7 @@ const allNodeTypes: NodeTypes = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dropColumnIndicator: DropColumnIndicator as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dropInsertLine: DropInsertLine as any,
+  ghost: GhostNode as any,
 };
 
 export function StoryMapCanvas({
@@ -684,31 +682,119 @@ export function StoryMapCanvas({
       zIndex: -1,
     });
 
-    // 插入位置指示线（仅故事拖拽时显示）
+    // Ghost node + story node position shifting during story drag
     if (draggingNodeType === 'story' && dragOverRowIndex !== null) {
+      const draggedStoryId = draggingNodeId.replace('story-', '');
+
+      // Find source journey index and dragged story info
+      let sourceJourneyIndex = -1;
+      let draggedStoryIndex = -1;
+      let draggedStoryTitle = '';
+      for (let ji = 0; ji < filteredJourneys.length; ji++) {
+        const sortedStories = [...(filteredJourneys[ji].stories ?? [])].sort(
+          (a, b) => a.order - b.order
+        );
+        const si = sortedStories.findIndex((s) => s.id === draggedStoryId);
+        if (si !== -1) {
+          sourceJourneyIndex = ji;
+          draggedStoryIndex = si;
+          draggedStoryTitle = sortedStories[si].title ?? '';
+          break;
+        }
+      }
+
+      if (sourceJourneyIndex === -1) {
+        return [...nodes, ...indicatorNodes];
+      }
+
+      // Ghost node insertion
       indicatorNodes.push({
-        id: '__drop-insert-line__',
-        type: 'dropInsertLine',
+        id: '__ghost-node__',
+        type: 'ghost',
         position: {
-          x:
-            dragOverJourneyIndex * (COLUMN_WIDTH + COLUMN_GAP) + COLUMN_GAP + 8,
-          y: HEADER_HEIGHT + dragOverRowIndex * ROW_HEIGHT - 6,
+          x: dragOverJourneyIndex * (COLUMN_WIDTH + COLUMN_GAP) + COLUMN_GAP,
+          y: HEADER_HEIGHT + dragOverRowIndex * ROW_HEIGHT,
         },
-        data: {},
+        data: { title: draggedStoryTitle },
         draggable: false,
         selectable: false,
-        zIndex: 999,
       });
+
+      // Adjust story node positions
+      const adjustedNodes = nodes.map((node) => {
+        if (node.type !== 'story' || node.id === draggingNodeId) return node;
+
+        const storyId = node.id.replace('story-', '');
+        let nodeJourneyIndex = -1;
+        let nodeStoryIndex = -1;
+        for (let ji = 0; ji < filteredJourneys.length; ji++) {
+          const sortedStories = [...(filteredJourneys[ji].stories ?? [])].sort(
+            (a, b) => a.order - b.order
+          );
+          const si = sortedStories.findIndex((s) => s.id === storyId);
+          if (si !== -1) {
+            nodeJourneyIndex = ji;
+            nodeStoryIndex = si;
+            break;
+          }
+        }
+        if (nodeJourneyIndex === -1) return node;
+
+        let yOffset = 0;
+
+        if (nodeJourneyIndex === dragOverJourneyIndex) {
+          // Node is in target column
+          if (sourceJourneyIndex === dragOverJourneyIndex) {
+            // Same column: dragged card leaves a gap
+            if (nodeStoryIndex > draggedStoryIndex) {
+              // Node after dragged card shifts up first (gap left behind)
+              yOffset -= ROW_HEIGHT;
+              // Then nodes at/after insert point shift down
+              if (nodeStoryIndex - 1 >= dragOverRowIndex) {
+                yOffset += ROW_HEIGHT;
+              }
+            } else if (nodeStoryIndex < draggedStoryIndex) {
+              // Node before dragged card: check if it ends up at/after insert point
+              if (nodeStoryIndex >= dragOverRowIndex) {
+                yOffset = ROW_HEIGHT;
+              }
+            } else {
+              // nodeStoryIndex === draggedStoryIndex (the dragged node itself — already filtered above)
+            }
+          } else {
+            // Different column: shift down if at/after insert point
+            if (nodeStoryIndex >= dragOverRowIndex) {
+              yOffset = ROW_HEIGHT;
+            }
+          }
+        } else if (
+          nodeJourneyIndex === sourceJourneyIndex &&
+          sourceJourneyIndex !== dragOverJourneyIndex
+        ) {
+          // Source column on cross-column drag: fill the gap left by dragged card
+          if (nodeStoryIndex > draggedStoryIndex) {
+            yOffset = -ROW_HEIGHT;
+          }
+        }
+
+        if (yOffset === 0) return node;
+        return {
+          ...node,
+          position: { ...node.position, y: node.position.y + yOffset },
+        };
+      });
+
+      return [...adjustedNodes, ...indicatorNodes];
     }
 
     return [...nodes, ...indicatorNodes];
   }, [
     nodes,
     draggingNodeId,
-    draggingNodeType,
     dragOverJourneyIndex,
-    dragOverRowIndex,
     filteredJourneys,
+    dragOverRowIndex,
+    draggingNodeType,
   ]);
 
   // 处理节点点击
