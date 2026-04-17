@@ -5,7 +5,7 @@
  */
 
 import { memo } from 'react';
-import { X, Clock, Tag, CheckCircle2, Calendar } from 'lucide-react';
+import { X, Clock, Tag, CheckCircle2, Calendar, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,7 @@ interface StoryDetailPanelProps {
   project: Project;
   onClose: () => void;
   onEdit?: (story: UserStory) => void;
+  onDelete?: (story: UserStory) => void;
 }
 
 const priorityLabels: Record<Priority, string> = {
@@ -31,48 +32,54 @@ const priorityLabels: Record<Priority, string> = {
 };
 
 const priorityColors: Record<Priority, string> = {
-  [Priority.HIGH]: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  [Priority.MEDIUM]: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-  [Priority.LOW]: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  [Priority.HIGH]:
+    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  [Priority.MEDIUM]:
+    'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  [Priority.LOW]:
+    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
 };
 
 export const StoryDetailPanel = memo<StoryDetailPanelProps>(
-  ({ story, journeyName, project, onClose, onEdit }) => {
+  ({ story, journeyName, project, onClose, onEdit, onDelete }) => {
     if (!story) {
-      return (
-        <Card className="w-80 h-full flex items-center justify-center">
-          <p className="text-muted-foreground">选择故事查看详情</p>
-        </Card>
-      );
+      return null;
     }
 
     const taskCount = story.tasks?.length ?? 0;
 
     return (
-      <Card className="w-80 h-full flex flex-col overflow-hidden">
+      <Card className="flex h-full w-80 flex-col overflow-hidden">
         {/* 头部 */}
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <Badge variant="outline" className="font-mono shrink-0">
+        <CardHeader className="flex shrink-0 flex-row items-center justify-between space-y-0 pb-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Badge variant="outline" className="shrink-0 font-mono">
               {story.id}
             </Badge>
             <Badge className={cn(priorityColors[story.priority], 'shrink-0')}>
               {priorityLabels[story.priority]}
             </Badge>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="shrink-0"
+          >
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
 
         {/* Tab 导航 */}
-        <Tabs defaultValue="detail" className="flex-1 flex flex-col min-h-0">
+        <Tabs defaultValue="detail" className="flex min-h-0 flex-1 flex-col">
           <TabsList className="mx-4 shrink-0">
-            <TabsTrigger value="detail" className="flex-1 text-xs">详情</TabsTrigger>
+            <TabsTrigger value="detail" className="flex-1 text-xs">
+              详情
+            </TabsTrigger>
             <TabsTrigger value="tasks" className="flex-1 text-xs">
               任务
               {taskCount > 0 && (
-                <span className="ml-1 text-[10px] bg-primary/15 text-primary rounded-full px-1">
+                <span className="ml-1 rounded-full bg-primary/15 px-1 text-[10px] text-primary">
                   {taskCount}
                 </span>
               )}
@@ -80,12 +87,15 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
           </TabsList>
 
           {/* 详情 Tab */}
-          <TabsContent value="detail" className="flex-1 overflow-y-auto m-0">
-            <div className="px-4 py-2 space-y-4">
+          <TabsContent value="detail" className="m-0 flex-1 overflow-y-auto">
+            <div className="space-y-4 px-4 py-2">
               {/* 旅程信息 */}
               {journeyName && (
                 <div className="text-sm text-muted-foreground">
-                  所属旅程: <span className="font-medium text-foreground">{journeyName}</span>
+                  所属旅程:{' '}
+                  <span className="font-medium text-foreground">
+                    {journeyName}
+                  </span>
                 </div>
               )}
 
@@ -93,7 +103,9 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
 
               {/* 标题 */}
               <div>
-                <h3 className="font-semibold text-base leading-tight">{story.title}</h3>
+                <h3 className="text-base font-semibold leading-tight">
+                  {story.title}
+                </h3>
               </div>
 
               {/* 估算工时 */}
@@ -110,7 +122,7 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
               {story.description && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">详细描述</h4>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
                     {story.description}
                   </p>
                 </div>
@@ -127,7 +139,11 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {story.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className="text-xs"
+                        >
                           {tag}
                         </Badge>
                       ))}
@@ -137,59 +153,81 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
               )}
 
               {/* 验收标准 */}
-              {story.acceptance_criteria && story.acceptance_criteria.length > 0 && (
-                <>
-                  <Separator />
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                      <h4 className="text-sm font-medium">验收标准</h4>
+              {story.acceptance_criteria &&
+                story.acceptance_criteria.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                        <h4 className="text-sm font-medium">验收标准</h4>
+                      </div>
+                      <ul className="space-y-2">
+                        {story.acceptance_criteria.map((criteria, index) => {
+                          const criteriaText =
+                            typeof criteria === 'string'
+                              ? criteria
+                              : (criteria as { description?: string })
+                                  .description || JSON.stringify(criteria);
+                          return (
+                            <li
+                              key={index}
+                              className="flex items-start gap-2 text-sm text-muted-foreground"
+                            >
+                              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                              <span>{criteriaText}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
-                    <ul className="space-y-2">
-                      {story.acceptance_criteria.map((criteria, index) => {
-                        const criteriaText =
-                          typeof criteria === 'string'
-                            ? criteria
-                            : (criteria as { description?: string }).description || JSON.stringify(criteria);
-                        return (
-                          <li
-                            key={index}
-                            className="text-sm text-muted-foreground flex items-start gap-2"
-                          >
-                            <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                            <span>{criteriaText}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
 
               {/* 元数据 */}
               <Separator />
               <div className="space-y-2 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-3 w-3" />
-                  <span>创建时间: {new Date(story.created_at).toLocaleDateString('zh-CN')}</span>
+                  <span>
+                    创建时间:{' '}
+                    {new Date(story.created_at).toLocaleDateString('zh-CN')}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-3 w-3" />
-                  <span>更新时间: {new Date(story.updated_at).toLocaleDateString('zh-CN')}</span>
+                  <span>
+                    更新时间:{' '}
+                    {new Date(story.updated_at).toLocaleDateString('zh-CN')}
+                  </span>
                 </div>
               </div>
 
-              {/* 编辑按钮 */}
-              <div className="pb-2">
-                <Button variant="outline" className="w-full" onClick={() => onEdit?.(story)}>
+              {/* 操作按钮 */}
+              <div className="flex gap-2 pb-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => onEdit?.(story)}
+                >
                   编辑故事
                 </Button>
+                {onDelete && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => onDelete(story)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </TabsContent>
 
           {/* 任务 Tab */}
-          <TabsContent value="tasks" className="flex-1 overflow-y-auto m-0">
+          <TabsContent value="tasks" className="m-0 flex-1 overflow-y-auto">
             <div className="px-4 py-3">
               <StoryTaskPanel story={story} project={project} />
             </div>
