@@ -291,8 +291,10 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
         id: project.id,
         name: project.name,
         description: project.description ?? '',
-        version: '1.0.0',
-        tech_stack: [],
+        version: project.metadata?.version || '1.0.0',
+        tech_stack: project.metadata?.tech_stack?.length
+          ? project.metadata.tech_stack
+          : ['未指定'],
         created_at: project.created_at,
         updated_at: project.updated_at,
         user_journeys: project.user_journeys ?? [],

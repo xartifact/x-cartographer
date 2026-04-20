@@ -70,8 +70,10 @@ export default function ProjectDetailPage() {
         id: currentProject.id,
         name: currentProject.name,
         description: currentProject.description ?? '',
-        version: '1.0.0',
-        tech_stack: [],
+        version: currentProject.metadata?.version || '1.0.0',
+        tech_stack: currentProject.metadata?.tech_stack?.length
+          ? currentProject.metadata.tech_stack
+          : ['未指定'],
         created_at: currentProject.created_at,
         updated_at: currentProject.updated_at,
         user_journeys: currentProject.user_journeys ?? [],
