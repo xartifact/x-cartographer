@@ -2,7 +2,14 @@
  * TOML 导入/导出功能
  */
 
-import { TomlStoryMap, TomlUserJourney, TomlUserStory, Project, UserJourney, UserStory } from '@/features/projects/types';
+import {
+  TomlStoryMap,
+  TomlUserJourney,
+  TomlUserStory,
+  Project,
+  UserJourney,
+  UserStory,
+} from '@/features/projects/types';
 
 /**
  * 解析 TOML 格式的用户故事
@@ -31,7 +38,10 @@ function parseUserStory(tomlStory: TomlUserStory): UserStory {
 /**
  * 解析 TOML 格式的用户旅程
  */
-function parseUserJourney(tomlJourney: TomlUserJourney, index: number): UserJourney {
+function parseUserJourney(
+  tomlJourney: TomlUserJourney,
+  index: number
+): UserJourney {
   return {
     id: tomlJourney.id,
     name: tomlJourney.name,
@@ -45,7 +55,9 @@ function parseUserJourney(tomlJourney: TomlUserJourney, index: number): UserJour
 /**
  * 从 TOML 对象解析项目数据
  */
-export function parseTomlStoryMap(tomlData: TomlStoryMap): Omit<Project, 'id' | 'updated_at'> {
+export function parseTomlStoryMap(
+  tomlData: TomlStoryMap
+): Omit<Project, 'id' | 'updated_at'> {
   const { project: metadata, user_journeys } = tomlData;
 
   return {
@@ -68,9 +80,12 @@ function serializeUserStory(story: UserStory): TomlUserStory {
     description: story.description,
     priority: story.priority,
     estimation: story.estimation,
-    acceptance_criteria: story.acceptance_criteria.map((c) =>
-      c.completed ? { description: c.description, completed: true } : c.description
-    ),
+    acceptance_criteria: story.acceptance_criteria.map((c) => {
+      if (typeof c === 'string') return c;
+      return c.completed
+        ? { description: c.description, completed: true }
+        : c.description;
+    }),
     tags: story.tags,
     status: story.status,
   };
@@ -130,12 +145,16 @@ export async function serializeToTomlText(data: TomlStoryMap): Promise<string> {
   lines.push(`version = "${escapeTomlString(data.project.version)}"`);
   lines.push(`created_at = "${escapeTomlString(data.project.created_at)}"`);
   lines.push(`description = "${escapeTomlString(data.project.description)}"`);
-  lines.push(`tech_stack = [${data.project.tech_stack.map((s) => `"${s}"`).join(', ')}]`);
+  lines.push(
+    `tech_stack = [${data.project.tech_stack.map((s) => `"${s}"`).join(', ')}]`
+  );
   lines.push('');
 
   // 用户旅程
   data.user_journeys.forEach((journey, journeyIndex) => {
-    lines.push(`# ${'='.repeat(50)} 用户旅程 ${journeyIndex + 1}: ${journey.name} ${'='.repeat(50)}`);
+    lines.push(
+      `# ${'='.repeat(50)} 用户旅程 ${journeyIndex + 1}: ${journey.name} ${'='.repeat(50)}`
+    );
     lines.push('[[user_journeys]]');
     lines.push(`id = "${escapeTomlString(journey.id)}"`);
     lines.push(`name = "${escapeTomlString(journey.name)}"`);

@@ -14,16 +14,23 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Upload } from 'lucide-react';
+import { Upload, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useProjectStore } from '@/features/projects/stores';
 import { ImportDialog } from '@/features/projects/components/import-dialog';
+import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { projects, isLoading: loading, mergeTomlToProject } = useProjectStore();
-  const [currentProject, setCurrentProject] = useState(projects.find(p => p.id === params.id));
+  const {
+    projects,
+    isLoading: loading,
+    mergeTomlToProject,
+  } = useProjectStore();
+  const [currentProject, setCurrentProject] = useState(
+    projects.find((p) => p.id === params.id)
+  );
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
 
@@ -31,7 +38,7 @@ export default function ProjectDetailPage() {
   const projectId = params.id as string;
 
   useEffect(() => {
-    const project = projects.find(p => p.id === params.id);
+    const project = projects.find((p) => p.id === params.id);
     if (!project && !loading) {
       // 项目不存在，返回项目列表
       router.push('/projects');
@@ -50,8 +57,39 @@ export default function ProjectDetailPage() {
 
       await mergeTomlToProject(pid, projectData, mode);
       // 刷新当前项目数据
-      const updated = projects.find(p => p.id === pid);
+      const updated = projects.find((p) => p.id === pid);
       setCurrentProject(updated);
+    }
+  };
+
+  const handleExportToml = async () => {
+    if (!currentProject) return;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tomlData = serializeProjectToToml({
+        id: currentProject.id,
+        name: currentProject.name,
+        description: currentProject.description ?? '',
+        version: '1.0.0',
+        tech_stack: [],
+        created_at: currentProject.created_at,
+        updated_at: currentProject.updated_at,
+        user_journeys: currentProject.user_journeys ?? [],
+      } as any);
+      const tomlText = await serializeToTomlText(tomlData);
+      const blob = new Blob([tomlText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      const safeName = currentProject.name.replace(/[/\\:*?"<>|]/g, '_');
+      anchor.download = `${safeName}.toml`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('TOML 导出失败:', error);
+      alert(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -60,31 +98,39 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto px-4 py-8">
       {/* 项目概览标题区域 */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{currentProject.name}</h1>
-          <p className="text-muted-foreground mt-1">{currentProject.description}</p>
+          <p className="mt-1 text-muted-foreground">
+            {currentProject.description}
+          </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setImportMode('merge');
-            setShowImportDialog(true);
-          }}
-        >
-          <Upload className="h-4 w-4 mr-2" />
-          导入 TOML
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportToml}>
+            <Download className="mr-2 h-4 w-4" />
+            导出 TOML
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setImportMode('merge');
+              setShowImportDialog(true);
+            }}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            导入 TOML
+          </Button>
+        </div>
       </div>
 
       {/* 概览内容 */}
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="border rounded-lg p-6">
-            <h3 className="font-semibold mb-2">项目信息</h3>
+          <div className="rounded-lg border p-6">
+            <h3 className="mb-2 font-semibold">项目信息</h3>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">项目 ID</dt>
@@ -92,17 +138,25 @@ export default function ProjectDetailPage() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">创建时间</dt>
-                <dd>{new Date(currentProject.created_at).toLocaleDateString('zh-CN')}</dd>
+                <dd>
+                  {new Date(currentProject.created_at).toLocaleDateString(
+                    'zh-CN'
+                  )}
+                </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">更新时间</dt>
-                <dd>{new Date(currentProject.updated_at).toLocaleDateString('zh-CN')}</dd>
+                <dd>
+                  {new Date(currentProject.updated_at).toLocaleDateString(
+                    'zh-CN'
+                  )}
+                </dd>
               </div>
             </dl>
           </div>
 
-          <div className="border rounded-lg p-6">
-            <h3 className="font-semibold mb-2">统计信息</h3>
+          <div className="rounded-lg border p-6">
+            <h3 className="mb-2 font-semibold">统计信息</h3>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">用户旅程</dt>

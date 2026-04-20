@@ -16,6 +16,7 @@ import {
   Trash2,
   Edit2,
   Upload,
+  Download,
 } from 'lucide-react';
 import { useProjectStore } from '@/features/projects/stores';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatRelativeTime } from '@/utils/format';
 import { cn } from '@/lib/utils';
+import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
 import { ImportDialog } from './import-dialog';
 
 /**
@@ -56,6 +58,7 @@ function ProjectCard({
   onSelect,
   onDelete,
   onEdit,
+  onExport,
 }: {
   project: {
     id: string;
@@ -74,6 +77,7 @@ function ProjectCard({
   onSelect: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  onExport: () => void;
 }) {
   const stats = formatProjectStats(project);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -130,6 +134,16 @@ function ProjectCard({
                 >
                   <Edit2 className="mr-2 h-4 w-4" />
                   编辑
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onExport();
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  导出 TOML
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -270,6 +284,36 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
 
   const filteredProjects = getFilteredProjects();
 
+  const handleExportToml = async (project: (typeof filteredProjects)[0]) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tomlData = serializeProjectToToml({
+        id: project.id,
+        name: project.name,
+        description: project.description ?? '',
+        version: '1.0.0',
+        tech_stack: [],
+        created_at: project.created_at,
+        updated_at: project.updated_at,
+        user_journeys: project.user_journeys ?? [],
+      } as any);
+      const tomlText = await serializeToTomlText(tomlData);
+      const blob = new Blob([tomlText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      const safeName = project.name.replace(/[/\\:*?"<>|]/g, '_');
+      anchor.download = `${safeName}.toml`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('TOML 导出失败:', error);
+      alert(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  };
+
   if (isLoading) {
     return <LoadingState />;
   }
@@ -320,6 +364,7 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
             onSelect={() => setActiveProject(project.id)}
             onDelete={() => removeProject(project.id)}
             onEdit={() => setEditingProject(project)}
+            onExport={() => handleExportToml(project)}
           />
         ))}
       </div>
