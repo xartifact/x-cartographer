@@ -8,5 +8,5 @@ export default defineConfig({
   out: './src/lib/db/migrations',
   ...(databaseUrl
     ? { dbCredentials: { url: databaseUrl } }
-    : { driver: 'pglite', dbCredentials: { url: './data/pglite' } }),
+    : { driver: 'pglite', dbCredentials: { url: '../../data/pglite' } }),
 });

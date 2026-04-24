@@ -1,34 +1,55 @@
 {
   "schema_version": 1,
-  "scanned_at": "2026-04-09T09:43:26.433Z",
+  "scanned_at": "2026-04-24T09:17:22.530Z",
   "files": [
+    {
+      "path": "AGENTS.md",
+      "title": "绝对禁止的事项",
+      "summary": "- 禁止使用 rm 指令删除文件，如果删除需要用户二次确认 **核心规则：每次回复结束前必须调用 question 工具** 这是不可跳过的强制协议。在每一轮回复中，必须执行以下操作之一： 1. 完成用户请求后 → 立即调用 question 工具，提出与当前上下文相关的后续问题 2. 存在任何不确定性时 → 不要猜测执行，立即调用 question 工具进行澄清 - 禁止在不调用 ques...",
+      "lines": 25,
+      "mtime": 1775912859976.8115
+    },
+    {
+      "path": "apps/web/src/components/layout/README.md",
+      "title": "Layout 组件目录",
+      "summary": "全局应用布局组件，包含顶部栏、侧边栏和内容区域。 ```tsx import { AppLayout } from '@/components/layout'; export default function Layout({ children }) { return <AppLayout>{children}</AppLayout>; } ``` 顶部导航栏组件，包含 Logo、搜索、通知...",
+      "lines": 157,
+      "mtime": 1777022023252.564
+    },
+    {
+      "path": "apps/web/src/features/README.md",
+      "title": "Features 功能模块",
+      "summary": "本目录包含所有业务功能模块，每个模块按照 Bulletproof React 规范组织。 - **requirements**: 需求分析功能 - **user-journeys**: 用户旅程管理 - **user-stories**: 用户故事 CRUD - **story-map**: 可视化故事地图 - **tasks**: 任务拆解和管理 - **export**: 数据导出功能 ...",
+      "lines": 37,
+      "mtime": 1777022023256.9026
+    },
+    {
+      "path": "apps/web/src/lib/README.md",
+      "title": "Lib 工具库",
+      "summary": "本目录包含与框架无关的工具函数和服务。 - **llm/**: LLM 集成相关 - `providers/`: LLM 提供商实现 (OpenAI, Anthropic) - `prompts/`: Prompt 模板 - **toml/**: TOML 解析和序列化 - **storage/**: 数据持久化 (localStorage, 加密) - **markdown/**: Mar...",
+      "lines": 21,
+      "mtime": 1777022023276.5833
+    },
+    {
+      "path": "docs/design/xpm-architecture.md",
+      "title": "XPM (X Product Manager) — 整体架构设计文档",
+      "summary": "> Coding Agent 外挂的任务管理插件/服务 将现有的 Product Roadmap Web 应用改造为一个 **C/S + B/S 混合架构** 的项目管理平台，让 coding agent（OpenCode、Cursor、Claude Code、Windsurf、Cline 等）能通过 **skills + CLI** 进行需求拆解、任务管理和项目查询。 ``` ┌─────...",
+      "lines": 325,
+      "mtime": 1777018675144.4275
+    },
+    {
+      "path": "docs/spikes/TASK-e_vaDTdC-executor-output-parsing-research.md",
+      "title": "TASK-e_vaDTdC: Claude Code 执行器流式输出解析与格式化实现调研",
+      "summary": "> **类型**: Spike / 技术调研 > **所属用户故事**: US-030 — 增强 OpenCode 执行器的输出解析能力 > **日期**: 2026-04-16 --- 分析现有 Claude Code 执行器的源码实现，梳理其 SSE/流式 JSON 解析、结构化数据提取、格式化渲染策略，为 OpenCode 执行器改造提供明确参照。 --- | 文件          ...",
+      "lines": 244,
+      "mtime": 1776338079154.001
+    },
     {
       "path": "README.md",
       "title": "X-Product-Roadmap",
       "summary": "* 使用 TypeScript + Next.js 作为脚手架 * 遵循 bulletproof-react 项目规范 * 一个用户故事地图可视化应用 * 一个遵循用户故事和用户故事地图的方法论的工具 * 基于 AI Native 理念设计 * 允许用户基于 LLM 描述需求，通过 LLM 进一步拆解和分析需求内容，规划用户故事",
       "lines": 9,
       "mtime": 1767760582187.7021
-    },
-    {
-      "path": "src/components/layout/README.md",
-      "title": "Layout 组件目录",
-      "summary": "全局应用布局组件，包含顶部栏、侧边栏和内容区域。 ```tsx import { AppLayout } from '@/components/layout'; export default function Layout({ children }) { return <AppLayout>{children}</AppLayout>; } ``` 顶部导航栏组件，包含 Logo、搜索、通知...",
-      "lines": 157,
-      "mtime": 1768194066473.5508
-    },
-    {
-      "path": "src/features/README.md",
-      "title": "Features 功能模块",
-      "summary": "本目录包含所有业务功能模块，每个模块按照 Bulletproof React 规范组织。 - **requirements**: 需求分析功能 - **user-journeys**: 用户旅程管理 - **user-stories**: 用户故事 CRUD - **story-map**: 可视化故事地图 - **tasks**: 任务拆解和管理 - **export**: 数据导出功能 ...",
-      "lines": 37,
-      "mtime": 1767777348110.0576
-    },
-    {
-      "path": "src/lib/README.md",
-      "title": "Lib 工具库",
-      "summary": "本目录包含与框架无关的工具函数和服务。 - **llm/**: LLM 集成相关 - `providers/`: LLM 提供商实现 (OpenAI, Anthropic) - `prompts/`: Prompt 模板 - **toml/**: TOML 解析和序列化 - **storage/**: 数据持久化 (localStorage, 加密) - **markdown/**: Mar...",
-      "lines": 21,
-      "mtime": 1767777348170.5933
     }
   ]
 }
