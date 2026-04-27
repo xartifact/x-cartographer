@@ -6,15 +6,15 @@ import {
   TomlStoryMap,
   TomlUserJourney,
   TomlUserStory,
-  Project,
-  UserJourney,
-  UserStory,
-} from '@/features/projects/types';
+  TomlParsedProject,
+  TomlParsedUserJourney,
+  TomlParsedUserStory,
+} from '@/types';
 
 /**
  * 解析 TOML 格式的用户故事
  */
-function parseUserStory(tomlStory: TomlUserStory): UserStory {
+function parseUserStory(tomlStory: TomlUserStory): TomlParsedUserStory {
   // 处理验收标准：可能是字符串数组或对象数组
   const acceptanceCriteria = tomlStory.acceptance_criteria.map((c) => {
     if (typeof c === 'string') {
@@ -41,7 +41,7 @@ function parseUserStory(tomlStory: TomlUserStory): UserStory {
 function parseUserJourney(
   tomlJourney: TomlUserJourney,
   index: number
-): UserJourney {
+): TomlParsedUserJourney {
   return {
     id: tomlJourney.id,
     name: tomlJourney.name,
@@ -57,7 +57,7 @@ function parseUserJourney(
  */
 export function parseTomlStoryMap(
   tomlData: TomlStoryMap
-): Omit<Project, 'id' | 'updated_at'> {
+): Omit<TomlParsedProject, 'id' | 'updated_at'> {
   const { project: metadata, user_journeys } = tomlData;
 
   return {
@@ -73,7 +73,7 @@ export function parseTomlStoryMap(
 /**
  * 将用户故事转换为 TOML 格式
  */
-function serializeUserStory(story: UserStory): TomlUserStory {
+function serializeUserStory(story: TomlParsedUserStory): TomlUserStory {
   return {
     id: story.id,
     title: story.title,
@@ -94,7 +94,7 @@ function serializeUserStory(story: UserStory): TomlUserStory {
 /**
  * 将用户旅程转换为 TOML 格式
  */
-function serializeUserJourney(journey: UserJourney): TomlUserJourney {
+function serializeUserJourney(journey: TomlParsedUserJourney): TomlUserJourney {
   return {
     id: journey.id,
     name: journey.name,
@@ -108,7 +108,7 @@ function serializeUserJourney(journey: UserJourney): TomlUserJourney {
 /**
  * 将项目数据序列化为 TOML 对象
  */
-export function serializeProjectToToml(project: Project): TomlStoryMap {
+export function serializeProjectToToml(project: TomlParsedProject): TomlStoryMap {
   return {
     project: {
       name: project.name,

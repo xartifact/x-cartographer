@@ -1,18 +1,9 @@
 /**
  * 类型定义导出
+ *
+ * 所有类型已迁移到 @xpm/shared 包，这里通过重新导出保持向后兼容。
+ * apps/web 内部使用 @/types 的导入路径无需修改。
  */
 
-// 通用类型
-export * from './common';
-
-// 项目类型
-export * from './project';
-
-// 用户旅程类型
-export * from './user-journey';
-
-// 用户故事类型
-export * from './user-story';
-
-// 任务类型
-export * from './task';
+// 从 @xpm/shared 重新导出所有类型
+export * from '@xpm/shared';

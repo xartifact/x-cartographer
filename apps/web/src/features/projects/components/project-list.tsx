@@ -33,6 +33,33 @@ import {
 import { formatRelativeTime } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
+import type { TomlParsedProject } from '@/features/projects/types';
+
+/**
+ * 将 DB Project 模型转换为 TOML 导出所需的简化 Project 格式
+ */
+function toTomlProject(project: {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+  metadata?: { version?: string; tech_stack?: string[] } | null;
+  user_journeys?: unknown[];
+}): TomlParsedProject {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description ?? '',
+    version: project.metadata?.version || '1.0.0',
+    tech_stack: project.metadata?.tech_stack?.length
+      ? project.metadata.tech_stack
+      : ['未指定'],
+    created_at: project.created_at,
+    updated_at: project.updated_at,
+    user_journeys: (project.user_journeys ?? []) as TomlParsedProject['user_journeys'],
+  };
+}
 import { ImportDialog } from './import-dialog';
 
 /**
@@ -286,19 +313,7 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
 
   const handleExportToml = async (project: (typeof filteredProjects)[0]) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tomlData = serializeProjectToToml({
-        id: project.id,
-        name: project.name,
-        description: project.description ?? '',
-        version: project.metadata?.version || '1.0.0',
-        tech_stack: project.metadata?.tech_stack?.length
-          ? project.metadata.tech_stack
-          : ['未指定'],
-        created_at: project.created_at,
-        updated_at: project.updated_at,
-        user_journeys: project.user_journeys ?? [],
-      } as any);
+      const tomlData = serializeProjectToToml(toTomlProject(project));
       const tomlText = await serializeToTomlText(tomlData);
       const blob = new Blob([tomlText], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);

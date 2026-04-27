@@ -19,6 +19,33 @@ import { Button } from '@/components/ui/button';
 import { useProjectStore } from '@/features/projects/stores';
 import { ImportDialog } from '@/features/projects/components/import-dialog';
 import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
+import type { TomlParsedProject } from '@/features/projects/types';
+
+/**
+ * 将 DB Project 模型转换为 TOML 导出所需的简化 Project 格式
+ */
+function toTomlProject(project: {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+  metadata?: { version?: string; tech_stack?: string[] } | null;
+  user_journeys?: unknown[];
+}): TomlParsedProject {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description ?? '',
+    version: project.metadata?.version || '1.0.0',
+    tech_stack: project.metadata?.tech_stack?.length
+      ? project.metadata.tech_stack
+      : ['未指定'],
+    created_at: project.created_at,
+    updated_at: project.updated_at,
+    user_journeys: (project.user_journeys ?? []) as TomlParsedProject['user_journeys'],
+  };
+}
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -65,19 +92,7 @@ export default function ProjectDetailPage() {
   const handleExportToml = async () => {
     if (!currentProject) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tomlData = serializeProjectToToml({
-        id: currentProject.id,
-        name: currentProject.name,
-        description: currentProject.description ?? '',
-        version: currentProject.metadata?.version || '1.0.0',
-        tech_stack: currentProject.metadata?.tech_stack?.length
-          ? currentProject.metadata.tech_stack
-          : ['未指定'],
-        created_at: currentProject.created_at,
-        updated_at: currentProject.updated_at,
-        user_journeys: currentProject.user_journeys ?? [],
-      } as any);
+      const tomlData = serializeProjectToToml(toTomlProject(currentProject));
       const tomlText = await serializeToTomlText(tomlData);
       const blob = new Blob([tomlText], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);

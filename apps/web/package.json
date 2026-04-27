@@ -14,6 +14,7 @@
     "db:studio": "bunx drizzle-kit studio"
   },
   "dependencies": {
+    "@xpm/shared": "workspace:*",
     "@ai-sdk/anthropic": "^3.0.68",
     "@ai-sdk/openai": "^3.0.52",
     "@ai-sdk/openai-compatible": "^2.0.41",

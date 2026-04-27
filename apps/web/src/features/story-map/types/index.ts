@@ -2,9 +2,7 @@
  * 故事地图类型定义
  */
 
-import { Priority, Position, StoryStatus } from '@/types';
-import { UserJourney } from '@/types/user-journey';
-import { UserStory } from '@/types/user-story';
+import { Priority, Position, StoryStatus, UserJourney, UserStory } from '@/types';
 
 /**
  * 故事地图筛选条件

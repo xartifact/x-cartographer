@@ -77,14 +77,9 @@ export function TaskDetailSheet({
   storyContextMap,
   onTaskNavigate,
 }: TaskDetailSheetProps) {
-  if (!task) return null;
-
-  const priority = priorityConfig[task.priority] ?? priorityConfig.P2;
-  const typeInfo = typeConfig[task.type] ?? typeConfig.technical_task;
-  const storyContext = storyContextMap?.[task.story_id];
-
   // 解析依赖任务（当前任务依赖的任务）
   const dependsOn = React.useMemo(() => {
+    if (!task) return [];
     if (!task.dependencies || task.dependencies.length === 0) return [];
     return task.dependencies.map((depId) => {
       const depTask = allTasks.find((t) => t.id === depId);
@@ -95,14 +90,23 @@ export function TaskDetailSheet({
         status: depTask?.status as TaskStatus | undefined,
       };
     });
-  }, [task.dependencies, allTasks]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task, allTasks]);
 
   // 解析被依赖任务（依赖当前任务的其他任务）
   const dependedBy = React.useMemo(() => {
+    if (!task) return [];
     return allTasks.filter(
       (t) => t.id !== task.id && t.dependencies?.includes(task.id)
     );
-  }, [task.id, allTasks]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task, allTasks]);
+
+  if (!task) return null;
+
+  const priority = priorityConfig[task.priority] ?? priorityConfig.P2;
+  const typeInfo = typeConfig[task.type] ?? typeConfig.technical_task;
+  const storyContext = storyContextMap?.[task.story_id];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

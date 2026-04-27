@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { TomlStoryMap, TomlUserJourney, TomlUserStory } from '@/features/projects/types';
+import { TomlStoryMap, TomlUserJourney, TomlUserStory } from '@/types';
 
 /**
  * 验收标准 Schema
