@@ -37,6 +37,8 @@ bun.lock
 
 # PGlite local data
 data/pglite/
+apps/web/data/pglite
 
 # IDE
 .idea/
+.swarm/
