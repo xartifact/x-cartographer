@@ -42,3 +42,5 @@ apps/web/data/pglite
 # IDE
 .idea/
 .swarm/
+SWARM_PLAN.json
+SWARM_PLAN.md
