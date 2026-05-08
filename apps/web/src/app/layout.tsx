@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { AppLayout } from '@/components/layout';
 import { Toaster } from '@/components/ui/toaster';
+import { TRPCReactProvider } from '@/trpc/client';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -26,15 +27,17 @@ export default function RootLayout({
           typeof window !== 'undefined' ? '1.29.12' : undefined
         }
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AppLayout showSidebar>{children}</AppLayout>
-          <Toaster />
-        </ThemeProvider>
+        <TRPCReactProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <AppLayout showSidebar>{children}</AppLayout>
+            <Toaster />
+          </ThemeProvider>
+        </TRPCReactProvider>
       </body>
     </html>
   );
