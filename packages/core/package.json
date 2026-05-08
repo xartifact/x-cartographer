@@ -9,9 +9,14 @@
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/pg": "^8.18.0",
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@xpm/shared": "workspace:*"
+    "@electric-sql/pglite": "^0.4.0",
+    "@xpm/shared": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "pg": "^8.20.0",
+    "pino": "^10.3.1"
   }
 }

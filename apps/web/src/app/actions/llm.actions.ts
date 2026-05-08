@@ -2,7 +2,7 @@
 
 import { generateObject, generateText, APICallError, NoObjectGeneratedError } from 'ai';
 import { z } from 'zod';
-import { AppSettingsRepository } from '@/lib/db/repositories/app-settings.repository';
+import { AppSettingsRepository, createLogger } from '@xpm/core';
 import { createModel } from '@/lib/llm/ai-provider';
 import {
   requirementsAnalysisPrompt,
@@ -13,7 +13,6 @@ import { LLMProvider } from '@/types';
 import type { UserStory } from '@/types';
 import type { RequirementAnalysis } from '@/features/requirements/types';
 import { nanoid } from 'nanoid';
-import { createLogger } from '@/lib/logger';
 
 const log = createLogger('llm');
 

@@ -1,6 +1,6 @@
 'use server';
 
-import { StatusChangeRepository } from '@/lib/db/repositories/status-change.repository';
+import { StatusChangeRepository } from '@xpm/core';
 import type { StatusChangeRecord } from '@/types';
 
 const repo = new StatusChangeRepository();

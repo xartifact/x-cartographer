@@ -4,7 +4,7 @@ import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
-import { createLogger } from '@/lib/logger';
+import { createLogger } from '../lib/logger';
 
 type DbInstance = ReturnType<typeof drizzlePglite<typeof schema>>;
 

@@ -1,8 +1,7 @@
 'use server';
 
-import { AppSettingsRepository } from '@/lib/db/repositories/app-settings.repository';
+import { AppSettingsRepository, createLogger } from '@xpm/core';
 import { createModel } from '@/lib/llm/ai-provider';
-import { createLogger } from '@/lib/logger';
 import { LLMProvider } from '@/types';
 import { generateText, APICallError } from 'ai';
 

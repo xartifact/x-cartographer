@@ -10,7 +10,7 @@ import type {
   UserStory,
 } from '@/types';
 import { LLMProvider } from '@/types';
-import { ProjectRepository } from '@/lib/db/repositories/project.repository';
+import { ProjectRepository } from '@xpm/core';
 import { validateProject } from './project-validator';
 
 const repo = new ProjectRepository();
