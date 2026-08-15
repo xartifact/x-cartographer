@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright E2E 配置（x-cartographer web）
  *
  * - webServer 自动管理两个服务：
- *   1. gateway（packages/gateway，bun run src/index.ts，端口 8787）
+ *   1. gateway（apps/server，bun run src/index.ts，端口 8787）
  *   2. vite dev server（apps/web，bunx vite，端口 3001，/api 代理到 gateway）
  * - 若端口已被占用且服务健康（例如本地已手动启动），reuseExistingServer 会复用，
  *   不会重复拉起进程。本环境 CI=true 属正常开发环境标记，通过 PW_REUSE=1 显式开启复用。
@@ -42,7 +42,7 @@ export default defineConfig({
   webServer: [
     {
       command: 'bun run src/index.ts',
-      cwd: '../../packages/gateway',
+      cwd: '../../apps/server',
       url: `http://localhost:${GATEWAY_PORT}/health`,
       reuseExistingServer: reuseExisting,
       timeout: 60_000,

@@ -32,14 +32,16 @@ export const mainNavItems: NavItem[] = [
   {
     id: 'story-map',
     label: '用户故事地图',
-    href: '/story-map',
+    href: '/projects',
     icon: Map,
+    projectScoped: true,
   },
   {
     id: 'tasks',
     label: '任务看板',
-    href: '/tasks',
+    href: '/projects',
     icon: CheckSquare,
+    projectScoped: true,
   },
   {
     id: 'settings',

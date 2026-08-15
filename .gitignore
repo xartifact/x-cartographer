@@ -44,4 +44,4 @@ apps/web/data/pglite
 .swarm/
 SWARM_PLAN.json
 SWARM_PLAN.md
-packages/gateway/data
+apps/server/data
