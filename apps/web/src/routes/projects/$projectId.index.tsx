@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Upload, Download } from 'lucide-react';
 import { Button } from '@xpm/ui';
@@ -8,9 +8,7 @@ import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
 import type { TomlParsedProject, TomlParsedUserJourney } from '@/features/projects/types';
 import { Priority, TaskStatus, type Project, type UserJourney } from '@/types';
 
-export const Route = createFileRoute('/projects/$projectId/')({
-  component: ProjectOverviewPage,
-});
+
 
 /**
  * 项目级别导入的数据形状：
@@ -147,8 +145,8 @@ function mergeJourneys(
 /**
  * 项目概览页（/projects/:id）
  */
-function ProjectOverviewPage() {
-  const { projectId } = Route.useParams();
+export function ProjectOverviewPage() {
+  const { projectId } = useParams({ strict: false });
   const { data: project, isLoading } = useProject(projectId);
   const { mutateAsync: saveFullProject } = useSaveFullProject();
   const [showImportDialog, setShowImportDialog] = useState(false);

@@ -45,3 +45,4 @@ apps/web/data/pglite
 SWARM_PLAN.json
 SWARM_PLAN.md
 apps/server/data
+apps/web/.tanstack

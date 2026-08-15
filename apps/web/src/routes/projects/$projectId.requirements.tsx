@@ -1,15 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { RequirementsPage } from '@/features/requirements';
 
-export const Route = createFileRoute('/projects/$projectId/requirements')({
-  component: RequirementsRoutePage,
-});
+
 
 /**
  * 需求分析页（/projects/:id/requirements）
  */
-function RequirementsRoutePage() {
-  const { projectId } = Route.useParams();
+export function RequirementsRoutePage() {
+  const { projectId: projectIdRaw } = useParams({ strict: false });
+  const projectId = projectIdRaw!;
 
   return (
     <div className="container py-6">

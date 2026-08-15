@@ -1,13 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { useProject } from '@/lib/api/hooks';
 import { TasksPage } from '@/features/tasks/components/tasks-page';
 
-export const Route = createFileRoute('/projects/$projectId/tasks')({
-  component: TasksRoutePage,
-});
 
-function TasksRoutePage() {
-  const { projectId } = Route.useParams();
+
+export function TasksRoutePage() {
+  const { projectId } = useParams({ strict: false });
   const { data: project, isLoading } = useProject(projectId);
 
   if (isLoading) {

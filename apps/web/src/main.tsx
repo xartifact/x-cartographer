@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'sonner';
-import { routeTree } from './routeTree.gen';
+import { routeTree } from './routeTree';
 import './styles/globals.css';
 
 // QueryClient 配置（对齐原 query-client.ts：30s staleTime）

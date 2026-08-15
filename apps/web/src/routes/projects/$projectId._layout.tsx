@@ -1,18 +1,17 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router';
+import { Outlet, useParams } from '@tanstack/react-router';
 import { ProjectNav } from '@/components/layout';
 import { useProject } from '@/lib/api/hooks';
 
-export const Route = createFileRoute('/projects/$projectId/_layout')({
-  component: ProjectDetailLayout,
-});
+
 
 /**
  * 项目详情嵌套布局（pathless layout）
  *
  * 为 /projects/$projectId 下所有子页面提供统一 ProjectNav + Outlet。
  */
-function ProjectDetailLayout() {
-  const { projectId } = Route.useParams();
+export function ProjectDetailLayout() {
+  const { projectId: projectIdRaw } = useParams({ strict: false });
+  const projectId = projectIdRaw!;
   const { data: project } = useProject(projectId);
 
   return (

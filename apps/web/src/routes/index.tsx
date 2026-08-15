@@ -2,11 +2,9 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { FolderKanban, Map, CheckSquare } from 'lucide-react';
 import { useProjectStore, selectActiveProjectId } from '@/features/projects/stores';
 
-export const Route = createFileRoute('/')({
-  component: HomePage,
-});
 
-function HomePage() {
+
+export function HomePage() {
   const activeProjectId = useProjectStore(selectActiveProjectId);
 
   const storyMapTo = activeProjectId ? '/projects/$projectId/story-map' : '/projects';

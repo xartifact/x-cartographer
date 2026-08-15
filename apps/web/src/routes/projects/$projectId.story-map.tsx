@@ -1,13 +1,12 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { useProject } from '@/lib/api/hooks';
 import { StoryMapCanvas } from '@/features/story-map/components/story-map-canvas';
 
-export const Route = createFileRoute('/projects/$projectId/story-map')({
-  component: StoryMapRoutePage,
-});
 
-function StoryMapRoutePage() {
-  const { projectId } = Route.useParams();
+
+export function StoryMapRoutePage() {
+  const { projectId: projectIdRaw } = useParams({ strict: false });
+  const projectId = projectIdRaw!;
   const { data: project, isLoading } = useProject(projectId);
 
   if (isLoading) {

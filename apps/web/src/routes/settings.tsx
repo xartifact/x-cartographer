@@ -1,14 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router';
 import { LLMSettings } from '@/features/settings';
 
-export const Route = createFileRoute('/settings')({
-  component: SettingsPage,
-});
+
 
 /**
  * 设置页（/settings）
  */
-function SettingsPage() {
+export function SettingsPage() {
   return (
     <div className="max-w-3xl space-y-8">
       <div>

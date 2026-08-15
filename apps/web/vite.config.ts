@@ -1,13 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
 import tailwindcssPostcss from '@tailwindcss/postcss';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   plugins: [
-    // 静态 import 路由（禁用 autoCodeSplitting，避免 tsr-split 动态导入问题）
-    TanStackRouterVite({ target: 'react' }),
     react(),
   ],
   resolve: {

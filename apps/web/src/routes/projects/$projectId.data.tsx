@@ -1,16 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { useProject } from '@/lib/api/hooks';
 import { DataBrowserPage } from '@/features/data-browser';
 
-export const Route = createFileRoute('/projects/$projectId/data')({
-  component: DataRoutePage,
-});
+
 
 /**
  * 数据浏览器页（/projects/:id/data）
  */
-function DataRoutePage() {
-  const { projectId } = Route.useParams();
+export function DataRoutePage() {
+  const { projectId } = useParams({ strict: false });
   const { data: project, isLoading } = useProject(projectId);
 
   if (isLoading) {
