@@ -16,17 +16,17 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@xpm/ui';
+import { Card, CardContent } from '@xpm/ui';
+import { Checkbox } from '@xpm/ui';
+import { Badge } from '@xpm/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@xpm/ui';
 import { StatusFilterBar } from './status-filter';
 import { StatusBadge, TASK_STATUS_OPTIONS } from './status-badge';
 import type { Task, TaskStatus, TaskPriority, StoryStatus } from '@/types';

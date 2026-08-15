@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@tanstack/react-router';
 import { Search, Bell, Menu, User, Settings, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@xpm/ui';
+import { Input } from '@xpm/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,13 +11,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@xpm/ui';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '@xpm/ui';
 import { cn } from '@/lib/utils';
 import { HeaderProps } from './types';
 
@@ -33,13 +33,13 @@ interface HeaderLogoProps {
 function HeaderLogo({ href = '/', children, className }: HeaderLogoProps) {
   return (
     <Link
-      href={href}
+      to={href}
       className={cn(
         'flex items-center gap-2 font-semibold text-lg transition-colors hover:text-primary',
         className
       )}
     >
-      {children || <span>X-Product-Roadmap</span>}
+      {children || <span>X-Cartographer</span>}
     </Link>
   );
 }
@@ -75,7 +75,7 @@ export function Header({
         <div className="flex items-center gap-4">
           <HeaderLogo href={logoHref}>
             {logo || (
-              <span className="hidden sm:inline">X-Product-Roadmap</span>
+              <span className="hidden sm:inline">X-Cartographer</span>
             )}
           </HeaderLogo>
         </div>
@@ -157,13 +157,13 @@ export function Header({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/profile" className="flex items-center">
+                <a href="/profile" className="flex items-center">
                   <User className="mr-2 h-4 w-4" />
                   个人资料
-                </Link>
+                </a>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center">
+                <Link to="/settings" className="flex items-center">
                   <Settings className="mr-2 h-4 w-4" />
                   设置
                 </Link>

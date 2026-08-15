@@ -5,7 +5,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { Link } from '@tanstack/react-router';
 import {
   Plus,
   Search,
@@ -18,22 +18,32 @@ import {
   Upload,
   Download,
 } from 'lucide-react';
-import { useProjectStore } from '@/features/projects/stores';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Input,
+} from '@xpm/ui';
+import { useProjectStore, selectSearchQuery } from '@/features/projects/stores';
+import { useProjectActions } from '../hooks';
 import { formatRelativeTime } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
 import type { TomlParsedProject } from '@/features/projects/types';
+import { useProjects } from '@/lib/api/hooks';
+import { useNavigate } from '@tanstack/react-router';
+import { ProjectCreateDialog } from './project-create-dialog';
+import { ProjectEditDialog } from './project-edit-dialog';
+import type { Project } from '@xpm/shared';
+
 
 /**
  * 将 DB Project 模型转换为 TOML 导出所需的简化 Project 格式
@@ -126,7 +136,7 @@ function ProjectCard({
   };
 
   return (
-    <Link href={`/projects/${project.id}`} onClick={onSelect}>
+    <Link to={`/projects/$projectId`} params={{ projectId: project.id }} onClick={onSelect}>
       <Card
         className={cn(
           'group h-full cursor-pointer transition-all duration-200 hover:shadow-md',
@@ -290,28 +300,22 @@ function LoadingState() {
     </div>
   );
 }
-
-/**
- * 项目列表主组件
- */
 export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
-  const {
-    projects,
-    getFilteredProjects,
-    setActiveProject,
-    removeProject,
-    isLoading,
-    error,
-    clearError,
-  } = useProjectStore();
+  const { data: projects = [], isLoading, error, refetch } = useProjects();
+  const searchQuery = useProjectStore(selectSearchQuery);
+  const { setActiveProjectId } = useProjectStore();
+  const { deleteProject } = useProjectActions();
   const [_viewMode, _setViewMode] = useState<'grid' | 'list'>('grid');
-  const [editingProject, setEditingProject] = useState<
-    (typeof projects)[0] | null
-  >(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
-  const filteredProjects = getFilteredProjects();
+  // 客户端过滤（项目数量级较小，无需服务端搜索）
+  const filteredProjects = projects.filter((project) =>
+    searchQuery.trim()
+      ? project.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      : true
+  );
 
-  const handleExportToml = async (project: (typeof filteredProjects)[0]) => {
+  const handleExportToml = async (project: Project) => {
     try {
       const tomlData = serializeProjectToToml(toTomlProject(project));
       const tomlText = await serializeToTomlText(tomlData);
@@ -338,14 +342,13 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
   if (error) {
     return (
       <Card className="p-6 text-center">
-        <p className="mb-4 text-destructive">{error}</p>
-        <Button variant="outline" onClick={clearError}>
+        <p className="mb-4 text-destructive">{error.message}</p>
+        <Button variant="outline" onClick={() => refetch()}>
           重试
         </Button>
       </Card>
     );
   }
-
   if (projects.length === 0) {
     return <EmptyState onCreate={onCreateClick} />;
   }
@@ -378,8 +381,8 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
             key={project.id}
             project={project}
             isActive={false}
-            onSelect={() => setActiveProject(project.id)}
-            onDelete={() => removeProject(project.id)}
+            onSelect={() => setActiveProjectId(project.id)}
+            onDelete={() => deleteProject(project.id)}
             onEdit={() => setEditingProject(project)}
             onExport={() => handleExportToml(project)}
           />
@@ -412,10 +415,10 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
  * 项目列表页面组件
  */
 export default function ProjectListPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const { importFromToml } = useProjectStore();
+  const { createProject } = useProjectActions();
 
   const handleCreateClick = () => {
     setShowCreateDialog(true);
@@ -427,14 +430,19 @@ export default function ProjectListPage() {
 
   const handleCreateSuccess = (projectId: string) => {
     setShowCreateDialog(false);
-    router.push(`/projects/${projectId}`);
+    navigate({ to: `/projects/$projectId`, params: { projectId } });
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleImportSuccess = async (projectData: any) => {
-    const project = await importFromToml(projectData);
+  const handleImportSuccess = async (
+    projectData: Omit<TomlParsedProject, 'id' | 'updated_at'>
+  ) => {
+    const project = await createProject({
+      name: projectData.name ?? '导入项目',
+      description: projectData.description || undefined,
+      tech_stack: projectData.tech_stack ?? [],
+    });
     setShowImportDialog(false);
-    router.push(`/projects/${project.id}`);
+    navigate({ to: `/projects/$projectId`, params: { projectId: project.id } });
   };
 
   return (
@@ -479,7 +487,4 @@ export default function ProjectListPage() {
   );
 }
 
-// 导入缺失的依赖
-import { useRouter } from 'next/navigation';
-import { ProjectCreateDialog } from './project-create-dialog';
-import { ProjectEditDialog } from './project-edit-dialog';
+

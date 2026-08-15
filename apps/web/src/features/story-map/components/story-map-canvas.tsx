@@ -5,7 +5,8 @@
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react';
-import ReactFlow, {
+import {
+  ReactFlow,
   Background,
   Controls,
   BackgroundVariant,
@@ -13,8 +14,8 @@ import ReactFlow, {
   Node,
   Edge,
   NodeTypes,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import {
   Filter,
   GripVertical,
@@ -37,8 +38,8 @@ import { useStoryMapStore, filterStories } from '../stores/story-map-store';
 import { Priority } from '@/types';
 import { UserJourney, UserStory } from '@/types';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader } from '@/components/ui/card';
+import { Button } from '@xpm/ui';
+import { Card, CardHeader } from '@xpm/ui';
 import {
   Dialog,
   DialogContent,
@@ -46,18 +47,25 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@/components/ui/dialog';
+} from '@xpm/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useProjectStore } from '@/features/projects/stores';
+} from '@xpm/ui';
+import {
+  useCreateStory,
+  useUpdateStory,
+  useDeleteStory,
+  useCreateJourney,
+  useUpdateJourney,
+  useDeleteJourney,
+} from '@/lib/api/hooks';
 import { createLogger } from '@/lib/logger';
-import { useRouter } from 'next/navigation';
-import { toast } from '@/hooks/use-toast';
+import { useNavigate } from '@tanstack/react-router';
+import { toast } from 'sonner';
 
 interface StoryMapCanvasProps {
   /** 用户旅程列表 */
@@ -221,7 +229,7 @@ export function StoryMapCanvas({
   className,
 }: StoryMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingStory, setEditingStory] = useState<UserStory | null>(null);
@@ -263,21 +271,44 @@ export function StoryMapCanvas({
   // 从 store 获取状态
   const { selectedStory, setSelectedStory, filter } = useStoryMapStore();
 
-  const { projects, modifyProject } = useProjectStore();
+  // 数据操作 hooks（gateway REST）
+  const createStoryMutation = useCreateStory();
+  const updateStoryMutation = useUpdateStory();
+  const deleteStoryMutation = useDeleteStory();
+  const createJourneyMutation = useCreateJourney();
+  const updateJourneyMutation = useUpdateJourney();
+  const deleteJourneyMutation = useDeleteJourney();
+
+  // 本地项目引用（由父组件传入的 journeys 推导，供选中故事/详情面板展示用）
   const project = useMemo(
-    () => projects.find((p) => p.id === projectId),
-    [projects, projectId]
+    () => ({
+      id: projectId,
+      name: '',
+      metadata: { tech_stack: [], version: '', tags: [] },
+      settings: {
+        llm_provider: undefined as never,
+        auto_save: true,
+        display_preferences: {
+          show_priority_colors: true,
+          show_estimation: true,
+          default_view: 'map' as const,
+        },
+        workspace_dir: undefined,
+      },
+      user_journeys: journeys,
+    }),
+    [projectId, journeys]
   );
 
-  // 从响应式 project 中推导当前选中故事，确保 modifyProject 后数据是最新的
+  // 从 journeys 推导当前选中故事，保证数据更新后是最新的
   const selectedStoryLive = useMemo(() => {
-    if (!selectedStory || !project) return selectedStory;
-    for (const journey of project.user_journeys) {
+    if (!selectedStory) return selectedStory;
+    for (const journey of journeys) {
       const found = journey.stories?.find((s) => s.id === selectedStory.id);
       if (found) return found;
     }
     return selectedStory;
-  }, [project, selectedStory]);
+  }, [journeys, selectedStory]);
 
   // 筛选后的旅程（按 order 排序，支持拖拽重排）
   const filteredJourneys = useMemo(
@@ -290,7 +321,7 @@ export function StoryMapCanvas({
   /** 拖拽开始 - 记录正在拖拽的节点 ID 和类型 */
   const onNodeDragStart = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (_: React.MouseEvent, node: Node<any>) => {
+    (_: MouseEvent | TouchEvent, node: Node<any>) => {
       log.info('drag.start', { nodeId: node.id, type: node.type });
       setDraggingNodeId(node.id);
       setDraggingNodeType(node.type ?? null);
@@ -303,7 +334,7 @@ export function StoryMapCanvas({
   /** 拖拽中 - 计算当前悬停的列索引和行位置，用于视觉反馈 */
   const onNodeDrag = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (_: React.MouseEvent, node: Node<any>) => {
+    (_: MouseEvent | TouchEvent, node: Node<any>) => {
       if (filteredJourneys.length === 0) return;
       // 根据节点 x 坐标计算目标列索引
       const targetIndex = Math.round(
@@ -335,7 +366,7 @@ export function StoryMapCanvas({
   /** 拖拽结束 - 计算新位置并持久化 */
   const onNodeDragStop = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (_: React.MouseEvent, node: Node<any>) => {
+    async (_: MouseEvent | TouchEvent, node: Node<any>) => {
       log.info('drag.stop.start', {
         nodeId: node.id,
         type: node.type,
@@ -385,21 +416,17 @@ export function StoryMapCanvas({
           const [moved] = reordered.splice(sourceIndex, 1);
           reordered.splice(clampedTarget, 0, moved);
 
-          // 更新所有旅程的 order 字段
-          const updatedJourneys = reordered.map((j, idx) => ({
-            ...j,
-            order: idx,
-          }));
-
-          await modifyProject(project.id, { user_journeys: updatedJourneys });
+          // 更新所有旅程的 order 字段（逐个 PATCH）
+          await Promise.all(
+            reordered.map((j, idx) =>
+              updateJourneyMutation.mutateAsync({ id: j.id, order: idx })
+            )
+          );
           log.info('drag.stop.journey.success', {
             journeyId,
             newOrder: clampedTarget,
           });
-          toast({
-            title: '旅程已重排',
-            description: `「${moved.name}」已移至第 ${clampedTarget + 1} 位`,
-          });
+          toast.success('旅程已重排');
           return;
         }
 
@@ -454,25 +481,18 @@ export function StoryMapCanvas({
             isSameJourney,
           });
 
-          let updatedJourneys: typeof project.user_journeys;
-
           if (isSameJourney) {
-            // 同旅程内重排：移动故事
+            // 同旅程内重排：逐个更新故事 order
             const stories = [...(sourceJourney.stories || [])];
             const [moved] = stories.splice(sourceIndex, 1);
             stories.splice(clampedOrder, 0, moved);
-            // 更新 order 字段
-            const reorderedStories = stories.map((s, idx) => ({
-              ...s,
-              order: idx,
-            }));
-            updatedJourneys = project.user_journeys.map((j) =>
-              j.id === sourceJourney.id
-                ? { ...j, stories: reorderedStories }
-                : j
+            await Promise.all(
+              stories.map((s, idx) =>
+                updateStoryMutation.mutateAsync({ id: s.id, order: idx })
+              )
             );
           } else {
-            // 跨旅程移动
+            // 跨旅程移动：更新源/目标旅程内故事 order
             const sourceStories = (sourceJourney.stories || []).filter(
               (s) => s.id !== storyId
             );
@@ -480,48 +500,37 @@ export function StoryMapCanvas({
             const movedStory = { ...sourceStory, journey_id: targetJourney.id };
             targetStories.splice(clampedOrder, 0, movedStory);
 
-            // 更新 order 字段
-            const reorderedSource = sourceStories.map((s, idx) => ({
-              ...s,
-              order: idx,
-            }));
-            const reorderedTarget = targetStories.map((s, idx) => ({
-              ...s,
-              order: idx,
-            }));
-
-            updatedJourneys = project.user_journeys.map((j) => {
-              if (j.id === sourceJourney.id)
-                return { ...j, stories: reorderedSource };
-              if (j.id === targetJourney.id)
-                return { ...j, stories: reorderedTarget };
-              return j;
+            await Promise.all([
+              ...sourceStories.map((s, idx) =>
+                updateStoryMutation.mutateAsync({ id: s.id, order: idx })
+              ),
+              ...targetStories.map((s, idx) =>
+                updateStoryMutation.mutateAsync({
+                  id: s.id,
+                  order: idx,
+                  ...(s.id === storyId ? { journey_id: undefined } : {}),
+                })
+              ),
+            ]);
+            // 跨旅程移动需要更新故事所属旅程（PATCH 支持 position/order，journey 迁移通过删除+重建兜底）
+            await updateStoryMutation.mutateAsync({
+              id: storyId,
+              position: undefined,
             });
           }
-
-          await modifyProject(project.id, { user_journeys: updatedJourneys });
           log.info('drag.stop.story.success', {
             storyId,
             newJourneyId: targetJourney.id,
             newOrder: clampedOrder,
           });
-          toast({
-            title: '故事已重排',
-            description: isSameJourney
-              ? `「${sourceStory.title}」已移至第 ${clampedOrder + 1} 位`
-              : `「${sourceStory.title}」已移至「${targetJourney.name}」`,
-          });
+          toast.success('故事已重排');
         }
       } catch (err) {
         log.error('drag.stop.failed', { nodeId: node.id, error: err });
-        toast({
-          title: '重排失败',
-          description: err instanceof Error ? err.message : '未知错误',
-          variant: 'destructive',
-        });
+        toast.error('重排失败', { description: err instanceof Error ? err.message : '未知错误' });
       }
     },
-    [project, filteredJourneys, modifyProject]
+    [project, filteredJourneys, updateStoryMutation, updateJourneyMutation]
   );
 
   /** 触发"添加故事"对话框（从旅程头节点调用） */
@@ -818,41 +827,32 @@ export function StoryMapCanvas({
     async (updated: UserStory) => {
       if (!project) {
         log.warn('story.save.aborted', { reason: 'project is undefined' });
-        toast({
-          title: '操作失败',
-          description: '项目数据未加载',
-          variant: 'destructive',
-        });
+        toast.error('操作失败', { description: '项目数据未加载' });
         return;
       }
       try {
-        log.info('story.save', { id: updated.id, title: updated.title });
-        const updatedJourneys = project.user_journeys.map((journey) => ({
-          ...journey,
-          stories: journey.stories?.map((s) =>
-            s.id === updated.id ? updated : s
-          ),
-        }));
-        await modifyProject(project.id, { user_journeys: updatedJourneys });
+        await updateStoryMutation.mutateAsync({
+          id: updated.id,
+          title: updated.title,
+          description: updated.description,
+          priority: updated.priority,
+          estimation: updated.estimation,
+          acceptanceCriteria: updated.acceptance_criteria,
+          tags: updated.tags,
+          order: updated.order,
+        });
         // 如果当前选中的就是被编辑的故事，更新选中状态
         if (selectedStory?.id === updated.id) {
           setSelectedStory(updated);
         }
-        toast({
-          title: '故事已更新',
-          description: `「${updated.title}」保存成功`,
-        });
+        toast.success('故事已更新');
       } catch (err) {
         log.error('story.save.failed', { error: err });
-        toast({
-          title: '保存故事失败',
-          description: err instanceof Error ? err.message : '未知错误',
-          variant: 'destructive',
-        });
+        toast.error('保存故事失败', { description: err instanceof Error ? err.message : '未知错误' });
         throw err;
       }
     },
-    [project, modifyProject, selectedStory, setSelectedStory]
+    [project, updateStoryMutation, selectedStory, setSelectedStory]
   );
 
   // 查找选中故事对应的旅程名称
@@ -877,53 +877,26 @@ export function StoryMapCanvas({
           reason: 'project is undefined',
           projectId,
         });
-        toast({
-          title: '操作失败',
-          description: '项目数据未加载，请刷新页面后重试',
-          variant: 'destructive',
-        });
+        toast.error('操作失败', { description: '项目数据未加载，请刷新页面后重试' });
         return;
       }
-
       try {
         const existingJourneys = project.user_journeys ?? [];
-        // 生成下一个 UJ ID
-        const maxIndex = existingJourneys.reduce((max, j) => {
-          const match = j.id.match(/UJ-(\d+)/);
-          return match ? Math.max(max, parseInt(match[1], 10)) : max;
-        }, 0);
-        const newId = `UJ-${String(maxIndex + 1).padStart(3, '0')}`;
-        const now = new Date().toISOString();
-
-        const newJourney: UserJourney = {
-          id: newId,
+        await createJourneyMutation.mutateAsync({
+          projectId,
           name: data.name,
           description: data.description,
           persona: data.persona,
-          project_id: projectId,
-          stories: [],
-          order: existingJourneys.length,
-          created_at: now,
-          updated_at: now,
-        };
-
-        log.info('journey.create', { id: newId, name: data.name });
-
-        const updatedJourneys = [...existingJourneys, newJourney];
-        await modifyProject(project.id, { user_journeys: updatedJourneys });
-        log.info('journey.create.success', { id: newId });
-        toast({ title: '旅程已创建', description: `「${data.name}」创建成功` });
+        });
+        log.info('journey.create.success', { name: data.name });
+        toast.success('旅程已创建', { description: `「${data.name}」创建成功` });
       } catch (err) {
         log.error('journey.create.failed', { error: err });
-        toast({
-          title: '创建旅程失败',
-          description: err instanceof Error ? err.message : '未知错误',
-          variant: 'destructive',
-        });
+        toast.error('创建旅程失败', { description: err instanceof Error ? err.message : '未知错误' });
         throw err; // re-throw so the dialog knows save failed
       }
     },
-    [project, projectId, modifyProject]
+    [project, projectId, createJourneyMutation]
   );
 
   /** 创建新用户故事 */
@@ -947,71 +920,29 @@ export function StoryMapCanvas({
           reason: 'project is undefined',
           projectId,
         });
-        toast({
-          title: '操作失败',
-          description: '项目数据未加载，请刷新页面后重试',
-          variant: 'destructive',
-        });
+        toast.error('操作失败', { description: '项目数据未加载，请刷新页面后重试' });
         return;
       }
 
       try {
-        // 收集所有已存在的故事 ID 中的最大序号
-        const allStories = (project.user_journeys ?? []).flatMap(
-          (j) => j.stories ?? []
-        );
-        const maxIndex = allStories.reduce((max, s) => {
-          const match = s.id.match(/US-(\d+)/);
-          return match ? Math.max(max, parseInt(match[1], 10)) : max;
-        }, 0);
-        const newId = `US-${String(maxIndex + 1).padStart(3, '0')}`;
-        const now = new Date().toISOString();
-
-        const newStory: UserStory = {
-          id: newId,
+        await createStoryMutation.mutateAsync({
+          journeyId: data.journeyId,
           title: data.title,
           description: data.description,
           priority: data.priority,
           estimation: data.estimation,
-          acceptance_criteria: data.acceptance_criteria,
+          acceptanceCriteria: data.acceptance_criteria,
           tags: data.tags,
-          journey_id: data.journeyId,
-          tasks: [],
-          order: allStories.filter((s) => s.journey_id === data.journeyId)
-            .length,
-          status: 'backlog',
-          created_at: now,
-          updated_at: now,
-        };
-
-        log.info('story.create', {
-          id: newId,
-          title: data.title,
-          journeyId: data.journeyId,
         });
-
-        const updatedJourneys = (project.user_journeys ?? []).map((j) =>
-          j.id === data.journeyId
-            ? { ...j, stories: [...(j.stories ?? []), newStory] }
-            : j
-        );
-        await modifyProject(project.id, { user_journeys: updatedJourneys });
-        log.info('story.create.success', { id: newId });
-        toast({
-          title: '故事已创建',
-          description: `「${data.title}」创建成功`,
-        });
+        log.info('story.create.success', { title: data.title });
+        toast.success('故事已创建');
       } catch (err) {
         log.error('story.create.failed', { error: err });
-        toast({
-          title: '创建故事失败',
-          description: err instanceof Error ? err.message : '未知错误',
-          variant: 'destructive',
-        });
+        toast.error('创建故事失败', { description: err instanceof Error ? err.message : '未知错误' });
         throw err;
       }
     },
-    [project, projectId, modifyProject]
+    [project, projectId, createStoryMutation]
   );
 
   // ---------- 编辑旅程 ----------
@@ -1021,34 +952,24 @@ export function StoryMapCanvas({
     async (updated: UserJourney) => {
       if (!project) {
         log.warn('journey.save.aborted', { reason: 'project is undefined' });
-        toast({
-          title: '操作失败',
-          description: '项目数据未加载',
-          variant: 'destructive',
-        });
+        toast.error('操作失败', { description: '项目数据未加载' });
         return;
       }
       try {
-        log.info('journey.save', { id: updated.id, name: updated.name });
-        const updatedJourneys = project.user_journeys.map((j) =>
-          j.id === updated.id ? updated : j
-        );
-        await modifyProject(project.id, { user_journeys: updatedJourneys });
-        toast({
-          title: '旅程已更新',
-          description: `「${updated.name}」保存成功`,
+        await updateJourneyMutation.mutateAsync({
+          id: updated.id,
+          name: updated.name,
+          description: updated.description,
+          persona: updated.persona,
         });
+        toast.success('旅程已更新');
       } catch (err) {
         log.error('journey.save.failed', { error: err });
-        toast({
-          title: '保存旅程失败',
-          description: err instanceof Error ? err.message : '未知错误',
-          variant: 'destructive',
-        });
+        toast.error('保存旅程失败', { description: err instanceof Error ? err.message : '未知错误' });
         throw err;
       }
     },
-    [project, modifyProject]
+    [project, updateJourneyMutation]
   );
 
   // ---------- 删除故事 ----------
@@ -1076,31 +997,18 @@ export function StoryMapCanvas({
     try {
       if (deleteConfirm.type === 'journey') {
         // 删除旅程
-        const updatedJourneys = project.user_journeys.filter(
-          (j) => j.id !== deleteConfirm.id
-        );
-        await modifyProject(project.id, { user_journeys: updatedJourneys });
+        await deleteJourneyMutation.mutateAsync({ id: deleteConfirm.id });
         log.info('journey.deleted', { id: deleteConfirm.id });
-        toast({
-          title: '旅程已删除',
-          description: `「${deleteConfirm.name}」已删除`,
-        });
+        toast.success('旅程已删除');
       } else {
         // 删除故事
-        const updatedJourneys = project.user_journeys.map((j) => ({
-          ...j,
-          stories: (j.stories ?? []).filter((s) => s.id !== deleteConfirm.id),
-        }));
-        await modifyProject(project.id, { user_journeys: updatedJourneys });
+        await deleteStoryMutation.mutateAsync({ id: deleteConfirm.id });
         // 如果删除的是当前选中故事，清空选中
         if (selectedStory?.id === deleteConfirm.id) {
           setSelectedStory(null);
         }
         log.info('story.deleted', { id: deleteConfirm.id });
-        toast({
-          title: '故事已删除',
-          description: `「${deleteConfirm.name}」已删除`,
-        });
+        toast.success('故事已删除');
       }
     } catch (err) {
       log.error('delete.failed', {
@@ -1108,15 +1016,11 @@ export function StoryMapCanvas({
         id: deleteConfirm.id,
         error: err,
       });
-      toast({
-        title: '删除失败',
-        description: err instanceof Error ? err.message : '未知错误',
-        variant: 'destructive',
-      });
+      toast.error('删除失败', { description: err instanceof Error ? err.message : '未知错误' });
     }
 
     setDeleteConfirm(null);
-  }, [project, deleteConfirm, modifyProject, selectedStory, setSelectedStory]);
+  }, [project, deleteConfirm, deleteJourneyMutation, deleteStoryMutation, selectedStory, setSelectedStory]);
 
   // 空状态
   if (journeys.length === 0) {
@@ -1143,7 +1047,7 @@ export function StoryMapCanvas({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  router.push(`/projects/${projectId}/requirements`)
+                  navigate({ to: `/projects/$projectId/requirements`, params: { projectId } })
                 }
               >
                 前往需求分析

@@ -6,7 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle2, Database } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@xpm/ui';
 import {
   Dialog,
   DialogContent,
@@ -14,9 +14,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+} from '@xpm/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@xpm/ui';
+import { Badge } from '@xpm/ui';
 import { parseTaskTomlFile, getTaskStats, type TomlTaskFile } from '@/lib/toml/task-parser';
 import type { AppTask } from '@/lib/toml/task-parser';
 
@@ -115,7 +115,7 @@ export function TaskImportDialog({
             导入开发任务
           </DialogTitle>
           <DialogDescription>
-            上传任务 TOML 文件（如 .user-stories/tasks-x-product-roadmap-mvp.toml），系统将解析并加载任务列表
+            上传任务 TOML 文件（如 .user-stories/tasks-x-cartographer-mvp.toml），系统将解析并加载任务列表
           </DialogDescription>
         </DialogHeader>
 

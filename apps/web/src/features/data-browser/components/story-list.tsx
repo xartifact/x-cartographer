@@ -6,10 +6,7 @@
 
 import { useMemo, useState } from 'react';
 import { Search, Filter, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from '@xpm/ui';
 import { UserJourney, UserStory, Priority } from '@/types';
 import { StoryCard } from './story-card';
 import { cn } from '@/lib/utils';

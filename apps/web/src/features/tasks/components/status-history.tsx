@@ -11,16 +11,16 @@ import { zhCN } from 'date-fns/locale';
 import { RotateCcw, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button } from '@xpm/ui';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { Separator } from '@/components/ui/separator';
-import { useTaskStatusStore } from '../stores/task-status-store';
+} from '@xpm/ui';
+import { Separator } from '@xpm/ui';
+import { useStatusHistory, useCreateStatusChange } from '@/lib/api/hooks';
 import { StatusBadge } from './status-badge';
-import type { StatusChangeRecord } from '@/types';
+import type { StatusChangeRecord, TaskStatus, StoryStatus } from '@/types';
 
 export interface StatusHistoryProps {
   /** 实体 ID */
@@ -123,11 +123,33 @@ export function StatusHistory({
   showActions = true,
   className,
 }: StatusHistoryProps) {
-  const { getEntityHistory, undoStatusChange } = useTaskStatusStore();
+  const { data: historyData = [], isLoading } = useStatusHistory(entityId);
+  const createStatusChange = useCreateStatusChange();
   const [isOpen, setIsOpen] = useState(true);
 
   // 获取历史记录
-  const history = getEntityHistory(entityId);
+  const history = historyData;
+
+  const handleUndo = (historyId: string) => {
+    // 找到被撤销的那条记录，将状态回滚到其变更前的状态
+    const record = history.find((r) => r.id === historyId);
+    if (!record) return;
+    createStatusChange.mutate({
+      entityId: record.entity_id,
+      entityType: record.entity_type,
+      previousStatus: record.new_status,
+      newStatus: record.previous_status,
+      reason: `撤销: ${record.reason ?? ''}`,
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className={cn('text-sm text-muted-foreground py-2', className)}>
+        加载中...
+      </div>
+    );
+  }
 
   // 没有历史记录
   if (history.length === 0) {
@@ -147,9 +169,6 @@ export function StatusHistory({
   const displayHistory = sortedHistory.slice(0, maxItems);
   const remainingCount = sortedHistory.length - maxItems;
 
-  const handleUndo = (historyId: string) => {
-    undoStatusChange(historyId);
-  };
 
   // 可折叠版本
   if (collapsible) {
@@ -245,8 +264,29 @@ export function StatusHistoryPanel({
   entityType: 'task' | 'story';
   className?: string;
 }) {
-  const { getEntityHistory, undoStatusChange, clearEntityHistory } = useTaskStatusStore();
-  const history = getEntityHistory(entityId);
+  const { data: historyData = [], isLoading } = useStatusHistory(entityId);
+  const createStatusChange = useCreateStatusChange();
+  const history = historyData;
+
+  const handleUndo = (historyId: string) => {
+    const record = history.find((r) => r.id === historyId);
+    if (!record) return;
+    createStatusChange.mutate({
+      entityId: record.entity_id,
+      entityType: record.entity_type,
+      previousStatus: record.new_status,
+      newStatus: record.previous_status,
+      reason: `撤销: ${record.reason ?? ''}`,
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className={cn('text-center py-8 text-muted-foreground', className)}>
+        加载中...
+      </div>
+    );
+  }
 
   if (history.length === 0) {
     return (
@@ -268,7 +308,18 @@ export function StatusHistoryPanel({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => clearEntityHistory(entityId)}
+          onClick={() => {
+            // 逐条回滚当前历史（REST API 无批量清除，以撤销方式清理）
+            [...sortedHistory].reverse().forEach((record) => {
+              createStatusChange.mutate({
+                entityId: record.entity_id,
+                entityType: record.entity_type,
+                previousStatus: record.new_status,
+                newStatus: record.previous_status,
+                reason: `清除历史: ${record.reason ?? ''}`,
+              });
+            });
+          }}
         >
           <Trash2 className="h-4 w-4 mr-1" />
           清除历史
@@ -287,7 +338,7 @@ export function StatusHistoryPanel({
               record={record}
               entityType={entityType}
               showActions={true}
-              onUndo={undoStatusChange}
+              onUndo={handleUndo}
             />
           </div>
         ))}

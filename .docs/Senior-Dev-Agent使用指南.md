@@ -7,11 +7,11 @@
 
 ## 🎯 Agent 概述
 
-**senior-dev** 是一个专为 X-Product-Roadmap 项目设计的高级研发&架构师 AI Agent。它能够自主执行开发任务，遵循项目架构规范，生成高质量的 TypeScript/React 代码。
+**senior-dev** 是一个专为 X-Cartographer 项目设计的高级研发&架构师 AI Agent。它能够自主执行开发任务，遵循项目架构规范，生成高质量的 TypeScript/React 代码。
 
 ### 核心能力
 
-- ✅ 读取并理解开发任务列表（.user-stories/tasks-x-product-roadmap-mvp.toml）
+- ✅ 读取并理解开发任务列表（.user-stories/tasks-x-cartographer-mvp.toml）
 - ✅ 遵循 Bulletproof React 架构模式
 - ✅ 实现功能模块（components, hooks, stores, api）
 - ✅ 使用 shadcn/ui 组件库
@@ -23,7 +23,7 @@
 ## 📦 Agent 位置
 
 ```
-.claude/plugins/x-product-roadmap/
+.claude/plugins/x-cartographer/
 ├── agents/
 │   └── senior-dev.md          # Agent 定义文件
 ├── plugin.json                # 插件配置
@@ -50,7 +50,7 @@
 @agent-senior-dev 实现需求分析功能
 
 # 或者使用完整名称
-@agent-x-product-roadmap:senior-dev 按照架构规范实现用户故事管理
+@agent-x-cartographer:senior-dev 按照架构规范实现用户故事管理
 ```
 
 ### 方法 3: 任务导向调用
@@ -74,7 +74,7 @@
 ```
 
 **Agent 行为**:
-1. 读取 .user-stories/tasks-x-product-roadmap-mvp.toml 中的相关任务
+1. 读取 .user-stories/tasks-x-cartographer-mvp.toml 中的相关任务
 2. 理解需求和验收标准
 3. 创建功能模块目录结构:
    ```
@@ -432,7 +432,7 @@ src/features/feature-name/
 
 在调用 Agent 前，建议先了解以下文档：
 
-1. **任务列表**: `.user-stories/tasks-x-product-roadmap-mvp.toml`
+1. **任务列表**: `.user-stories/tasks-x-cartographer-mvp.toml`
    - 92 个开发任务
    - 按优先级组织（P0/P1/P2）
    - 包含验收标准
@@ -447,7 +447,7 @@ src/features/feature-name/
    - LLM Prompt 设计
    - API 接口规范
 
-4. **产品分析**: `.user-stories/x-product-roadmap-mvp-分析报告.md`
+4. **产品分析**: `.user-stories/x-cartographer-mvp-分析报告.md`
    - 用户故事地图
    - 功能需求
    - 开发排期
@@ -503,7 +503,7 @@ src/features/feature-name/
 ### Q: Agent 没有被触发？
 
 **A**: 检查以下几点：
-1. 确保 `.claude/plugins/x-product-roadmap/` 目录存在
+1. 确保 `.claude/plugins/x-cartographer/` 目录存在
 2. 确认 `plugin.json` 配置正确
 3. 重启 Claude Code（如果刚创建插件）
 4. 使用明确的触发短语（如"实现功能"、"开发模块"）
@@ -519,10 +519,10 @@ src/features/feature-name/
 ### Q: 如何查看 Agent 可以访问的文档？
 
 **A**: Agent 可以读取以下文档：
-- `.user-stories/tasks-x-product-roadmap-mvp.toml`
+- `.user-stories/tasks-x-cartographer-mvp.toml`
 - `.docs/架构设计-项目脚手架与技术栈.md`
 - `.docs/数据模型与API设计.md`
-- `.user-stories/x-product-roadmap-mvp-分析报告.md`
+- `.user-stories/x-cartographer-mvp-分析报告.md`
 - 以及所有 `src/` 目录下的代码文件
 
 ### Q: Agent 会修改已有代码吗？
@@ -559,7 +559,7 @@ src/features/feature-name/
 
 ### Agent 更新流程
 
-1. 修改 `.claude/plugins/x-product-roadmap/agents/senior-dev.md`
+1. 修改 `.claude/plugins/x-cartographer/agents/senior-dev.md`
 2. 更新版本号和更新日志
 3. 重启 Claude Code 使更改生效
 

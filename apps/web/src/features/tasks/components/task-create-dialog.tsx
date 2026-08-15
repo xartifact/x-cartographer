@@ -15,10 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from '@xpm/ui';
+import { Button } from '@xpm/ui';
+import { Input } from '@xpm/ui';
+import { Label } from '@xpm/ui';
 import type { Task, TaskType, TaskPriority, Project } from '@/types';
 import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
 

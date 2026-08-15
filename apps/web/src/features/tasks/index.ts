@@ -8,11 +8,8 @@ export * from './types';
 // Store
 export {
   useTaskStatusStore,
-  type TaskStatusState,
-  type StatusUpdateParams,
-  type BulkStatusUpdateParams,
+  type TaskStatusUIState,
   type StatusFilter,
-  type StatusStats,
 } from './stores';
 
 // Re-export status options from components

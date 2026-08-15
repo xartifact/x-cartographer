@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from '@tanstack/react-router';
 import {
   ArrowLeft,
   LayoutDashboard,
@@ -10,7 +9,7 @@ import {
   CheckSquare,
   Database,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@xpm/ui';
 import { cn } from '@/lib/utils';
 import { ProjectNavProps } from './types';
 import {
@@ -18,7 +17,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '@xpm/ui';
 
 // 默认项目内导航项配置
 const defaultProjectNavItems: ProjectNavProps['items'] = [
@@ -71,8 +70,7 @@ export function ProjectNav({
   backHref = '/projects',
   actions,
 }: ProjectNavProps) {
-  const pathname = (usePathname() || currentPath || '');
-
+  const pathname = (useLocation().pathname || currentPath || '');
   // 动态替换路径参数 [id] 为实际的 projectId
   const normalizeHref = (href: string | undefined): string => {
     if (!href) return '';
@@ -110,7 +108,7 @@ export function ProjectNav({
                 asChild
                 className="h-8 w-8"
               >
-                <Link href={backHref} aria-label="返回项目列表">
+                <Link to={backHref} aria-label="返回项目列表">
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
               </Button>
@@ -148,7 +146,7 @@ export function ProjectNav({
           return (
             <Link
               key={item.href}
-              href={href}
+              to={href}
               className={cn(
                 'flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap',
                 active

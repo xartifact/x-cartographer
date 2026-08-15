@@ -8,10 +8,7 @@
 
 import * as React from 'react';
 import { Plus, Download, Upload, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button, Input, Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardHeader, CardTitle } from '@xpm/ui';
 import {
   TaskList,
   StatusFilterBar,
@@ -20,9 +17,8 @@ import {
 import { TaskImportDialog } from './task-import-dialog';
 import { TaskCreateDialog } from './task-create-dialog';
 import { TaskDetailSheet } from './task-detail-sheet';
-import { useProjectStore } from '@/features/projects/stores';
+import { useUpdateTaskStatus, useCreateTask } from '@/lib/api/hooks';
 import type { Task, TaskStatus, StoryStatus, Project } from '@/types';
-import type { UpdateProjectDTO } from '@/types';
 import type { AppTask } from '@/lib/toml/task-parser';
 
 interface TasksPageProps {
@@ -31,7 +27,8 @@ interface TasksPageProps {
 }
 
 export function TasksPage({ project: initialProject }: TasksPageProps) {
-  const { modifyProject } = useProjectStore();
+  const updateTaskStatus = useUpdateTaskStatus();
+  const createTask = useCreateTask();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<
     (TaskStatus | StoryStatus)[]
@@ -150,51 +147,59 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
 
   // 处理状态变更
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
-    // 更新项目数据中的任务状态
-    const updatedJourneys = project.user_journeys?.map((journey) => ({
-      ...journey,
-      stories: journey.stories?.map((story) => ({
-        ...story,
-        tasks: story.tasks?.map((task) =>
-          task.id === taskId ? { ...task, status: newStatus } : task
-        ),
-      })),
-    }));
-
-    if (updatedJourneys) {
-      const dto: UpdateProjectDTO = { user_journeys: updatedJourneys };
-      const updated = await modifyProject(project.id, dto);
-      if (updated) {
-        setProject(updated);
-      }
+    try {
+      await updateTaskStatus.mutateAsync({ id: taskId, status: newStatus });
+      // 乐观更新本地项目状态
+      setProject((prev) => ({
+        ...prev,
+        user_journeys: prev.user_journeys?.map((journey) => ({
+          ...journey,
+          stories: journey.stories?.map((story) => ({
+            ...story,
+            tasks: story.tasks?.map((task) =>
+              task.id === taskId ? { ...task, status: newStatus } : task
+            ),
+          })),
+        })),
+      }));
+    } catch (err) {
+      console.error('update task status failed', err);
     }
   };
-
   // 进度统计
   const completedCount = statusStats.done || 0;
   const totalCount = displayTasks.length;
   const progress =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
   // 处理新建任务（绑定到指定故事）
   const handleCreateTask = async (storyId: string, task: Task) => {
-    const updatedJourneys = project.user_journeys?.map((journey) => ({
-      ...journey,
-      stories: journey.stories?.map((story) =>
-        story.id === storyId
-          ? { ...story, tasks: [...(story.tasks ?? []), task] }
-          : story
-      ),
-    }));
-    if (updatedJourneys) {
-      const updated = await modifyProject(project.id, {
-        user_journeys: updatedJourneys,
+    try {
+      await createTask.mutateAsync({
+        storyId,
+        title: task.title,
+        description: task.description,
+        type: task.type,
+        priority: task.priority,
+        estimation: task.estimation,
+        dependencies: task.dependencies ?? [],
+        tags: task.tags ?? [],
       });
-      if (updated) setProject(updated);
+      // 乐观更新本地项目状态
+      setProject((prev) => ({
+        ...prev,
+        user_journeys: prev.user_journeys?.map((journey) => ({
+          ...journey,
+          stories: journey.stories?.map((story) =>
+            story.id === storyId
+              ? { ...story, tasks: [...(story.tasks ?? []), task] }
+              : story
+          ),
+        })),
+      }));
+    } catch (err) {
+      console.error('create task failed', err);
     }
   };
-
-  // 处理导入
   const handleImport = (
     tasks: AppTask[],
     metadata: { project_name: string; created_at: string }

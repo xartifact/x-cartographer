@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link } from '@tanstack/react-router';
+import { useLocation } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@xpm/ui';
 import { cn } from '@/lib/utils';
 import { SidebarProps, NavItem } from './types';
 
@@ -64,7 +64,7 @@ function NavItemContent({
 
   return (
     <Link
-      href={item.href}
+      to={item.href}
       className={cn(
         'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
         isActive
@@ -90,7 +90,7 @@ export function Sidebar({
   onCollapsedChange,
   footer,
 }: SidebarProps) {
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
 
   const toggleCollapsed = () => {
     onCollapsedChange?.(!collapsed);
@@ -176,8 +176,8 @@ export function MobileSidebarOverlay({
       {/* 侧边栏内容 */}
       <div className="fixed inset-y-0 left-0 w-[280px] bg-background border-r p-4">
         <div className="flex items-center justify-between mb-6">
-          <Link href="/" className="font-semibold text-lg" onClick={onClose}>
-            X-Product-Roadmap
+          <Link to="/" className="font-semibold text-lg" onClick={onClose}>
+            X-Cartographer
           </Link>
           <Button
             variant="ghost"

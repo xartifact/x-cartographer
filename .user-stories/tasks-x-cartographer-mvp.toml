@@ -1,0 +1,1787 @@
+[metadata]
+project_name = "X-Cartographer MVP"
+version = "1.0"
+created_at = "2025-01-07"
+board_name = "X-Cartographer Development"
+
+[config]
+states = ["backlog", "todo", "in_progress", "in_review", "testing", "done"]
+wip_limits = { in_progress = 5, in_review = 3, testing = 2 }
+
+# ==================== 项目初始化与基础设施 ====================
+
+[[tasks]]
+id = "TASK-001"
+title = "初始化 Next.js 项目脚手架"
+description = "使用 TypeScript 创建 Next.js 项目，配置基础目录结构"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = []
+related_story = "基础设施"
+tags = ["setup", "infrastructure"]
+
+[[tasks]]
+id = "TASK-002"
+title = "配置 bulletproof-react 项目结构"
+description = "按照 bulletproof-react 规范组织目录结构：features、components、lib、utils 等"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-001"]
+related_story = "基础设施"
+tags = ["setup", "architecture"]
+
+[[tasks]]
+id = "TASK-003"
+title = "配置 ESLint 和 Prettier"
+description = "设置代码规范工具，确保代码质量和一致性"
+type = "technical_task"
+priority = "P1"
+estimation = 2
+status = "done"
+dependencies = ["TASK-001"]
+related_story = "基础设施"
+tags = ["setup", "code-quality"]
+
+[[tasks]]
+id = "TASK-004"
+title = "配置 Tailwind CSS"
+description = "安装和配置 Tailwind CSS，设置主题和基础样式"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-001"]
+related_story = "基础设施"
+tags = ["setup", "styling"]
+
+[[tasks]]
+id = "TASK-005"
+title = "设计应用主题和设计系统"
+description = "定义颜色、字体、间距等设计 token，创建基础 UI 组件库"
+type = "technical_task"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-004"]
+related_story = "基础设施"
+tags = ["design", "ui"]
+
+# ==================== 数据模型设计 (US-001 相关) ====================
+
+[[tasks]]
+id = "TASK-006"
+title = "设计项目数据模型"
+description = "定义 Project 类型：id, name, description, created_at, updated_at"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-002"]
+related_story = "US-016"
+tags = ["data-model", "types"]
+
+[[tasks]]
+id = "TASK-007"
+title = "设计用户旅程数据模型"
+description = "定义 UserJourney 类型：id, name, description, persona, stories[]"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-006"]
+related_story = "US-003"
+tags = ["data-model", "types"]
+
+[[tasks]]
+id = "TASK-008"
+title = "设计用户故事数据模型"
+description = "定义 UserStory 类型：id, title, description, priority, acceptance_criteria[], tags[], estimation"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-007"]
+related_story = "US-004"
+tags = ["data-model", "types"]
+
+[[tasks]]
+id = "TASK-009"
+title = "设计任务数据模型"
+description = "定义 Task 类型：id, title, description, type, priority, estimation, status, dependencies[]"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-008"]
+related_story = "US-011"
+tags = ["data-model", "types"]
+
+[[tasks]]
+id = "TASK-010"
+title = "创建 TOML 数据解析工具"
+description = "实现 TOML 格式的序列化和反序列化功能，用于导入导出"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-006", "TASK-007", "TASK-008", "TASK-009"]
+related_story = "US-013"
+tags = ["data", "parser"]
+
+# ==================== LLM 集成基础设施 (US-002, US-003, US-005, US-011 相关) ====================
+
+[[tasks]]
+id = "TASK-011"
+title = "创建 LLM API 客户端封装"
+description = "封装 OpenAI API 和 Anthropic API，提供统一接口（lib/llm/client.ts）"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "done"
+dependencies = ["TASK-002"]
+related_story = "US-002"
+tags = ["ai", "api", "integration"]
+
+[[tasks]]
+id = "TASK-012"
+title = "实现 API 密钥配置管理"
+description = "创建安全的 API 密钥存储和读取机制（AES 加密存储到 localStorage，lib/storage/api-keys.ts）"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "done"
+dependencies = ["TASK-011"]
+related_story = "US-018"
+tags = ["security", "config"]
+
+[[tasks]]
+id = "TASK-013"
+title = "设计 LLM Prompt 模板系统"
+description = "创建可复用的 Prompt 模板，用于需求分析、故事生成、任务拆解等场景（lib/llm/prompts.ts）"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "done"
+dependencies = ["TASK-011"]
+related_story = "US-002"
+tags = ["ai", "prompts"]
+
+[[tasks]]
+id = "TASK-014"
+title = "实现需求分析 Prompt"
+description = "编写和测试需求分析 Prompt，能够从自然语言提取用户角色、功能点、场景"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-013"]
+related_story = "US-002"
+tags = ["ai", "prompts", "analysis", "backlog"]
+
+[[tasks]]
+id = "TASK-015"
+title = "实现用户旅程生成 Prompt"
+description = "编写和测试用户旅程生成 Prompt，基于需求分析结果生成结构化旅程"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-013"]
+related_story = "US-003"
+tags = ["ai", "prompts", "journey", "backlog"]
+
+[[tasks]]
+id = "TASK-016"
+title = "实现验收标准生成 Prompt"
+description = "编写和测试验收标准生成 Prompt，为用户故事自动生成 SMART 标准"
+type = "technical_task"
+priority = "P3"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-013"]
+related_story = "US-005"
+tags = ["ai", "prompts", "criteria", "backlog"]
+
+[[tasks]]
+id = "TASK-017"
+title = "实现任务拆解 Prompt"
+description = "编写和测试任务拆解 Prompt，将用户故事分解为 2-4 小时的可执行任务"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "done"
+dependencies = ["TASK-013"]
+related_story = "US-011"
+tags = ["ai", "prompts", "tasks"]
+
+# ==================== 需求输入界面 (US-001 相关) ====================
+
+[[tasks]]
+id = "TASK-018"
+title = "创建需求输入组件"
+description = "实现多行文本输入框，支持 Markdown 格式"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-005"]
+related_story = "US-001"
+tags = ["ui", "input"]
+
+[[tasks]]
+id = "TASK-019"
+title = "实现 Markdown 实时预览"
+description = "集成 Markdown 解析库，提供分屏实时预览功能"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-018"]
+related_story = "US-001"
+tags = ["ui", "markdown"]
+
+[[tasks]]
+id = "TASK-020"
+title = "实现需求草稿自动保存"
+description = "使用 localStorage 自动保存用户输入内容，防止数据丢失"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-018"]
+related_story = "US-001"
+tags = ["data", "persistence"]
+
+[[tasks]]
+id = "TASK-021"
+title = "创建需求分析触发按钮"
+description = "添加'分析需求'按钮，触发 LLM 分析流程"
+type = "user_story"
+priority = "P0"
+estimation = 1
+status = "done"
+dependencies = ["TASK-018"]
+related_story = "US-001"
+tags = ["ui", "button"]
+
+# ==================== AI 需求分析 (US-002 相关) ====================
+
+[[tasks]]
+id = "TASK-022"
+title = "实现需求分析 API 调用"
+description = "调用 LLM API 分析用户输入文本，返回结构化结果"
+type = "user_story"
+priority = "P2"
+estimation = 3
+status = "done"
+dependencies = ["TASK-011", "TASK-014", "TASK-021"]
+related_story = "US-002"
+tags = ["api", "ai"]
+
+[[tasks]]
+id = "TASK-023"
+title = "实现需求分析结果解析"
+description = "解析 LLM 返回的 JSON 结果，提取用户角色、功能点、场景等信息"
+type = "user_story"
+priority = "P2"
+estimation = 2
+status = "done"
+dependencies = ["TASK-022"]
+related_story = "US-002"
+tags = ["data", "parser"]
+
+[[tasks]]
+id = "TASK-024"
+title = "创建需求分析结果展示组件"
+description = "以结构化卡片形式展示分析结果（features/requirements/components/analysis-result.tsx）"
+type = "user_story"
+priority = "P2"
+estimation = 3
+status = "done"
+dependencies = ["TASK-023"]
+related_story = "US-002"
+tags = ["ui", "display"]
+
+[[tasks]]
+id = "TASK-025"
+title = "实现分析结果编辑功能"
+description = "允许用户修改、删除、添加分析结果中的条目"
+type = "user_story"
+priority = "P2"
+estimation = 3
+status = "done"
+dependencies = ["TASK-024"]
+related_story = "US-002"
+tags = ["ui", "edit"]
+
+[[tasks]]
+id = "TASK-026"
+title = "添加分析过程加载状态"
+description = "显示加载动画和进度提示，提升用户体验"
+type = "user_story"
+priority = "P3"
+estimation = 2
+status = "done"
+dependencies = ["TASK-022"]
+related_story = "US-002"
+tags = ["ui", "loading", "backlog"]
+
+# ==================== 用户旅程生成 (US-003 相关) ====================
+
+[[tasks]]
+id = "TASK-027"
+title = "实现用户旅程生成 API 调用"
+description = "基于需求分析结果，调用 LLM 生成用户旅程建议"
+type = "user_story"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-015", "TASK-023"]
+related_story = "US-003"
+tags = ["api", "ai", "backlog"]
+
+[[tasks]]
+id = "TASK-028"
+title = "创建用户旅程列表组件"
+description = "展示生成的用户旅程列表，包含名称、描述、步骤数"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-027"]
+related_story = "US-003"
+tags = ["ui", "list"]
+
+[[tasks]]
+id = "TASK-029"
+title = "实现用户旅程编辑器"
+description = "允许用户修改旅程名称、描述、添加/删除步骤"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-028"]
+related_story = "US-003"
+tags = ["ui", "edit"]
+
+[[tasks]]
+id = "TASK-030"
+title = "实现旅程优先级调整"
+description = "支持为每个旅程设置优先级（high/medium/low）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-029"]
+related_story = "US-003"
+tags = ["ui", "priority"]
+
+# ==================== 用户故事创建 (US-004 相关) ====================
+
+[[tasks]]
+id = "TASK-031"
+title = "创建用户故事表单组件"
+description = "包含角色、功能、价值三个字段，自动生成标准格式故事"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "todo"
+dependencies = ["TASK-005"]
+related_story = "US-004"
+tags = ["ui", "form"]
+
+[[tasks]]
+id = "TASK-032"
+title = "实现用户故事 ID 自动生成"
+description = "为新创建的用户故事自动分配唯一 ID（US-XXX）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "todo"
+dependencies = ["TASK-031"]
+related_story = "US-004"
+tags = ["data", "id-generation"]
+
+[[tasks]]
+id = "TASK-033"
+title = "实现详细描述和验收标准输入"
+description = "提供富文本编辑器用于详细描述，列表输入用于验收标准"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "todo"
+dependencies = ["TASK-031"]
+related_story = "US-004"
+tags = ["ui", "input"]
+
+[[tasks]]
+id = "TASK-034"
+title = "实现用户故事优先级选择"
+description = "提供下拉菜单或单选按钮选择优先级（high/medium/low）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "todo"
+dependencies = ["TASK-031"]
+related_story = "US-004"
+tags = ["ui", "priority"]
+
+[[tasks]]
+id = "TASK-035"
+title = "实现用户故事关联到旅程"
+description = "允许选择用户故事所属的用户旅程"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "todo"
+dependencies = ["TASK-031", "TASK-028"]
+related_story = "US-004"
+tags = ["ui", "relation"]
+
+# ==================== AI 验收标准生成 (US-005 相关) - 已降级为 P3 ====================
+
+[[tasks]]
+id = "TASK-036"
+title = "实现验收标准生成 API 调用"
+description = "调用 LLM 根据用户故事生成验收标准（用户可直接手动编写或通过其他方式生成 TOML 导入）"
+type = "user_story"
+priority = "P3"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-016", "TASK-031"]
+related_story = "US-005"
+tags = ["api", "ai", "backlog"]
+
+[[tasks]]
+id = "TASK-037"
+title = "实现验收标准建议展示"
+description = "在用户故事编辑器中显示 AI 生成的验收标准建议"
+type = "user_story"
+priority = "P3"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-036"]
+related_story = "US-005"
+tags = ["ui", "display", "backlog"]
+
+[[tasks]]
+id = "TASK-038"
+title = "实现验收标准快速采纳"
+description = "提供按钮一键采纳 AI 建议的验收标准"
+type = "user_story"
+priority = "P3"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-037"]
+related_story = "US-005"
+tags = ["ui", "interaction", "backlog"]
+
+# ==================== 用户故事地图可视化 (US-007, US-008, US-009 相关) ====================
+
+[[tasks]]
+id = "TASK-039"
+title = "设计故事地图布局算法"
+description = "实现二维布局算法：横轴为旅程步骤，纵轴为优先级"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-007", "TASK-008"]
+related_story = "US-007"
+tags = ["algorithm", "layout"]
+
+[[tasks]]
+id = "TASK-040"
+title = "创建故事卡片组件"
+description = "设计和实现用户故事卡片，显示标题、优先级、标签等关键信息"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-005"]
+related_story = "US-007"
+tags = ["ui", "component"]
+
+[[tasks]]
+id = "TASK-041"
+title = "实现故事地图画布组件"
+description = "使用 Canvas 或 SVG 渲染可缩放、可平移的故事地图"
+type = "user_story"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-039", "TASK-040"]
+related_story = "US-007"
+tags = ["ui", "canvas", "visualization"]
+
+[[tasks]]
+id = "TASK-042"
+title = "实现地图缩放和平移功能"
+description = "支持鼠标滚轮缩放、拖拽平移画布"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-041"]
+related_story = "US-007"
+tags = ["ui", "interaction"]
+
+[[tasks]]
+id = "TASK-043"
+title = "实现响应式布局"
+description = "适配不同屏幕尺寸，移动端优化"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-041"]
+related_story = "US-007"
+tags = ["ui", "responsive"]
+
+[[tasks]]
+id = "TASK-044"
+title = "实现拖拽功能基础设施"
+description = "集成拖拽库（如 react-dnd 或 dnd-kit），实现拖拽事件处理"
+type = "technical_task"
+priority = "P1"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-041"]
+related_story = "US-008"
+tags = ["ui", "drag-drop"]
+
+[[tasks]]
+id = "TASK-045"
+title = "实现故事卡片拖拽移动"
+description = "支持拖拽卡片在不同旅程和优先级间移动"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-044"]
+related_story = "US-008"
+tags = ["ui", "drag-drop"]
+
+[[tasks]]
+id = "TASK-046"
+title = "实现拖拽视觉反馈"
+description = "拖拽时高亮目标区域，显示拖动预览"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-045"]
+related_story = "US-008"
+tags = ["ui", "visual-feedback"]
+
+[[tasks]]
+id = "TASK-047"
+title = "实现拖拽后自动保存"
+description = "拖拽操作完成后自动保存更新后的数据"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-045"]
+related_story = "US-008"
+tags = ["data", "persistence"]
+
+[[tasks]]
+id = "TASK-048"
+title = "创建故事详情面板组件"
+description = "实现侧边栏或弹窗形式的详情面板"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-005"]
+related_story = "US-009"
+tags = ["ui", "panel"]
+
+[[tasks]]
+id = "TASK-049"
+title = "实现卡片点击事件处理"
+description = "点击卡片时打开详情面板，显示完整信息"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-040", "TASK-048"]
+related_story = "US-009"
+tags = ["ui", "interaction"]
+
+[[tasks]]
+id = "TASK-050"
+title = "实现详情面板内容渲染"
+description = "展示完整的用户故事、验收标准、标签、元数据等"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-048"]
+related_story = "US-009"
+tags = ["ui", "display"]
+
+# ==================== 筛选功能 (US-010 相关) ====================
+
+[[tasks]]
+id = "TASK-051"
+title = "创建筛选器组件"
+description = "实现筛选控件 UI，包含优先级、标签、状态等筛选项"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-005"]
+related_story = "US-010"
+tags = ["ui", "filter"]
+
+[[tasks]]
+id = "TASK-052"
+title = "实现筛选逻辑"
+description = "根据筛选条件过滤用户故事数据，支持多条件组合"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-051"]
+related_story = "US-010"
+tags = ["logic", "filter"]
+
+[[tasks]]
+id = "TASK-053"
+title = "实现筛选结果实时更新"
+description = "筛选条件变化时，实时更新故事地图显示"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "done"
+dependencies = ["TASK-052", "TASK-041"]
+related_story = "US-010"
+tags = ["ui", "update"]
+
+# ==================== AI 任务拆解 (US-011 相关) ====================
+
+[[tasks]]
+id = "TASK-054"
+title = "实现任务拆解 API 调用"
+description = "调用 LLM 将用户故事拆解为可执行任务列表"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-017"]
+related_story = "US-011"
+tags = ["api", "ai"]
+
+[[tasks]]
+id = "TASK-055"
+title = "实现任务拆解结果解析"
+description = "解析 LLM 返回的任务列表，提取任务信息和依赖关系"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-054"]
+related_story = "US-011"
+tags = ["data", "parser"]
+
+[[tasks]]
+id = "TASK-056"
+title = "创建任务列表展示组件"
+description = "以列表或表格形式展示拆解后的任务（features/tasks/components/task-list.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-055"]
+related_story = "US-011"
+tags = ["ui", "list"]
+
+[[tasks]]
+id = "TASK-057"
+title = "实现任务分类标识"
+description = "用颜色或图标区分任务类型（user_story/technical_task/bug_fix/spike）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-056"]
+related_story = "US-011"
+tags = ["ui", "visual"]
+
+[[tasks]]
+id = "TASK-058"
+title = "实现任务依赖关系可视化"
+description = "显示任务间的依赖关系，支持简单的依赖图"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-056"]
+related_story = "US-011"
+tags = ["ui", "visualization"]
+
+# ==================== 任务规划 (US-012 相关) ====================
+
+[[tasks]]
+id = "TASK-059"
+title = "实现任务优先级设置"
+description = "为每个任务提供优先级选择（P0/P1/P2/P3）"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-056"]
+related_story = "US-012"
+tags = ["ui", "priority"]
+
+[[tasks]]
+id = "TASK-060"
+title = "实现任务工时估算输入"
+description = "提供输入框设置每个任务的估算工时（小时）"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-056"]
+related_story = "US-012"
+tags = ["ui", "estimation"]
+
+[[tasks]]
+id = "TASK-061"
+title = "实现总工时自动计算"
+description = "根据所有任务的估算工时自动计算总计"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-060"]
+related_story = "US-012"
+tags = ["logic", "calculation"]
+
+[[tasks]]
+id = "TASK-062"
+title = "实现任务依赖关系编辑"
+description = "允许用户添加、删除、修改任务间的依赖关系"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-056"]
+related_story = "US-012"
+tags = ["ui", "edit"]
+
+# ==================== TOML 导出功能 (US-013 相关) ====================
+
+[[tasks]]
+id = "TASK-063"
+title = "实现用户故事地图 TOML 序列化"
+description = "将内存中的故事地图数据转换为符合规范的 TOML 格式"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-010"]
+related_story = "US-013"
+tags = ["data", "export"]
+
+[[tasks]]
+id = "TASK-064"
+title = "创建 TOML 导出按钮和下载功能"
+description = "提供导出按钮，生成 TOML 文件并触发浏览器下载"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-063"]
+related_story = "US-013"
+tags = ["ui", "download"]
+
+[[tasks]]
+id = "TASK-065"
+title = "实现 TOML 格式验证"
+description = "导出前验证 TOML 格式正确性，提供错误提示"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-063"]
+related_story = "US-013"
+tags = ["validation", "error-handling"]
+
+# ==================== Kanban Markdown 导出功能 (US-014 相关) ====================
+
+[[tasks]]
+id = "TASK-066"
+title = "实现任务列表 Markdown 序列化"
+description = "将任务列表转换为 Kanban Markdown 格式"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-009"]
+related_story = "US-014"
+tags = ["data", "export"]
+
+[[tasks]]
+id = "TASK-067"
+title = "实现任务按状态分组"
+description = "将任务按 Backlog/To Do/In Progress/Done 等状态分组"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-066"]
+related_story = "US-014"
+tags = ["logic", "grouping"]
+
+[[tasks]]
+id = "TASK-068"
+title = "实现 Kanban Markdown 格式化"
+description = "生成符合 Kanban 规范的 Markdown 文件，包含优先级、估算、依赖等信息"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-067"]
+related_story = "US-014"
+tags = ["data", "format"]
+
+[[tasks]]
+id = "TASK-069"
+title = "创建 Kanban 导出按钮和下载功能"
+description = "提供导出按钮，生成 Markdown 文件并触发浏览器下载"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "backlog"
+dependencies = ["TASK-068"]
+related_story = "US-014"
+tags = ["ui", "download"]
+
+# ==================== 项目管理 (US-015, US-016 相关) ====================
+
+[[tasks]]
+id = "TASK-070"
+title = "创建项目列表页面"
+description = "显示所有项目，支持创建新项目"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-006"]
+related_story = "US-015"
+tags = ["ui", "page"]
+
+[[tasks]]
+id = "TASK-071"
+title = "实现项目创建表单"
+description = "提供项目名称、描述输入，创建新项目"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-070"]
+related_story = "US-015"
+tags = ["ui", "form"]
+
+[[tasks]]
+id = "TASK-072"
+title = "实现项目切换功能"
+description = "支持在不同项目间切换，加载对应的故事地图数据"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-070"]
+related_story = "US-015"
+tags = ["ui", "navigation"]
+
+[[tasks]]
+id = "TASK-073"
+title = "实现项目重命名和删除"
+description = "支持修改项目信息和删除项目（需确认）"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "done"
+dependencies = ["TASK-070"]
+related_story = "US-015"
+tags = ["ui", "crud"]
+
+[[tasks]]
+id = "TASK-074"
+title = "实现 localStorage 数据持久化"
+description = "将项目数据自动保存到浏览器 localStorage"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-006"]
+related_story = "US-016"
+tags = ["data", "persistence"]
+
+[[tasks]]
+id = "TASK-075"
+title = "实现项目数据加载"
+description = "应用启动时从 localStorage 加载项目数据"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-074"]
+related_story = "US-016"
+tags = ["data", "loading"]
+
+[[tasks]]
+id = "TASK-076"
+title = "实现 TOML 文件导入功能"
+description = "支持上传 TOML 文件，解析并导入为项目数据"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-010"]
+related_story = "US-016"
+tags = ["data", "import"]
+
+[[tasks]]
+id = "TASK-077"
+title = "实现数据验证和错误处理"
+description = "加载和导入数据时验证完整性，提供友好的错误提示"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-075", "TASK-076"]
+related_story = "US-016"
+tags = ["validation", "error-handling"]
+
+# ==================== 系统配置 (US-018 相关) ====================
+
+[[tasks]]
+id = "TASK-078"
+title = "创建设置页面"
+description = "实现应用设置页面，包含 API 配置、主题设置等"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-005"]
+related_story = "US-018"
+tags = ["ui", "settings"]
+
+[[tasks]]
+id = "TASK-079"
+title = "实现 API 密钥输入和保存"
+description = "提供安全的 API 密钥输入框，加密保存到 localStorage"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-012", "TASK-078"]
+related_story = "US-018"
+tags = ["security", "config"]
+
+[[tasks]]
+id = "TASK-080"
+title = "实现 LLM 模型选择"
+description = "提供下拉菜单选择不同的 LLM 模型（GPT-4、Claude 等）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-078"]
+related_story = "US-018"
+tags = ["ui", "config"]
+
+[[tasks]]
+id = "TASK-081"
+title = "实现 API 连接测试功能"
+description = "提供测试按钮，验证 API 配置是否正确"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-079", "TASK-011"]
+related_story = "US-018"
+tags = ["api", "validation"]
+
+[[tasks]]
+id = "TASK-082"
+title = "实现 API 使用量统计"
+description = "记录和显示 API 调用次数、Token 使用量等统计信息"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-011"]
+related_story = "US-018"
+tags = ["analytics", "monitoring"]
+
+# ==================== 用户帮助 (US-019 相关) ====================
+
+[[tasks]]
+id = "TASK-083"
+title = "创建快速入门向导组件"
+description = "实现多步骤引导组件，首次使用时自动显示"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-005"]
+related_story = "US-019"
+tags = ["ui", "onboarding"]
+
+[[tasks]]
+id = "TASK-084"
+title = "编写快速入门内容"
+description = "撰写核心功能使用说明，包含截图和示例"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-083"]
+related_story = "US-019"
+tags = ["content", "documentation"]
+
+[[tasks]]
+id = "TASK-085"
+title = "创建示例项目模板"
+description = "提供预置的示例项目，帮助用户快速理解功能"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-006"]
+related_story = "US-019"
+tags = ["data", "template"]
+
+[[tasks]]
+id = "TASK-086"
+title = "实现向导跳过和重新查看功能"
+description = "允许用户跳过向导，并在设置中重新打开"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "done"
+dependencies = ["TASK-083"]
+related_story = "US-019"
+tags = ["ui", "navigation"]
+
+# ==================== 附加任务：测试与优化 ====================
+
+[[tasks]]
+id = "TASK-087"
+title = "编写核心组件单元测试"
+description = "为关键组件编写单元测试，确保功能正确性"
+type = "technical_task"
+priority = "P2"
+estimation = 5
+status = "backlog"
+dependencies = []
+related_story = "质量保证"
+tags = ["testing", "unit-test"]
+
+[[tasks]]
+id = "TASK-088"
+title = "实现错误边界和全局错误处理"
+description = "添加 React Error Boundary，捕获和显示友好的错误信息"
+type = "technical_task"
+priority = "P1"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-002"]
+related_story = "质量保证"
+tags = ["error-handling", "robustness"]
+
+[[tasks]]
+id = "TASK-089"
+title = "性能优化：实现虚拟滚动"
+description = "对大量用户故事的列表实现虚拟滚动，提升性能"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-041"]
+related_story = "性能优化"
+tags = ["performance", "optimization"]
+
+[[tasks]]
+id = "TASK-090"
+title = "添加键盘快捷键支持"
+description = "实现常用操作的快捷键（如保存、导出、新建等）"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-002"]
+related_story = "用户体验"
+tags = ["ux", "accessibility"]
+
+[[tasks]]
+id = "TASK-091"
+title = "实现暗色主题"
+description = "添加暗色主题支持，用户可在设置中切换"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-004"]
+related_story = "用户体验"
+tags = ["ui", "theme"]
+
+[[tasks]]
+id = "TASK-092"
+title = "部署配置和 CI/CD 设置"
+description = "配置 Vercel/Netlify 部署，设置自动化构建和部署流程"
+type = "technical_task"
+priority = "P1"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-001"]
+related_story = "DevOps"
+tags = ["deployment", "ci-cd"]
+
+# ==================== 任务状态管理 (已全部完成) ====================
+
+[[tasks]]
+id = "TASK-101"
+title = "设计任务状态数据模型扩展"
+description = "扩展 Task/UserStory 类型添加状态字段，定义 status_changes 表"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = []
+related_story = "US-001"
+tags = ["data-model", "types"]
+
+[[tasks]]
+id = "TASK-102"
+title = "创建状态标签组件"
+description = "StatusBadge 组件（features/tasks/components/status-badge.tsx）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-101"]
+related_story = "US-001"
+tags = ["ui", "component"]
+
+[[tasks]]
+id = "TASK-103"
+title = "创建任务状态管理 Store"
+description = "Zustand Store（features/tasks/stores/task-status-store.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-101"]
+related_story = "US-001"
+tags = ["store", "state"]
+
+[[tasks]]
+id = "TASK-104"
+title = "在任务列表组件中添加状态标签"
+description = "task-list.tsx 集成 StatusBadge"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-102", "TASK-103"]
+related_story = "US-001"
+tags = ["ui", "task"]
+
+[[tasks]]
+id = "TASK-105"
+title = "在故事卡片中添加状态标签"
+description = "StoryCard 组件集成 StatusBadge"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-102"]
+related_story = "US-002"
+tags = ["ui", "story"]
+
+[[tasks]]
+id = "TASK-106"
+title = "在故事地图画布中添加状态概览"
+description = "StatusOverview 组件（features/tasks/components/status-overview.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-105"]
+related_story = "US-002"
+tags = ["ui", "visualization"]
+
+[[tasks]]
+id = "TASK-107"
+title = "创建项目进度统计组件"
+description = "ProgressStats 组件（features/tasks/components/progress-stats.tsx）"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-103"]
+related_story = "US-003"
+tags = ["ui", "dashboard"]
+
+[[tasks]]
+id = "TASK-108"
+title = "实现任务状态切换功能"
+description = "StatusSelect 组件（features/tasks/components/status-select.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-103"]
+related_story = "US-004"
+tags = ["ui", "interaction"]
+
+[[tasks]]
+id = "TASK-109"
+title = "实现用户故事状态切换功能"
+description = "StoryCard 集成 StatusSelect"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-108"]
+related_story = "US-004"
+tags = ["ui", "interaction"]
+
+[[tasks]]
+id = "TASK-110"
+title = "实现批量状态更新功能"
+description = "BulkUpdateDialog 组件（features/tasks/components/bulk-update-dialog.tsx）"
+type = "user_story"
+priority = "P1"
+estimation = 3
+status = "done"
+dependencies = ["TASK-108"]
+related_story = "US-005"
+tags = ["ui", "bulk"]
+
+[[tasks]]
+id = "TASK-111"
+title = "实现状态变更历史记录功能"
+description = "StatusHistory 组件 + status-change.repository.ts"
+type = "user_story"
+priority = "P2"
+estimation = 4
+status = "done"
+dependencies = ["TASK-103"]
+related_story = "US-006"
+tags = ["audit", "history"]
+
+[[tasks]]
+id = "TASK-112"
+title = "创建状态筛选器组件"
+description = "StatusFilter 组件（features/tasks/components/status-filter.tsx）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-102"]
+related_story = "US-007"
+tags = ["ui", "filter"]
+
+[[tasks]]
+id = "TASK-113"
+title = "在任务列表中添加状态筛选"
+description = "TasksPage 集成 StatusFilter"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-112"]
+related_story = "US-007"
+tags = ["ui", "task"]
+
+[[tasks]]
+id = "TASK-114"
+title = "在故事地图中添加状态筛选"
+description = "故事地图视图集成 StatusFilter"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-112", "TASK-105"]
+related_story = "US-007"
+tags = ["ui", "story"]
+
+[[tasks]]
+id = "TASK-115"
+title = "实现状态视图切换功能"
+description = "ViewSwitcher 组件（features/tasks/components/view-switcher.tsx）"
+type = "user_story"
+priority = "P1"
+estimation = 2
+status = "done"
+dependencies = ["TASK-112"]
+related_story = "US-008"
+tags = ["ui", "view"]
+
+[[tasks]]
+id = "TASK-116"
+title = "实现筛选预设保存功能"
+description = "PresetManager 组件（features/tasks/components/preset-manager.tsx）"
+type = "user_story"
+priority = "P2"
+estimation = 3
+status = "done"
+dependencies = ["TASK-112"]
+related_story = "US-009"
+tags = ["feature", "preset"]
+
+[[tasks]]
+id = "TASK-117"
+title = "编写任务状态管理功能测试"
+description = "为核心功能编写单元测试和集成测试"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-103", "TASK-108"]
+related_story = "US-001"
+tags = ["testing", "quality"]
+
+# ==================== 数据库持久化升级 (PGlite) ====================
+
+[[tasks]]
+id = "TASK-118"
+title = "集成 PGlite 浏览器端数据库"
+description = "使用 @electric-sql/pglite 在 IndexedDB 上运行 PostgreSQL（lib/db/client.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 4
+status = "done"
+dependencies = ["TASK-006"]
+related_story = "US-021"
+tags = ["database", "pglite", "indexeddb"]
+
+[[tasks]]
+id = "TASK-119"
+title = "定义 Drizzle ORM Schema"
+description = "使用 Drizzle 定义所有表的类型安全 Schema（lib/db/schema/）"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-118"]
+related_story = "US-022"
+tags = ["drizzle", "schema", "types"]
+
+[[tasks]]
+id = "TASK-120"
+title = "实现 Repository 数据访问层"
+description = "按模块实现 Repository（lib/db/repositories/project/journey/story/task/status-change）"
+type = "technical_task"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-119"]
+related_story = "US-022"
+tags = ["repository", "data-access"]
+
+[[tasks]]
+id = "TASK-121"
+title = "修复 TOML 导入日期兼容性"
+description = "safeDate() 函数处理无效 created_at/updated_at 值，避免 Invalid time value 错误"
+type = "technical_task"
+priority = "P0"
+estimation = 1
+status = "done"
+dependencies = ["TASK-120"]
+related_story = "US-023"
+tags = ["bugfix", "date", "toml-import"]
+
+# ==================== AI 编码代理任务执行 (US-024 ~ US-033 相关) ====================
+
+# --- US-024: AI 编码代理选择与执行入口 ---
+
+[[tasks]]
+id = "TASK-122"
+title = "定义执行器类型系统和接口"
+description = "定义 ExecutorType 枚举（claude-code/opencode）、IExecutor 接口、ExecutionResult、RawOutputEvent、PromptContext 等类型（lib/executor/types.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = []
+related_story = "US-024"
+tags = ["executor", "types", "interface"]
+
+[[tasks]]
+id = "TASK-123"
+title = "实现 Claude Code 执行器"
+description = "通过 spawn 调用 claude CLI（--print --output-format stream-json），解析 stream-json 格式输出，支持 system/init、assistant、tool_use、result 等事件（lib/executor/claude-code-executor.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-122"]
+related_story = "US-024"
+tags = ["executor", "claude-code", "subprocess"]
+
+[[tasks]]
+id = "TASK-124"
+title = "实现 OpenCode 执行器"
+description = "通过 spawn 调用 opencode CLI（run --no-interactive），stdout/stderr 原始透传（lib/executor/opencode-executor.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-122"]
+related_story = "US-024"
+tags = ["executor", "opencode", "subprocess"]
+
+[[tasks]]
+id = "TASK-125"
+title = "实现执行器工厂"
+description = "根据 ExecutorType 创建对应的执行器实例（lib/executor/executor-factory.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 1
+status = "done"
+dependencies = ["TASK-123", "TASK-124"]
+related_story = "US-024"
+tags = ["executor", "factory-pattern"]
+
+[[tasks]]
+id = "TASK-126"
+title = "创建执行弹窗 UI 组件"
+description = "实现 ExecuteDialog 组件，包含执行器选择卡片、工作目录输入、开始/停止按钮（features/tasks/components/execute-dialog.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-125"]
+related_story = "US-024"
+tags = ["ui", "dialog", "executor"]
+
+[[tasks]]
+id = "TASK-127"
+title = "在任务卡片 DropdownMenu 中添加 AI 执行入口"
+description = "在 TaskCard 的 DropdownMenu 中添加'AI 执行任务'菜单项，执行中显示 loading 状态（features/tasks/components/task-list.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-126"]
+related_story = "US-024"
+tags = ["ui", "task-card", "menu"]
+
+# --- US-025: 实时执行输出展示 ---
+
+[[tasks]]
+id = "TASK-128"
+title = "实现任务执行 SSE API 端点"
+description = "POST /api/tasks/[id]/execute 端点，验证请求参数、构建提示词、创建执行器、通过 ReadableStream 返回 SSE 事件（app/api/tasks/[id]/execute/route.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 5
+status = "done"
+dependencies = ["TASK-125"]
+related_story = "US-025"
+tags = ["api", "sse", "streaming"]
+
+[[tasks]]
+id = "TASK-129"
+title = "创建执行状态 Zustand Store"
+description = "实现 useExecutionStore，管理执行状态（running/completed/failed）、输出行列表（上限500行）、开始/追加/完成/失败操作（features/tasks/stores/execution-store.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = []
+related_story = "US-025"
+tags = ["zustand", "store", "state"]
+
+[[tasks]]
+id = "TASK-130"
+title = "实现终端风格输出渲染"
+description = "黑底绿字 monospace 输出区域，自动滚动，闪烁光标，状态指示器（运行中/完成/失败）（execute-dialog.tsx 输出区域）"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-129"]
+related_story = "US-025"
+tags = ["ui", "terminal", "output"]
+
+[[tasks]]
+id = "TASK-131"
+title = "实现 SSE 客户端解析逻辑"
+description = "通过 ReadableStream reader 读取 SSE 流，按 \\n\\n 分割事件，JSON.parse 解析 ExecutionEvent，分发到 handleEvent（execute-dialog.tsx handleStart）"
+type = "user_story"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-128", "TASK-129"]
+related_story = "US-025"
+tags = ["sse", "client", "parsing"]
+
+# --- US-026: 上下文感知的提示词构建 ---
+
+[[tasks]]
+id = "TASK-132"
+title = "实现提示词构建器"
+description = "从 PromptContext 中提取项目背景、用户故事、任务详情，组装为结构化中文 Markdown 提示词（lib/executor/prompt-builder.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 3
+status = "done"
+dependencies = ["TASK-122"]
+related_story = "US-026"
+tags = ["prompt", "builder", "context"]
+
+[[tasks]]
+id = "TASK-133"
+title = "在 TasksPage 中提取故事和项目上下文"
+description = "通过 useMemo 从项目嵌套数据中提取 executeStoryContext 和 executeProjectContext，传递给 ExecuteDialog（features/tasks/components/tasks-page.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-132"]
+related_story = "US-026"
+tags = ["context", "data-extraction"]
+
+# --- US-027: 执行中断控制 ---
+
+[[tasks]]
+id = "TASK-134"
+title = "实现客户端 AbortController 中断"
+description = "执行弹窗维护 AbortController ref，停止按钮 abort 中断 fetch 请求，关闭弹窗时自动 abort（execute-dialog.tsx handleStop）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-131"]
+related_story = "US-027"
+tags = ["abort", "client", "control"]
+
+[[tasks]]
+id = "TASK-135"
+title = "实现服务端进程终止机制"
+description = "API 端点监听 request.signal abort 事件，执行器发送 SIGTERM 后 500ms 发送 SIGKILL 确保进程终止（route.ts + executor）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-128"]
+related_story = "US-027"
+tags = ["abort", "server", "sigterm"]
+
+[[tasks]]
+id = "TASK-136"
+title = "实现超时自动中断"
+description = "服务端 300 秒超时保护，通过 setTimeout + AbortController 自动终止超时执行（route.ts）"
+type = "technical_task"
+priority = "P1"
+estimation = 1
+status = "done"
+dependencies = ["TASK-135"]
+related_story = "US-027"
+tags = ["timeout", "abort", "protection"]
+
+# --- US-028: 执行后状态自动流转 ---
+
+[[tasks]]
+id = "TASK-137"
+title = "实现执行状态自动流转"
+description = "执行开始时 onStatusChange → in_progress，成功完成时 → in_review，失败时保持当前状态（execute-dialog.tsx handleEvent）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-131"]
+related_story = "US-028"
+tags = ["status", "auto-transition"]
+
+[[tasks]]
+id = "TASK-138"
+title = "实现状态变更持久化"
+description = "通过 TasksPage 的 handleStatusChange 深克隆项目数据、更新任务状态、调用 modifyProject 持久化到数据库（tasks-page.tsx）"
+type = "user_story"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = ["TASK-137"]
+related_story = "US-028"
+tags = ["status", "persistence", "database"]
+
+# --- US-029: 执行器偏好配置 ---
+
+[[tasks]]
+id = "TASK-139"
+title = "实现执行器配置 Server Actions"
+description = "getExecutorConfig / saveExecutorConfig Server Actions，读写 app_settings 表中的 executor_preferred、executor_workspace_dir、executor_timeout_ms（app/actions/executor.actions.ts）"
+type = "technical_task"
+priority = "P0"
+estimation = 2
+status = "done"
+dependencies = []
+related_story = "US-029"
+tags = ["server-action", "config", "settings"]
+
+[[tasks]]
+id = "TASK-140"
+title = "执行弹窗自动加载偏好配置"
+description = "ExecuteDialog 打开时调用 getExecutorConfig() 自动填充执行器类型和工作目录，执行时调用 saveExecutorConfig() 保存偏好"
+type = "user_story"
+priority = "P1"
+estimation = 1
+status = "done"
+dependencies = ["TASK-139", "TASK-126"]
+related_story = "US-029"
+tags = ["config", "auto-load", "ui"]
+
+# --- US-030: OpenCode 执行器增强 (backlog) ---
+
+[[tasks]]
+id = "TASK-141"
+title = "研究 OpenCode CLI 输出格式"
+description = "分析 opencode run --no-interactive 的输出格式，确定是否支持 JSON 流或其他结构化输出"
+type = "spike"
+priority = "P2"
+estimation = 2
+status = "backlog"
+dependencies = []
+related_story = "US-030"
+tags = ["research", "opencode", "output-format"]
+
+[[tasks]]
+id = "TASK-142"
+title = "实现 OpenCode 输出解析器"
+description = "根据 OpenCode 输出格式实现结构化解析，格式化显示工具调用、代码生成、耗时统计等信息"
+type = "technical_task"
+priority = "P2"
+estimation = 5
+status = "backlog"
+dependencies = ["TASK-141"]
+related_story = "US-030"
+tags = ["opencode", "parser", "formatter"]
+
+# --- US-031: 执行历史记录 (backlog) ---
+
+[[tasks]]
+id = "TASK-143"
+title = "设计执行历史数据模型"
+description = "定义 execution_history 表 schema：executor_type、workspace_dir、started_at、completed_at、exit_code、output_summary、task_id 外键"
+type = "technical_task"
+priority = "P2"
+estimation = 2
+status = "backlog"
+dependencies = []
+related_story = "US-031"
+tags = ["data-model", "schema", "execution-history"]
+
+[[tasks]]
+id = "TASK-144"
+title = "实现执行历史 Repository"
+description = "execution-history.repository.ts，支持 create/findByTaskId/findLatest 等操作"
+type = "technical_task"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-143"]
+related_story = "US-031"
+tags = ["repository", "data-access"]
+
+[[tasks]]
+id = "TASK-145"
+title = "创建执行历史展示组件"
+description = "在任务详情面板中添加执行历史列表，支持展开查看单次执行的完整输出"
+type = "user_story"
+priority = "P2"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-144"]
+related_story = "US-031"
+tags = ["ui", "history", "display"]
+
+# --- US-032: 扩展更多执行器 (backlog) ---
+
+[[tasks]]
+id = "TASK-146"
+title = "设计执行器插件化架构"
+description = "重构 IExecutor 接口，增加 metadata（名称、描述、检测命令）、执行器自注册机制"
+type = "technical_task"
+priority = "P3"
+estimation = 5
+status = "backlog"
+dependencies = ["TASK-125"]
+related_story = "US-032"
+tags = ["architecture", "plugin", "extensibility"]
+
+[[tasks]]
+id = "TASK-147"
+title = "实现 Aider 执行器"
+description = "集成 Aider CLI 作为新的执行器实现"
+type = "technical_task"
+priority = "P3"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-146"]
+related_story = "US-032"
+tags = ["executor", "aider", "integration"]
+
+[[tasks]]
+id = "TASK-148"
+title = "动态执行器列表 UI"
+description = "执行弹窗中的执行器选择卡片动态渲染，基于已注册的执行器列表和本地可用性检测"
+type = "user_story"
+priority = "P3"
+estimation = 3
+status = "backlog"
+dependencies = ["TASK-146"]
+related_story = "US-032"
+tags = ["ui", "dynamic", "executor-list"]
+
+# --- US-033: 批量任务执行 (backlog) ---
+
+[[tasks]]
+id = "TASK-149"
+title = "实现任务依赖拓扑排序"
+description = "基于任务 dependencies 字段进行拓扑排序，确定批量执行的正确顺序"
+type = "technical_task"
+priority = "P3"
+estimation = 3
+status = "backlog"
+dependencies = []
+related_story = "US-033"
+tags = ["algorithm", "topological-sort", "dependencies"]
+
+[[tasks]]
+id = "TASK-150"
+title = "实现批量执行编排器"
+description = "按拓扑排序依次执行任务，前置任务失败时暂停队列，支持重试失败任务"
+type = "technical_task"
+priority = "P3"
+estimation = 5
+status = "backlog"
+dependencies = ["TASK-149", "TASK-128"]
+related_story = "US-033"
+tags = ["orchestrator", "batch", "execution"]
+
+[[tasks]]
+id = "TASK-151"
+title = "创建批量执行进度 UI"
+description = "批量执行进度概览面板，显示队列状态、当前执行任务、已完成/失败/等待中的任务列表"
+type = "user_story"
+priority = "P3"
+estimation = 5
+status = "backlog"
+dependencies = ["TASK-150"]
+related_story = "US-033"
+tags = ["ui", "batch", "progress"]

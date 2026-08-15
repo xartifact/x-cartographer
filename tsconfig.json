@@ -3,7 +3,9 @@
   "references": [
     { "path": "apps/web" },
     { "path": "apps/cli" },
-    { "path": "packages/core" },
+    { "path": "packages/db" },
+    { "path": "packages/gateway" },
+    { "path": "packages/ui" },
     { "path": "packages/shared" }
   ]
 }

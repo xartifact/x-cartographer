@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/x-product-roadmap.iml" filepath="$PROJECT_DIR$/.idea/x-product-roadmap.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/x-cartographer.iml" filepath="$PROJECT_DIR$/.idea/x-cartographer.iml" />
     </modules>
   </component>
 </project>

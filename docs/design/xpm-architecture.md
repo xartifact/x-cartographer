@@ -55,7 +55,7 @@
 ## 3. Monorepo 结构
 
 ```
-x-product-roadmap/
+x-cartographer/
 ├── package.json              # Bun workspace root
 ├── bunfig.toml
 ├── apps/

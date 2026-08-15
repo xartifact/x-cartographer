@@ -12,7 +12,7 @@ const log = createLogger('apiKeys');
 /**
  * API 密钥存储键名
  */
-const STORAGE_KEY = 'x-product-roadmap-api-keys';
+const STORAGE_KEY = 'x-cartographer-api-keys';
 
 /**
  * 加密密钥（从浏览器指纹生成）

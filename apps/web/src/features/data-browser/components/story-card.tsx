@@ -6,8 +6,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Clock, Tag } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge, Card, CardContent, CardHeader, CardTitle } from '@xpm/ui';
 import { UserStory } from '@/types';
 import { cn } from '@/lib/utils';
 import { StatusBadge, STORY_STATUS_OPTIONS } from '@/features/tasks/components/status-badge';

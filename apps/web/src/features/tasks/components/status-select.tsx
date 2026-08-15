@@ -15,8 +15,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
+} from '@xpm/ui';
+import { Button } from '@xpm/ui';
 import { StatusIndicator, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from './status-badge';
 import { TaskStatus, type StoryStatus } from '@/types';
 

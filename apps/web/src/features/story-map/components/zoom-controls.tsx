@@ -6,14 +6,14 @@
 
 import { memo, useCallback, useState, useEffect } from 'react';
 import { ZoomIn, ZoomOut, Focus, Maximize2, Minimize2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@xpm/ui';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { useReactFlow, useStore } from 'reactflow';
+} from '@xpm/ui';
+import { useReactFlow, useStore } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 
 interface ZoomControlsProps {

@@ -1,0 +1,27 @@
+{
+  "name": "@xpm/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.8",
+    "typescript": "^5.6.3",
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.4.3",
+    "@xpm/shared": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.3",
+    "pino": "^8.17.2"
+  }
+}

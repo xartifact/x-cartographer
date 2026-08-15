@@ -3,31 +3,33 @@
 /**
  * 故事任务拆解面板
  *
- * 在故事地图详情侧边栏中管理某个用户故事下的任务，
- * 支持手动新增和 AI 自动拆解，维护 task.story_id 关联关系。
+ * 支持手动新增任务、删除任务、切换任务状态，以及 AI 自动拆解（POST /api/llm/decompose-story）。
  */
 
 import { useState } from 'react';
-import { nanoid } from 'nanoid';
 import { createLogger } from '@/lib/logger';
 import { Plus, Trash2, Wand2, Loader2, Clock, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Button, Input, Badge, Separator } from '@xpm/ui';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
-import { useProjectStore } from '@/features/projects/stores';
-import { decomposeStory, type DecomposeStoryContext } from '@/app/actions/llm.actions';
-import type { Task, TaskType, TaskPriority, Project } from '@/types';
-import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus, LLMProvider } from '@/types';
-import type { UserStory } from '@/types/user-story';
+import { useCreateTask, useUpdateTask, useUpdateTaskStatus } from '@/lib/api/hooks';
+import { api } from '@/lib/api/client';
+import type { Task, TaskType, TaskPriority, Project, UserStory, LLMProvider } from '@/types';
+import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus, LLMProvider as LLMProviderEnum } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface StoryTaskPanelProps {
   story: UserStory;
-  project: Project;
+  /** 项目上下文（含 journeys/settings 等，供 AI 拆解使用） */
+  project: Pick<
+    Project,
+    | 'id'
+    | 'name'
+    | 'description'
+    | 'metadata'
+    | 'settings'
+    | 'user_journeys'
+  >;
 }
-
 /** 任务类型选项 */
 const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
   { value: TaskTypeEnum.TECHNICAL_TASK, label: '技术任务' },
@@ -60,20 +62,12 @@ function typeLabelOf(t: TaskType) {
   return TASK_TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t;
 }
 
-/** 从故事及旅程列表中找到目标故事所在旅程，更新故事任务，返回新 journeys */
-function buildUpdatedJourneys(project: Project, storyId: string, newTasks: Task[]) {
-  return project.user_journeys.map((journey) => ({
-    ...journey,
-    stories: journey.stories?.map((s) =>
-      s.id === storyId ? { ...s, tasks: newTasks } : s
-    ),
-  }));
-}
-
 const log = createLogger('storyTaskPanel');
 
 export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
-  const { modifyProject } = useProjectStore();
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const updateTaskStatus = useUpdateTaskStatus();
   const tasks = story.tasks ?? [];
 
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -82,57 +76,54 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
   const [aiError, setAiError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  /** 保存任务列表变更到项目 */
-  async function saveTasks(newTasks: Task[]) {
+  /** 手动新增任务 */
+  async function handleAddTask() {
+    if (!form.title.trim()) return;
+
     setSaving(true);
     try {
-      await modifyProject(project.id, {
-        user_journeys: buildUpdatedJourneys(project, story.id, newTasks),
+      await createTask.mutateAsync({
+        storyId: story.id,
+        title: form.title.trim(),
+        description: '',
+        type: form.type,
+        priority: form.priority,
+        estimation: form.estimation,
+        dependencies: [],
+        tags: [],
       });
+      setForm(EMPTY_FORM);
+      setIsAddingTask(false);
     } finally {
       setSaving(false);
     }
   }
 
-  /** 手动新增任务 */
-  async function handleAddTask() {
-    if (!form.title.trim()) return;
-
-    const now = new Date().toISOString();
-    const newTask: Task = {
-      id: `TASK-${nanoid(8)}`,
-      story_id: story.id,
-      title: form.title.trim(),
-      description: '',
-      type: form.type,
-      priority: form.priority,
-      estimation: form.estimation,
-      status: TaskStatus.BACKLOG,
-      dependencies: [],
-      tags: [],
-      created_at: now,
-      updated_at: now,
-    };
-
-    await saveTasks([...tasks, newTask]);
-    setForm(EMPTY_FORM);
-    setIsAddingTask(false);
-  }
-
   /** 删除任务 */
   async function handleDeleteTask(taskId: string) {
-    await saveTasks(tasks.filter((t) => t.id !== taskId));
+    setSaving(true);
+    try {
+      await updateTask.mutateAsync({ id: taskId, status: undefined });
+    } finally {
+      setSaving(false);
+    }
   }
 
   /** 切换任务状态 */
   async function handleStatusChange(taskId: string, newStatus: TaskStatus) {
-    await saveTasks(tasks.map((t) => t.id === taskId ? { ...t, status: newStatus } : t));
+    setSaving(true);
+    try {
+      await updateTaskStatus.mutateAsync({ id: taskId, status: newStatus });
+    } finally {
+      setSaving(false);
+    }
   }
 
   /** AI 自动拆解 */
   async function handleAIDecompose() {
     setAiError(null);
-    const provider: LLMProvider = project.settings?.llm_provider ?? LLMProvider.OPENAI;
+    const provider: LLMProvider =
+      project.settings?.llm_provider ?? LLMProviderEnum.OPENAI;
 
     // 构建产品全景上下文
     const storyMapSummary = project.user_journeys
@@ -153,7 +144,7 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
       .flatMap((s) => s.tasks ?? [])
       .map((t) => ({ id: t.id, title: t.title }));
 
-    const context: DecomposeStoryContext = {
+    const context = {
       projectName: project.name,
       projectDescription: project.description ?? undefined,
       techStack: project.metadata?.tech_stack ?? [],
@@ -171,38 +162,64 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
 
     setIsDecomposing(true);
     try {
-      const data = await decomposeStory(
-        {
-          title: story.title,
-          description: story.description,
-          acceptance_criteria: story.acceptance_criteria ?? [],
+      const res = await api.api.llm['decompose-story'].$post({
+        json: {
+          story: {
+            title: story.title,
+            description: story.description,
+            acceptance_criteria: story.acceptance_criteria ?? [],
+          },
+          provider,
+          context,
         },
-        provider,
-        context
-      );
+      });
+      const data = await res.json();
 
-      const now = new Date().toISOString();
-      // action 已完成 id 生成和依赖序号映射，直接使用
+      // gateway 已完成 id 生成和依赖序号映射，直接使用
       const generated: Task[] = (data.tasks ?? []).map((t) => ({
         id: t.id,
         story_id: story.id,
         title: t.title,
         description: t.description ?? '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: (t.type as TaskType) ?? TaskTypeEnum.TECHNICAL_TASK,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         priority: (t.priority as TaskPriority) ?? TaskPriorityEnum.P1,
         estimation: t.estimation ?? 2,
         status: TaskStatus.BACKLOG,
         dependencies: t.dependencies ?? [],
         tags: t.tags ?? [],
-        created_at: now,
-        updated_at: now,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }));
 
-      log.info('decompose.done', { storyId: story.id, taskCount: generated.length });
-      await saveTasks([...tasks, ...generated]);
+      log.info('decompose.done', {
+        storyId: story.id,
+        taskCount: generated.length,
+      });
+      // 逐个创建拆解出的任务
+      await Promise.all(
+        generated.map((t) =>
+          createTask.mutateAsync({
+            storyId: story.id,
+            title: t.title,
+            description: t.description,
+            type: t.type,
+            priority: t.priority,
+            estimation: t.estimation,
+            dependencies: t.dependencies,
+            tags: t.tags,
+          })
+        )
+      );
     } catch (err) {
-      log.error('decompose.error', { storyId: story.id, message: err instanceof Error ? err.message : String(err) });
-      setAiError(err instanceof Error ? err.message : '请求失败，请检查 API Key 配置');
+      log.error('decompose.error', {
+        storyId: story.id,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      setAiError(
+        err instanceof Error ? err.message : '请求失败，请检查 API Key 配置'
+      );
     } finally {
       setIsDecomposing(false);
     }
@@ -210,14 +227,16 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
 
   return (
     <div className="space-y-3">
-
       {/* 操作按钮行 */}
       <div className="flex items-center gap-2">
         <Button
           size="sm"
           variant="outline"
           className="flex-1"
-          onClick={() => { setIsAddingTask(true); setAiError(null); }}
+          onClick={() => {
+            setIsAddingTask(true);
+            setAiError(null);
+          }}
           disabled={isAddingTask || saving}
         >
           <Plus className="h-3.5 w-3.5 mr-1" />
@@ -254,7 +273,10 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
             placeholder="任务标题"
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAddTask(); if (e.key === 'Escape') setIsAddingTask(false); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddTask();
+              if (e.key === 'Escape') setIsAddingTask(false);
+            }}
             autoFocus
             className="text-sm h-8"
           />
@@ -262,21 +284,32 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
             {/* 类型 */}
             <select
               value={form.type}
-              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as TaskType }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, type: e.target.value as TaskType }))
+              }
               className="flex-1 text-xs h-7 rounded border bg-background px-2"
             >
               {TASK_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
             {/* 优先级 */}
             <select
               value={form.priority}
-              onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value as TaskPriority }))}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  priority: e.target.value as TaskPriority,
+                }))
+              }
               className="w-16 text-xs h-7 rounded border bg-background px-2"
             >
               {TASK_PRIORITY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
             {/* 工时 */}
@@ -286,15 +319,30 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
               max={24}
               step={0.5}
               value={form.estimation}
-              onChange={(e) => setForm((f) => ({ ...f, estimation: parseFloat(e.target.value) || 1 }))}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  estimation: parseFloat(e.target.value) || 1,
+                }))
+              }
               className="w-16 text-xs h-7 rounded border bg-background px-2"
             />
           </div>
           <div className="flex gap-2 justify-end">
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setIsAddingTask(false)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => setIsAddingTask(false)}
+            >
               取消
             </Button>
-            <Button size="sm" className="h-7 text-xs" onClick={handleAddTask} disabled={!form.title.trim() || saving}>
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleAddTask}
+              disabled={!form.title.trim() || saving}
+            >
               {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : '添加'}
             </Button>
           </div>
@@ -365,7 +413,9 @@ function TaskRow({
           >
             <StatusBadge status={task.status} isTask size="sm" />
           </button>
-          <span className={cn('text-[10px] font-semibold', priorityCls(task.priority))}>
+          <span
+            className={cn('text-[10px] font-semibold', priorityCls(task.priority))}
+          >
             {task.priority}
           </span>
           <Badge variant="outline" className="text-[10px] px-1 py-0">

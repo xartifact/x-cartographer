@@ -9,7 +9,7 @@ import { resolve } from 'path';
 // Source file content for static analysis
 const sourceFilePath = resolve(
   __dirname,
-  '../../src/features/story-map/components/story-map-canvas.tsx'
+  '../../apps/web/src/features/story-map/components/story-map-canvas.tsx'
 );
 const sourceContent = readFileSync(sourceFilePath, 'utf-8');
 

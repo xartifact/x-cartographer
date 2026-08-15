@@ -5,10 +5,10 @@
  */
 
 import { memo } from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, NodeProps, type Node } from '@xyflow/react';
 import { Clock, Tag, CheckSquare, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@xpm/ui';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
 import type { StoryNodeData } from '../types';
 import { Priority } from '@/types';
@@ -27,7 +27,7 @@ const priorityLabel: Record<Priority, { text: string; cls: string }> = {
   [Priority.LOW]: { text: 'P-低', cls: 'text-green-600' },
 };
 
-export const StoryNode = memo<NodeProps<StoryNodeData>>(
+export const StoryNode = memo<NodeProps<Node<Record<string, unknown>> & { data: StoryNodeData }>>(
   ({ data, selected }) => {
     const { story, journeyName, isSelected } = data;
 
@@ -156,7 +156,7 @@ StoryNode.displayName = 'StoryNode';
  * 旅程头节点组件
  */
 export const JourneyHeaderNode = memo<
-  NodeProps<{ journeyName: string; storyCount: number }>
+  NodeProps<Node<Record<string, unknown>> & { data: { journeyName: string; storyCount: number } }>
 >(({ data }) => {
   const { journeyName, storyCount } = data;
   return (

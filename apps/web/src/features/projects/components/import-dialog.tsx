@@ -6,16 +6,19 @@
 
 import { useState, useCallback } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@xpm/ui';
 import { parseTomlFile, parseTomlStoryMap } from '@/lib/toml';
 import { validateTomlStoryMap, formatValidationErrors } from '@/lib/toml/validator';
 import type { TomlStoryMap } from '@/features/projects/types';

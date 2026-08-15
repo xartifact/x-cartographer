@@ -1,93 +1,72 @@
 /**
- * 项目相关 Hooks
+ * 项目相关 Hooks — 基于 lib/api hooks（gateway REST）
  */
 
 'use client';
 
 import { useCallback } from 'react';
-import { useProjectStore } from '@/features/projects/stores';
-import type { CreateProjectDTO, UpdateProjectDTO } from '@/types';
-import { useToast } from '@/hooks/use-toast';
+import { useProjectStore, selectActiveProjectId, selectSearchQuery } from '@/features/projects/stores';
+import {
+  useProjects,
+  useProject,
+  useSearchProjects,
+  useCreateProject,
+  useUpdateProject,
+  useDeleteProject,
+} from '@/lib/api/hooks';
+import { toast } from 'sonner';
+import type { CreateProjectDTO, UpdateProjectDTO, Project } from '@xpm/shared';
 
 /**
- * 项目操作 Hook
+ * 项目操作 Hook — 基于 lib/api hooks（gateway REST）
  */
 export function useProjectActions() {
-  const { addProject, modifyProject, removeProject, setActiveProject } = useProjectStore();
-  const { toast } = useToast();
+  const { setActiveProjectId } = useProjectStore();
+  const createProjectMutation = useCreateProject();
+  const updateProjectMutation = useUpdateProject();
+  const deleteProjectMutation = useDeleteProject();
 
   const createProject = useCallback(
     async (dto: CreateProjectDTO) => {
       try {
-        const project = await addProject(dto);
-        toast({
-          title: '创建成功',
-          description: `已创建项目 "${project.name}"`,
-        });
-        return project;
+        const result = await createProjectMutation.mutateAsync(dto);
+        toast.success('创建成功', { description: `已创建项目 "${dto.name}"` });
+        return result;
       } catch (error) {
-        toast({
-          title: '创建失败',
-          description: error instanceof Error ? error.message : '未知错误',
-          variant: 'destructive',
-        });
-        throw error;
+        toast.error('创建失败', { description: error instanceof Error ? error.message : '未知错误' });        throw error;
       }
     },
-    [addProject, toast]
+    [createProjectMutation, toast],
   );
 
   const updateProject = useCallback(
     async (id: string, dto: UpdateProjectDTO) => {
       try {
-        const project = await modifyProject(id, dto);
-        if (project) {
-          toast({
-            title: '更新成功',
-            description: `已更新项目 "${project.name}"`,
-          });
-        }
-        return project;
-      } catch (error) {
-        toast({
-          title: '更新失败',
-          description: error instanceof Error ? error.message : '未知错误',
-          variant: 'destructive',
-        });
-        throw error;
+        await updateProjectMutation.mutateAsync({ id, ...dto });
+        toast.success('更新成功', { description: '已更新项目' });      } catch (error) {
+        toast.error('更新失败', { description: error instanceof Error ? error.message : '未知错误' });        throw error;
       }
     },
-    [modifyProject, toast]
+    [updateProjectMutation, toast],
   );
 
   const deleteProject = useCallback(
     async (id: string) => {
       try {
-        const success = await removeProject(id);
-        if (success) {
-          toast({
-            title: '删除成功',
-            variant: 'default',
-          });
-        }
-        return success;
+        await deleteProjectMutation.mutateAsync({ id });
+        toast.success('删除成功');        return true;
       } catch (error) {
-        toast({
-          title: '删除失败',
-          description: error instanceof Error ? error.message : '未知错误',
-          variant: 'destructive',
-        });
-        throw error;
+        toast.error('删除失败', { description: error instanceof Error ? error.message : '未知错误' });        throw error;
       }
     },
-    [removeProject, toast]
+    [deleteProjectMutation, toast],
   );
 
   const switchProject = useCallback(
     (id: string | null) => {
-      setActiveProject(id);
+      setActiveProjectId(id);
     },
-    [setActiveProject]
+    [setActiveProjectId],
   );
 
   return {
@@ -99,17 +78,47 @@ export function useProjectActions() {
 }
 
 /**
- * 项目选择 Hook
+ * 项目选择 Hook — 基于 lib/api hooks queries
  */
 export function useProjectSelector() {
-  const { projects, activeProject, setSearchQuery, getFilteredProjects } = useProjectStore();
+  const { data: projects = [], isLoading, error } = useProjects();
+  const activeProjectId = useProjectStore(selectActiveProjectId);
+  const searchQuery = useProjectStore(selectSearchQuery);
+  const { setSearchQuery } = useProjectStore();
+  const { data: searchResults } = useSearchProjects(searchQuery);
+
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
+
+  const filteredProjects = searchQuery.trim()
+    ? (searchResults ?? projects)
+    : projects;
 
   return {
     projects,
     activeProject,
-    searchQuery: useProjectStore((state) => state.searchQuery),
+    activeProjectId,
+    searchQuery,
     setSearchQuery,
-    filteredProjects: getFilteredProjects(),
+    filteredProjects,
     projectCount: projects.length,
+    isLoading,
+    error: error?.message ?? null,
+  };
+}
+
+/**
+ * 单个项目 Hook — 获取完整项目数据
+ */
+export function useActiveProject() {
+  const activeProjectId = useProjectStore(selectActiveProjectId);
+  const { data: projects } = useProjects();
+  const { data: project, isLoading } = useProject(activeProjectId ?? undefined);
+
+  const activeProject = projects?.find((p) => p.id === activeProjectId) ?? project ?? null;
+
+  return {
+    activeProject,
+    activeProjectId,
+    isLoading,
   };
 }

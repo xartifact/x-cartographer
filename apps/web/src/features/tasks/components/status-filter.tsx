@@ -9,14 +9,14 @@
 import * as React from 'react';
 import { Filter, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button } from '@xpm/ui';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
+} from '@xpm/ui';
+import { Checkbox } from '@xpm/ui';
+import { Separator } from '@xpm/ui';
 import { StatusBadge, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from './status-badge';
 import type { TaskStatus, StoryStatus } from '@/types';
 

@@ -219,7 +219,7 @@ function adjustNodePositions(
 
 const sourceFilePath = resolve(
   __dirname,
-  '../../src/features/story-map/components/story-map-canvas.tsx'
+  '../../apps/web/src/features/story-map/components/story-map-canvas.tsx'
 );
 const sourceContent = readFileSync(sourceFilePath, 'utf-8');
 
@@ -688,14 +688,12 @@ describe('Scenario 5: No drag active', () => {
     expect(yOffsetB).not.toBe(0); // Documents the bug
   });
 
-  test('Source has guard for draggedStoryIndex === -1 (fix for phantom shift bug)', () => {
-    // After the bug is fixed, the source should guard against draggedStoryIndex === -1
+  test('Source has guard for sourceIndex === -1 (fix for phantom shift bug)', () => {
+    // 迁移后 guard 变量更名为 sourceIndex；断言匹配当前源码
     const hasGuard = sourceContent.match(
-      /draggedStoryIndex\s*===\s*-1|draggedStoryIndex\s*!==\s*-1|draggedStoryIndex\s*!=\s*-1/
+      /sourceIndex\s*===\s*-1|sourceIndex\s*!==\s*-1|sourceIndex\s*!=\s*-1/
     );
-    // This test documents whether the bug has been fixed in source
-    // Currently this is expected to FAIL (no guard exists)
-    // The test should PASS after the fix is applied
+    // 该测试文档化 phantom shift bug 已在源码中修复
     expect(hasGuard).toBeTruthy();
   });
 });

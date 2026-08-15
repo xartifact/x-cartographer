@@ -1,8 +1,8 @@
 /**
  * 需求分析 Hook
  *
- * 调用服务端 LLM Server Actions 分析需求文本。
- * API Key 存储在服务端 DB，客户端只传递 provider / model 配置。
+ * 调用 Gateway REST API（/api/llm/*）分析需求文本。
+ * API Key 存储在服务端，客户端只传递 provider / model 配置。
  */
 
 'use client';
@@ -10,8 +10,8 @@
 import { useCallback } from 'react';
 import { nanoid } from 'nanoid';
 import { useRequirementStore } from '../stores/requirement-store';
-import { useProjectStore } from '@/features/projects/stores';
-import { analyzeRequirements, generateJourneySuggestions } from '@/app/actions/llm.actions';
+import { useProjects } from '@/lib/api/hooks';
+import { api } from '@/lib/api/client';
 import type {
   RequirementAnalysis,
   UserPersona,
@@ -19,11 +19,12 @@ import type {
   UseScenario,
   JourneySuggestion,
 } from '../types';
-import { LLMProvider } from '@/types';
+import type { Project } from '@xpm/shared';
+import { LLMProvider } from '@xpm/shared';
 
 // ─── 辅助：获取项目 LLM provider ─────────────────────────────────────────────
 
-function getLLMProvider(projectId: string, projects: ReturnType<typeof useProjectStore.getState>['projects']): LLMProvider {
+function getLLMProvider(projectId: string, projects: Project[]): LLMProvider {
   const project = projects.find((p) => p.id === projectId);
   return project?.settings?.llm_provider ?? LLMProvider.OPENAI;
 }
@@ -47,10 +48,10 @@ export function useRequirementAnalysis() {
     clearAnalysis,
   } = useRequirementStore();
 
-  const { projects } = useProjectStore();
+  const { data: projects = [] } = useProjects();
 
   /**
-   * 分析需求文本（调用 LLM Server Action）
+   * 分析需求文本（调用 Gateway REST API）
    */
   const analyze = useCallback(
     async (projectId: string) => {
@@ -65,7 +66,10 @@ export function useRequirementAnalysis() {
       setError(null);
 
       try {
-        const data = await analyzeRequirements(inputText, provider);
+        const res = await api.api.llm['analyze-requirements'].$post({
+          json: { requirements: inputText, provider },
+        });
+        const data = await res.json();
 
         const personas: UserPersona[] = (data.personas ?? []).map((p) => ({
           name: p.name ?? '',
@@ -111,11 +115,10 @@ export function useRequirementAnalysis() {
         setAnalyzing(false);
       }
     },
-    [inputText, projects, setAnalyzing, setError, setAnalysis]
+    [inputText, projects, setAnalyzing, setError, setAnalysis],
   );
-
   /**
-   * 基于分析结果生成用户旅程建议（调用 LLM Server Action）
+   * 基于分析结果生成用户旅程建议（调用 Gateway REST API）
    */
   const generateJourneys = useCallback(async () => {
     if (!analysis) {
@@ -129,7 +132,10 @@ export function useRequirementAnalysis() {
     setError(null);
 
     try {
-      const data = await generateJourneySuggestions(analysis, provider);
+      const res = await api.api.llm['generate-journey-suggestions'].$post({
+        json: { analysis, provider },
+      });
+      const data = await res.json();
 
       const priorities: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
 

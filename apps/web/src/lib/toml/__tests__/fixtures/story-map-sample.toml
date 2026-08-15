@@ -1,0 +1,139 @@
+[project]
+name = "X-Cartographer MVP"
+version = "1.1"
+created_at = "2025-01-07"
+updated_at = "2026-04-08"
+description = "基于 AI Native 理念的用户故事地图可视化应用，支持通过 LLM 描述需求、拆解分析需求内容、规划用户故事"
+tech_stack = ["TypeScript", "Next.js", "bulletproof-react", "PGlite", "Drizzle ORM"]
+
+# ==================== 用户旅程 1: AI 辅助需求分析 ====================
+[[user_journeys]]
+id = "UJ-001"
+name = "AI 辅助需求分析"
+description = "用户通过自然语言描述产品需求，LLM 帮助分析和结构化需求"
+persona = "产品经理"
+
+[[user_journeys.stories]]
+id = "US-001"
+title = "作为产品经理，我想要通过自然语言输入产品需求，以便快速记录想法"
+description = "提供文本输入界面，支持多行输入，用户可以用自然语言描述产品功能、用户场景等"
+priority = "high"
+status = "done"
+estimation = 8
+acceptance_criteria = [
+  "提供文本输入框，支持多行输入",
+  "支持 Markdown 格式预览",
+  "输入内容可以保存为草稿",
+  "界面简洁易用，符合 MVP 标准"
+]
+tags = ["MVP", "核心功能", "AI交互"]
+
+[[user_journeys.stories]]
+id = "US-002"
+title = "作为产品经理，我想要 LLM 分析我的需求描述，以便识别关键用户和使用场景"
+description = "调用 LLM API 分析用户输入的需求文本，提取用户角色、功能点、使用场景等结构化信息"
+priority = "medium"
+status = "done"
+estimation = 13
+acceptance_criteria = [
+  "集成 LLM API（OpenAI GPT-4 和 Anthropic Claude）",
+  "自动识别用户角色（personas）",
+  "提取核心功能点和使用场景",
+  "以结构化格式展示分析结果",
+  "支持用户确认或修改 LLM 分析结果"
+]
+tags = ["AI分析"]
+
+[[user_journeys.stories]]
+id = "US-003"
+title = "作为产品经理，我想要查看 LLM 建议的用户旅程，以便规划产品功能结构"
+description = "基于需求分析结果，LLM 生成建议的用户旅程地图，包含关键步骤和优先级"
+priority = "medium"
+status = "done"
+estimation = 13
+acceptance_criteria = [
+  "自动生成用户旅程建议",
+  "每个旅程包含清晰的步骤描述",
+  "提供优先级建议（high/medium/low）",
+  "支持用户编辑和调整旅程",
+  "生成符合用户故事地图方法论的结构"
+]
+tags = ["AI生成"]
+
+# ==================== 用户旅程 2: 用户故事创建与管理 ====================
+[[user_journeys]]
+id = "UJ-002"
+name = "用户故事创建与管理"
+description = "基于用户旅程创建和管理用户故事，支持 AI 辅助生成"
+persona = "产品经理"
+
+[[user_journeys.stories]]
+id = "US-004"
+title = "作为产品经理，我想要为每个用户旅程步骤创建用户故事，以便详细描述功能需求"
+description = "提供用户故事编辑器，支持标准格式：作为[角色]，我想要[功能]，以便[价值]"
+priority = "high"
+status = "in_progress"
+estimation = 8
+acceptance_criteria = [
+  "提供用户故事表单，包含角色、功能、价值字段",
+  "自动生成标准格式的用户故事",
+  "支持添加详细描述和验收标准",
+  "每个故事有唯一 ID（US-XXX）",
+  "支持设置优先级（high/medium/low）"
+]
+tags = ["MVP", "核心功能", "故事管理"]
+
+[[user_journeys.stories]]
+id = "US-005"
+title = "作为产品经理，我想要 LLM 自动生成用户故事的验收标准，以便确保功能完整性"
+description = "基于用户故事描述，LLM 自动建议验收标准（acceptance criteria）"
+priority = "low"
+status = "backlog"
+estimation = 8
+acceptance_criteria = [
+  "调用 LLM 根据用户故事生成验收标准",
+  "生成的标准清晰、可测试",
+  "支持用户编辑和补充标准",
+  "至少生成 3-5 条验收标准",
+  "符合 SMART 原则（具体、可衡量、可实现、相关、有时限）"
+]
+tags = ["AI辅助", "backlog"]
+
+[[user_journeys.stories]]
+id = "US-006"
+title = "作为产品经理，我想要批量编辑用户故事，以便快速调整优先级和内容"
+description = "提供批量操作功能，支持选择多个用户故事进行编辑"
+priority = "low"
+status = "backlog"
+estimation = 8
+acceptance_criteria = [
+  "支持多选用户故事",
+  "可批量修改优先级",
+  "可批量添加标签",
+  "可批量删除或归档",
+  "操作后提供确认和撤销功能"
+]
+tags = ["效率提升", "批量操作"]
+
+# ==================== 用户旅程 3: 用户故事地图可视化 ====================
+[[user_journeys]]
+id = "UJ-003"
+name = "用户故事地图可视化"
+description = "以可视化方式展示用户故事地图，支持拖拽排列和交互"
+persona = "产品经理、开发团队"
+
+[[user_journeys.stories]]
+id = "US-007"
+title = "作为用户，我想要查看可视化的用户故事地图，以便理解产品全貌"
+description = "以二维地图形式展示用户旅程和用户故事，横轴为旅程步骤，纵轴为优先级"
+priority = "high"
+status = "done"
+estimation = 13
+acceptance_criteria = [
+  "横向展示用户旅程（从左到右）",
+  "纵向按优先级排列故事（从上到下）",
+  "每个故事卡片显示标题和关键信息",
+  "支持缩放和平移查看",
+  "响应式设计，支持不同屏幕尺寸"
+]
+tags = ["MVP", "核心功能", "可视化"]

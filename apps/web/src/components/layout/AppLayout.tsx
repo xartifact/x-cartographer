@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useLocation } from '@tanstack/react-router';
 import { Header } from './Header';
 import { Sidebar, MobileSidebarOverlay } from './Sidebar';
 import { cn } from '@/lib/utils';
@@ -27,7 +27,7 @@ export function AppLayout({
 }: AppLayoutProps) {
   // 使用默认导航项，避免从 Server Component 传递函数
   const navigationItems = navItems || mainNavItems;
-  const pathname = usePathname();
+  const pathname = useLocation().pathname;
 
   // 侧边栏折叠状态
   const [sidebarCollapsed, setSidebarCollapsed] = useState(controlledCollapsed ?? false);

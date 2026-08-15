@@ -6,22 +6,22 @@
 
 import { useState, useEffect } from 'react';
 import { FolderOpen } from 'lucide-react';
-import type { Project } from '@/types';
-import { useProjectStore } from '@/features/projects/stores';
+import type { Project } from '@xpm/shared';
 import { validateProjectName } from '@/features/projects/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
+  Input,
+  Label,
+  Textarea,
+} from '@xpm/ui';
+import { useProjectActions } from '../hooks';
+import { toast } from 'sonner';
 
 /**
  * 项目编辑表单数据
@@ -59,8 +59,7 @@ export function ProjectEditDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess?: (project: Project) => void;
 }) {
-  const { modifyProject } = useProjectStore();
-  const { toast } = useToast();
+  const { updateProject } = useProjectActions();
 
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<EditFormData>(
@@ -110,7 +109,7 @@ export function ProjectEditDialog({
         .map((t) => t.trim())
         .filter(Boolean);
 
-      const updated = await modifyProject(project.id, {
+      await updateProject(project.id, {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         metadata: {
@@ -121,21 +120,15 @@ export function ProjectEditDialog({
         },
       });
 
-      if (updated) {
-        toast({
-          title: '项目已更新',
-          description: `项目 "${updated.name}" 已保存`,
-        });
-        onOpenChange(false);
-        onSuccess?.(updated);
-      }
-    } catch (error) {
-      toast({
-        title: '更新失败',
-        description: error instanceof Error ? error.message : '未知错误',
-        variant: 'destructive',
+      toast.success('项目已更新', { description: `项目 "${formData.name.trim()}" 已保存` });
+      onOpenChange(false);
+      onSuccess?.({
+        ...project,
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
       });
-    } finally {
+    } catch (error) {
+      toast.error('更新失败', { description: error instanceof Error ? error.message : '未知错误' });    } finally {
       setIsLoading(false);
     }
   };

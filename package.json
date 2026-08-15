@@ -1,12 +1,28 @@
 {
-  "name": "x-product-roadmap",
+  "name": "x-cartographer",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun run --cwd apps/web dev",
+    "dev:api": "bun run --cwd packages/gateway dev",
     "build": "bun run --cwd apps/web build",
-    "lint": "bun run --cwd apps/web lint",
-    "type-check": "bun run --cwd apps/web type-check"
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "type-check": "bun run --cwd apps/web type-check",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "oxlint": "^1.70.0",
+    "oxfmt": "^0.55.0",
+    "lint-staged": "^15.2.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

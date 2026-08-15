@@ -4,10 +4,15 @@
 
 'use client';
 
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Textarea,
+} from '@xpm/ui';
 import { Loader2, Sparkles, Save, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';

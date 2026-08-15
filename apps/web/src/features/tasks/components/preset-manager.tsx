@@ -18,9 +18,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createLogger } from '@/lib/logger';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@xpm/ui';
+import { Input } from '@xpm/ui';
+import { Badge } from '@xpm/ui';
 import {
   Dialog,
   DialogContent,
@@ -28,15 +28,15 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@/components/ui/dialog';
+} from '@xpm/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
+} from '@xpm/ui';
+import { Separator } from '@xpm/ui';
 import { TaskStatus, Priority } from '@/types';
 import type { StoryStatus } from '@/types';
 

@@ -5,28 +5,27 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
 import { Grid3X3 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+
+import { Button } from '@xpm/ui';
 import { useRequirementAnalysis } from '../hooks/use-requirement-analysis';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
 import { RequirementInput } from './requirement-input';
 import { AnalysisResult } from './analysis-result';
 import { JourneySuggestions } from './journey-suggestions';
-import { useProjectStore } from '@/features/projects/stores';
+import { useProject, useSaveFullProject } from '@/lib/api/hooks';
 import { cn } from '@/lib/utils';
 import { nanoid } from 'nanoid';
-import type { UserJourney, UserStory } from '@/types';
-import { Priority } from '@/types';
+import type { UserJourney, UserStory, Project } from '@xpm/shared';
+import { Priority } from '@xpm/shared';
 import type { JourneySuggestion } from '../types';
 
 type ViewMode = 'split' | 'input' | 'result';
 
-export function RequirementsPage() {
-  const params = useParams();
-  const projectId = params.id as string;
+export function RequirementsPage({ projectId }: { projectId: string }) {
 
-  const { projects, modifyProject } = useProjectStore();
+  const { data: project } = useProject(projectId);
+  const { mutateAsync: saveFullProject } = useSaveFullProject();
   const {
     inputText,
     analysis,
@@ -103,8 +102,6 @@ export function RequirementsPage() {
   const handleApplyAllAdopted = async () => {
     const adopted = journeySuggestions.filter((s) => s.adopted);
     if (!adopted.length) return;
-
-    const project = projects.find((p) => p.id === projectId);
     if (!project) return;
 
     setIsApplyingJourney(true);
@@ -113,8 +110,11 @@ export function RequirementsPage() {
       const newJourneys = adopted.map((s, i) =>
         suggestionToJourney(s, base.length + i)
       );
-      await modifyProject(projectId, {
-        user_journeys: [...base, ...newJourneys],
+      await saveFullProject({
+        project: {
+          ...project,
+          user_journeys: [...base, ...newJourneys],
+        },
       });
       adopted.forEach((s) => adoptJourney(s.id));
     } finally {
@@ -125,8 +125,6 @@ export function RequirementsPage() {
   const handleApplyJourney = async (id: string) => {
     const suggestion = journeySuggestions.find((s) => s.id === id);
     if (!suggestion) return;
-
-    const project = projects.find((p) => p.id === projectId);
     if (!project) return;
 
     setIsApplyingJourney(true);
@@ -136,14 +134,19 @@ export function RequirementsPage() {
         suggestion,
         existingJourneys.length
       );
-      await modifyProject(projectId, {
-        user_journeys: [...existingJourneys, newJourney],
+      await saveFullProject({
+        project: {
+          ...project,
+          user_journeys: [...existingJourneys, newJourney],
+        },
       });
       adoptJourney(id);
     } finally {
       setIsApplyingJourney(false);
     }
   };
+
+
 
   const showLeft = viewMode === 'split' || viewMode === 'input';
   const showRight = viewMode === 'split' || viewMode === 'result';

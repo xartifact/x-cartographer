@@ -4,30 +4,25 @@
  * LLM 配置组件
  *
  * 管理 OpenAI / Anthropic API Key 及自定义 Endpoint，
- * 密钥通过 Server Action 保存在服务端 DB，不暴露给客户端。
+ * 密钥通过 Gateway REST API（/api/settings/llm/*）保存在服务端 DB，不暴露给客户端。
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, Check, X, Loader2, Key, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
+  Badge,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import {
-  getLLMKeyStatus,
-  saveLLMKey,
-  deleteLLMKey,
-  testLLMConnection,
-} from '@/app/actions/settings.actions';
-import { LLMProvider } from '@/types';
+  Input,
+  Label,
+  Separator,
+} from '@xpm/ui';
+import { api } from '@/lib/api/client';
+import { LLMProvider } from '@xpm/shared';
 
 // ─── 单个供应商卡片 ───────────────────────────────────────────────────────────
 
@@ -56,19 +51,24 @@ function ProviderCard({ provider, name, description, keyPrefix, defaultEndpoint,
   const [statusLoaded, setStatusLoaded] = useState(false);
 
   const loadStatus = useCallback(async () => {
-    const status = await getLLMKeyStatus();
-    const s = status[provider];
-    setConfigured(s?.configured ?? false);
-    setSavedModel(s?.model);
-    setSavedBaseURL(s?.baseURL);
-    if (s?.model) setInputModel(s.model);
-    if (s?.baseURL) {
-      setInputBaseURL(s.baseURL);
-      setShowEndpoint(true);
+    try {
+      const res = await api.api.settings.llm.status.$get();
+      const status = await res.json();
+      const s = status[provider];
+      setConfigured(s?.configured ?? false);
+      setSavedModel(s?.model);
+      setSavedBaseURL(s?.baseURL);
+      if (s?.model) setInputModel(s.model);
+      if (s?.baseURL) {
+        setInputBaseURL(s.baseURL);
+        setShowEndpoint(true);
+      }
+    } finally {
+      setStatusLoaded(true);
     }
-    setStatusLoaded(true);
   }, [provider]);
 
+  // 挂载时加载已保存的 key 状态（badge 显示 + 回显）
   useEffect(() => {
     loadStatus();
   }, [loadStatus]);
@@ -80,7 +80,10 @@ function ProviderCard({ provider, name, description, keyPrefix, defaultEndpoint,
     const model = inputModel.trim() || undefined;
     setIsSaving(true);
     try {
-      await saveLLMKey(provider, trimmed, baseURL, model);
+      await api.api.settings.llm[':provider'].$put({
+        param: { provider },
+        json: { apiKey: trimmed, baseURL, model },
+      });
       setConfigured(true);
       setSavedModel(model);
       setSavedBaseURL(baseURL);
@@ -94,7 +97,9 @@ function ProviderCard({ provider, name, description, keyPrefix, defaultEndpoint,
   async function handleDelete() {
     setIsDeleting(true);
     try {
-      await deleteLLMKey(provider);
+      await api.api.settings.llm[':provider'].$delete({
+        param: { provider },
+      });
       setConfigured(false);
       setSavedModel(undefined);
       setSavedBaseURL(undefined);
@@ -109,9 +114,17 @@ function ProviderCard({ provider, name, description, keyPrefix, defaultEndpoint,
   async function handleTest() {
     setIsTesting(true);
     setTestResult(null);
-    const result = await testLLMConnection(provider);
-    setTestResult(result);
-    setIsTesting(false);
+    try {
+      const res = await fetch(`/api/settings/llm/${provider}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const result = await res.json();
+      setTestResult(result);
+    } finally {
+      setIsTesting(false);
+    }
   }
 
   return (
@@ -292,7 +305,7 @@ export function LLMSettings() {
       <Card className="border-muted bg-muted/30">
         <CardContent className="pt-4 pb-4">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong>安全说明：</strong>API Key 仅存储在服务端，所有 LLM 请求通过 Server Action 在服务端发起，
+            <strong>安全说明：</strong>API Key 仅存储在服务端，所有 LLM 请求通过 Gateway 在服务端发起，
             客户端代码永远不会接触到密钥原文。支持任何兼容 OpenAI / Anthropic 协议的第三方服务。
           </p>
         </CardContent>

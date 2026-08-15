@@ -6,7 +6,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button } from '@xpm/ui';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@xpm/ui';
 import { StatusBadge } from './status-badge';
 import type { TaskStatus, StoryStatus } from '@/types';
 

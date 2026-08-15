@@ -6,20 +6,19 @@
 
 import { memo } from 'react';
 import { X, Clock, Tag, CheckCircle2, Calendar, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserStory } from '@/types/user-story';
-import { Priority, Project } from '@/types';
-import { cn } from '@/lib/utils';
+import { Button, Card, CardHeader, Badge, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from '@xpm/ui';
 import { StoryTaskPanel } from './story-task-panel';
+import type { UserStory } from '@/types/user-story';
+import { Priority, type Project } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface StoryDetailPanelProps {
   story: UserStory | null;
   journeyName?: string;
-  project: Project;
+  project: Pick<
+    Project,
+    'id' | 'name' | 'description' | 'metadata' | 'settings' | 'user_journeys'
+  >;
   onClose: () => void;
   onEdit?: (story: UserStory) => void;
   onDelete?: (story: UserStory) => void;

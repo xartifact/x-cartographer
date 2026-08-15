@@ -6,21 +6,21 @@
 
 import { useState } from 'react';
 import { FolderOpen } from 'lucide-react';
-import { useProjectStore } from '@/features/projects/stores';
 import { validateProjectName } from '@/features/projects/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
+  Input,
+  Label,
+  Textarea,
+} from '@xpm/ui';
+import { useProjectActions } from '../hooks';
+import { toast } from 'sonner';
 
 /**
  * 项目创建表单数据
@@ -44,8 +44,7 @@ export function ProjectCreateDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess: (projectId: string) => void;
 }) {
-  const { addProject } = useProjectStore();
-  const { toast } = useToast();
+  const { createProject } = useProjectActions();
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -89,7 +88,7 @@ export function ProjectCreateDialog({
 
     setIsLoading(true);
     try {
-      const project = await addProject({
+      const project = await createProject({
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         tech_stack: formData.tags
@@ -99,20 +98,12 @@ export function ProjectCreateDialog({
         workspace_dir: formData.workspace_dir.trim() || undefined,
       });
 
-      toast({
-        title: '项目创建成功',
-        description: `已创建项目 "${project.name}"`,
-      });
+      toast.success('项目创建成功', { description: `已创建项目 "${formData.name.trim()}"` });
 
       onSuccess(project.id);
       resetForm();
     } catch (error) {
-      toast({
-        title: '创建失败',
-        description: error instanceof Error ? error.message : '未知错误',
-        variant: 'destructive',
-      });
-    } finally {
+      toast.error('创建失败', { description: error instanceof Error ? error.message : '未知错误' });    } finally {
       setIsLoading(false);
     }
   };

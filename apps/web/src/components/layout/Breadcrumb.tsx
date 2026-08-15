@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@tanstack/react-router';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BreadcrumbProps } from './types';
@@ -28,7 +28,7 @@ export function Breadcrumb({
               {/* 首页图标 */}
               {isFirst && items.length > 1 && (
                 <Link
-                  href={item.href || '/'}
+                  to={item.href || '/'}
                   className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Home className="h-4 w-4" />
@@ -51,8 +51,7 @@ export function Breadcrumb({
                     </span>
                   ) : (
                     <Link
-                      href={item.href || '#'}
-                      className="text-muted-foreground hover:text-foreground transition-colors px-1"
+                      to={item.href || '#'}
                     >
                       {item.label}
                     </Link>

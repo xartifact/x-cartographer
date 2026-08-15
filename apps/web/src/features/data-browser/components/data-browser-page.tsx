@@ -6,9 +6,7 @@
 
 import { useMemo, useState } from 'react';
 import { Database, BarChart2, List } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+import { Badge, Card, CardContent, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger } from '@xpm/ui';
 import { UserJourney } from '@/types';
 import { JourneyList } from './journey-list';
 import { StoryList } from './story-list';

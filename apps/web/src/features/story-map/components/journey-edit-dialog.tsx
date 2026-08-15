@@ -14,11 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+} from '@xpm/ui';
+import { Button } from '@xpm/ui';
+import { Input } from '@xpm/ui';
+import { Label } from '@xpm/ui';
+import { Textarea } from '@xpm/ui';
 import type { UserJourney } from '@/types/user-journey';
 
 interface JourneyEditDialogProps {

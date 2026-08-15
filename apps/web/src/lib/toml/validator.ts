@@ -23,9 +23,7 @@ export const TomlUserStorySchema: z.ZodType<TomlUserStory> = z.object({
   id: z.string().min(1, '用户故事 ID 不能为空'),
   title: z.string().min(1, '用户故事标题不能为空'),
   description: z.string().min(1, '用户故事描述不能为空'),
-  priority: z.enum(['high', 'medium', 'low'], {
-    errorMap: () => ({ message: '优先级必须是 high、medium 或 low' }),
-  }),
+  priority: z.enum(['high', 'medium', 'low'], '优先级必须是 high、medium 或 low'),
   estimation: z.number().min(0, '估算工时不能为负数'),
   acceptance_criteria: z.array(AcceptanceCriterionSchema).min(1, '至少需要一个验收标准'),
   tags: z.array(z.string()).default([]),
@@ -100,7 +98,7 @@ export function validateTomlStoryMap(data: unknown): {
 export function formatValidationErrors(error: z.ZodError): string[] {
   const errors: string[] = [];
 
-  error.errors.forEach((err) => {
+  error.issues.forEach((err) => {
     const path = err.path.join('.');
     errors.push(`${path}: ${err.message}`);
   });
