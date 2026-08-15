@@ -8,12 +8,26 @@
 
 import * as React from 'react';
 import { Plus, Download, Upload, FileText } from 'lucide-react';
-import { Button, Input, Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardHeader, CardTitle } from '@xpm/ui';
+import {
+  Button,
+  Input,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@xpm/ui';
 import {
   TaskList,
   StatusFilterBar,
   TaskListEmpty,
+  StatusOverview,
+  ProgressStats,
+  ViewSwitcher,
+  BulkActionToolbar,
+  BulkUpdateConfirmDialog,
+  PresetManager,
 } from '@/features/tasks/components';
+import type { ViewType, FilterConditions } from '@/features/tasks/components';
 import { TaskImportDialog } from './task-import-dialog';
 import { TaskCreateDialog } from './task-create-dialog';
 import { TaskDetailSheet } from './task-detail-sheet';
@@ -34,6 +48,14 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
     (TaskStatus | StoryStatus)[]
   >([]);
   const [selectedTaskIds, setSelectedTaskIds] = React.useState<string[]>([]);
+  /** 当前视图 */
+  const [view, setView] = React.useState<ViewType>('list');
+  /** 批量更新确认弹窗 */
+  const [bulkDialogOpen, setBulkDialogOpen] = React.useState(false);
+  const [bulkTargetStatus, setBulkTargetStatus] = React.useState<
+    TaskStatus | StoryStatus | null
+  >(null);
+  const [bulkReason, setBulkReason] = React.useState('');
   const [project, setProject] = React.useState(initialProject);
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
@@ -145,6 +167,75 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
     return stats;
   }, [displayTasks]);
 
+  // 按状态统计用户故事
+  const storyStats = React.useMemo(() => {
+    const stats: Record<string, number> = {
+      backlog: 0,
+      todo: 0,
+      in_progress: 0,
+      done: 0,
+    };
+    project.user_journeys?.forEach((journey) => {
+      journey.stories?.forEach((story) => {
+        if (story.status && stats[story.status] !== undefined) {
+          stats[story.status]++;
+        }
+      });
+    });
+    return stats;
+  }, [project]);
+
+  // 应用筛选预设（条件中包含搜索关键词）
+  const handleApplyPreset = React.useCallback(
+    (conditions: FilterConditions) => {
+      setStatusFilter(
+        conditions.taskStatuses ? [...conditions.taskStatuses] : []
+      );
+      setSearchQuery(conditions.searchQuery ?? '');
+    },
+    []
+  );
+
+  // 批量更新状态
+  const handleBulkStatusChange = (status: TaskStatus | StoryStatus) => {
+    setBulkTargetStatus(status);
+    setBulkDialogOpen(true);
+  };
+
+  const handleBulkConfirm = async () => {
+    if (!bulkTargetStatus) return;
+    try {
+      await Promise.all(
+        selectedTaskIds.map((id) =>
+          updateTaskStatus.mutateAsync({
+            id,
+            status: bulkTargetStatus as TaskStatus,
+            reason: bulkReason || undefined,
+          })
+        )
+      );
+      // 乐观更新本地项目状态
+      setProject((prev) => ({
+        ...prev,
+        user_journeys: prev.user_journeys?.map((journey) => ({
+          ...journey,
+          stories: journey.stories?.map((story) => ({
+            ...story,
+            tasks: story.tasks?.map((task) =>
+              selectedTaskIds.includes(task.id)
+                ? { ...task, status: bulkTargetStatus as TaskStatus }
+                : task
+            ),
+          })),
+        })),
+      }));
+      setSelectedTaskIds([]);
+      setBulkReason('');
+    } catch (err) {
+      console.error('bulk update task status failed', err);
+    }
+  };
+
   // 处理状态变更
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     try {
@@ -240,6 +331,13 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
             isTask={true}
             placeholder="所有状态"
           />
+          <PresetManager
+            currentConditions={{
+              taskStatuses: statusFilter as TaskStatus[],
+              searchQuery,
+            }}
+            onApplyPreset={handleApplyPreset}
+          />
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -273,174 +371,190 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       )}
 
       {/* 统计信息 */}
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              总任务数
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              已完成
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {completedCount}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              进行中
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
-              {statusStats.in_progress +
-                statusStats.in_review +
-                statusStats.testing}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              完成率
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{progress}%</div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            状态概览
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StatusOverview
+            counts={statusStats}
+            entityType="task"
+            selectedStatuses={statusFilter}
+            onStatusClick={(status) => {
+              const next = statusFilter.includes(status)
+                ? statusFilter.filter((s) => s !== status)
+                : [...statusFilter, status];
+              setStatusFilter(next);
+            }}
+          />
+        </CardContent>
+      </Card>
+      <ProgressStats
+        taskStats={{
+          total: totalCount,
+          completed: completedCount,
+          inProgress:
+            (statusStats.in_progress || 0) +
+            (statusStats.in_review || 0) +
+            (statusStats.testing || 0),
+          backlog: statusStats.backlog || 0,
+        }}
+        storyStats={{
+          total: storyStats.backlog + storyStats.todo + storyStats.in_progress + storyStats.done,
+          completed: storyStats.done || 0,
+          inProgress: storyStats.in_progress || 0,
+          backlog: storyStats.backlog || 0,
+        }}
+        overallProgress={progress}
+      />
 
       {/* 视图切换 */}
-      <Tabs defaultValue="list" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="list">列表视图</TabsTrigger>
-          <TabsTrigger value="kanban">Kanban 视图</TabsTrigger>
-          <TabsTrigger value="grouped">按故事分组</TabsTrigger>
-        </TabsList>
+      <div className="flex items-center justify-between">
+        <ViewSwitcher
+          currentView={view}
+          onViewChange={setView}
+          availableViews={['list', 'kanban', 'board']}
+        />
+        <BulkActionToolbar
+          selectedCount={{ tasks: selectedTaskIds.length, stories: 0 }}
+          onStatusChange={handleBulkStatusChange}
+          onClearSelection={() => setSelectedTaskIds([])}
+        />
+      </div>
 
-        <TabsContent value="list">
-          {allTasks.length > 0 ? (
-            <TaskList
-              tasks={filteredTasks}
-              onStatusChange={handleStatusChange}
-              onTaskClick={openTaskDetail}
-              onSelectionChange={setSelectedTaskIds}
-              selectedIds={selectedTaskIds}
-              showStatusFilter={false}
-              editableStatus={true}
-              storyContextMap={storyContextMap}
-            />
-          ) : (
-            <TaskListEmpty message="暂无任务，请先创建用户故事并拆解任务" />
-          )}
-        </TabsContent>
+      {/* 列表视图 */}
+      {view === 'list' &&
+        (allTasks.length > 0 ? (
+          <TaskList
+            tasks={filteredTasks}
+            onStatusChange={handleStatusChange}
+            onTaskClick={openTaskDetail}
+            onSelectionChange={setSelectedTaskIds}
+            selectedIds={selectedTaskIds}
+            showStatusFilter={false}
+            editableStatus={true}
+            storyContextMap={storyContextMap}
+          />
+        ) : (
+          <TaskListEmpty message="暂无任务，请先创建用户故事并拆解任务" />
+        ))}
 
-        <TabsContent value="kanban">
-          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-            {[
-              'backlog',
-              'todo',
-              'in_progress',
-              'in_review',
-              'testing',
-              'done',
-            ].map((status) => (
-              <div key={status} className="space-y-2">
-                <h4 className="text-sm font-medium capitalize">
-                  {status === 'in_progress'
-                    ? '进行中'
-                    : status === 'in_review'
-                      ? '待评审'
-                      : status === 'testing'
-                        ? '测试中'
-                        : status}
-                  <span className="ml-2 text-muted-foreground">
-                    ({statusStats[status] || 0})
-                  </span>
-                </h4>
-                <div className="min-h-[200px] space-y-2 rounded-lg border bg-muted/20 p-2">
-                  {allTasks
-                    .filter((task) => task.status === status)
-                    .map((task) => (
-                      <Card
-                        key={task.id}
-                        className="cursor-pointer p-3 hover:shadow-md"
-                        onClick={() => {
-                          openTaskDetail(task);
-                        }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <p className="line-clamp-2 flex-1 text-sm font-medium">
-                            {task.title}
-                          </p>
-                        </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {task.id}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {task.priority}
-                          </span>
-                        </div>
-                      </Card>
-                    ))}
-                </div>
+      {/* Kanban 视图 */}
+      {view === 'kanban' && (
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+          {[
+            'backlog',
+            'todo',
+            'in_progress',
+            'in_review',
+            'testing',
+            'done',
+          ].map((status) => (
+            <div key={status} className="space-y-2">
+              <h4 className="text-sm font-medium capitalize">
+                {status === 'in_progress'
+                  ? '进行中'
+                  : status === 'in_review'
+                    ? '待评审'
+                    : status === 'testing'
+                      ? '测试中'
+                      : status}
+                <span className="ml-2 text-muted-foreground">
+                  ({statusStats[status] || 0})
+                </span>
+              </h4>
+              <div className="min-h-[200px] space-y-2 rounded-lg border bg-muted/20 p-2">
+                {filteredTasks
+                  .filter((task) => task.status === status)
+                  .map((task) => (
+                    <Card
+                      key={task.id}
+                      className="cursor-pointer p-3 hover:shadow-md"
+                      onClick={() => {
+                        openTaskDetail(task);
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <p className="line-clamp-2 flex-1 text-sm font-medium">
+                          {task.title}
+                        </p>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {task.id}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {task.priority}
+                        </span>
+                      </div>
+                    </Card>
+                  ))}
               </div>
-            ))}
-          </div>
-        </TabsContent>
+            </div>
+          ))}
+        </div>
+      )}
 
-        <TabsContent value="grouped">
-          <div className="space-y-4">
-            {project.user_journeys
-              ?.filter((journey) =>
-                journey.stories?.some((s) => s.tasks && s.tasks.length > 0)
-              )
-              .map((journey) => (
-                <Card key={journey.id}>
-                  <CardHeader>
-                    <CardTitle className="text-base">{journey.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {journey.stories
-                      ?.filter((story) => story.tasks && story.tasks.length > 0)
-                      .map((story) => (
-                        <div key={story.id} className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-muted-foreground">
-                              {story.id}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {story.title}
-                            </span>
-                          </div>
-                          <TaskList
-                            tasks={story.tasks || []}
-                            onStatusChange={handleStatusChange}
-                            onTaskClick={openTaskDetail}
-                            showStatusFilter={false}
-                            editableStatus={true}
-                          />
+      {/* 按故事分组视图 */}
+      {view === 'board' && (
+        <div className="space-y-4">
+          {project.user_journeys
+            ?.filter((journey) =>
+              journey.stories?.some((s) => s.tasks && s.tasks.length > 0)
+            )
+            .map((journey) => (
+              <Card key={journey.id}>
+                <CardHeader>
+                  <CardTitle className="text-base">{journey.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {journey.stories
+                    ?.filter((story) => story.tasks && story.tasks.length > 0)
+                    .map((story) => (
+                      <div key={story.id} className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {story.id}
+                          </span>
+                          <span className="text-sm font-medium">
+                            {story.title}
+                          </span>
                         </div>
-                      ))}
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                        <TaskList
+                          tasks={story.tasks || []}
+                          onStatusChange={handleStatusChange}
+                          onTaskClick={openTaskDetail}
+                          showStatusFilter={false}
+                          editableStatus={true}
+                        />
+                      </div>
+                    ))}
+                </CardContent>
+              </Card>
+            ))}
+        </div>
+      )}
+
+      {/* 批量更新确认弹窗 */}
+      <BulkUpdateConfirmDialog
+        open={bulkDialogOpen}
+        onOpenChange={setBulkDialogOpen}
+        selectedCount={{ tasks: selectedTaskIds.length, stories: 0 }}
+        currentStatus={
+          selectedTaskIds.length > 0
+            ? (filteredTasks.find((t) => t.id === selectedTaskIds[0])?.status ??
+              'todo')
+            : 'todo'
+        }
+        targetStatus={bulkTargetStatus ?? 'todo'}
+        isTask={true}
+        onConfirm={handleBulkConfirm}
+        onCancel={() => setBulkDialogOpen(false)}
+        reason={bulkReason}
+        onReasonChange={setBulkReason}
+      />
 
       {/* 任务 TOML 导入对话框 */}
       <TaskImportDialog

@@ -133,7 +133,6 @@ export function Header({
                 className="relative h-8 w-8 rounded-full"
               >
                 {user?.avatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={user.avatar}
                     alt={user.name}

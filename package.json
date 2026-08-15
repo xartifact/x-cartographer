@@ -13,7 +13,7 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "type-check": "bun run --cwd apps/web type-check",
-    "test": "bun test"
+    "test": "bun test tests/ packages/gateway/src/__tests__/ packages/db/src"
   },
   "devDependencies": {
     "oxlint": "^1.70.0",

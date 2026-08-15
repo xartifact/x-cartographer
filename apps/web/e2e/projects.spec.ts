@@ -36,7 +36,7 @@ test.describe('项目管理', () => {
 
     // 创建成功后跳转到项目详情概览页
     await expect(
-      page.getByRole('heading', { name: '项目概览' }),
+      page.getByRole('heading', { name: projectName }),
     ).toBeVisible();
 
     // 回到列表，新项目应出现在列表中
@@ -50,7 +50,7 @@ test.describe('项目管理', () => {
     await card.click();
     await page.waitForURL(/\/projects\/[^/]+$/);
     await expect(
-      page.getByRole('heading', { name: '项目概览' }),
+      page.getByRole('heading', { name: projectName }),
     ).toBeVisible();
   });
 });

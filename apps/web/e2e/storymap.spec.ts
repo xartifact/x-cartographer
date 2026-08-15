@@ -62,7 +62,7 @@ test.describe('故事地图', () => {
     await dialog.getByRole('button', { name: '创建' }).click();
 
     // 旅程创建后画布出现旅程头（名称可见）
-    await expect(page.getByText(journeyName)).toBeVisible();
+    await expect(page.getByRole('heading', { name: journeyName })).toBeVisible();
     // 空态消失
     await expect(page.getByText('暂无用户旅程')).toHaveCount(0);
     // 统计面板显示 1 个旅程

@@ -31,7 +31,7 @@ function jsonRequest(
     init.headers = { 'Content-Type': 'application/json' };
     init.body = JSON.stringify(body);
   }
-  return app.request(url, init);
+  return app.request(url, init) as Promise<Response>;
 }
 
 async function createProject(
@@ -144,7 +144,8 @@ describe('projects CRUD', () => {
     // list
     let res = await app.request('/api/projects');
     expect(res.status).toBe(200);
-    let body = (await res.json()) as Array<Record<string, unknown>>;
+    let body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(id);
     expect(body[0].name).toBe('Alpha Project');
@@ -158,22 +159,26 @@ describe('projects CRUD', () => {
     // search（大小写不敏感，name/description 均匹配）
     res = await app.request('/api/projects/search?q=alpha');
     expect(res.status).toBe(200);
-    body = (await res.json()) as Array<Record<string, unknown>>;
+    body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(id);
 
     res = await app.request(`/api/projects/search?q=description`);
-    body = (await res.json()) as Array<Record<string, unknown>>;
+    body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body).toHaveLength(1);
 
     res = await app.request('/api/projects/search?q=zzz-none');
-    body = (await res.json()) as Array<Record<string, unknown>>;
+    body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body).toHaveLength(0);
 
     // detail
     res = await app.request(`/api/projects/${id}`);
     expect(res.status).toBe(200);
-    body = (await res.json()) as Array<Record<string, unknown>>;
+    body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body[0]?.id ?? (body as unknown as Record<string, unknown>).id).toBe(
       id
     );
@@ -187,7 +192,8 @@ describe('projects CRUD', () => {
     expect(await res.json()).toEqual({ success: true });
 
     res = await app.request(`/api/projects/${id}`);
-    body = (await res.json()) as Record<string, unknown>;
+    body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body.name).toBe('Alpha Renamed');
     expect(
       (body.settings as { auto_save: boolean }).auto_save
@@ -289,7 +295,8 @@ describe('stories CRUD + status flow', () => {
     // list by journey
     let res = await app.request(`/api/stories?journeyId=${journeyId}`);
     expect(res.status).toBe(200);
-    let body = (await res.json()) as Array<Record<string, unknown>>;
+    let body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(storyId);
 
@@ -300,7 +307,8 @@ describe('stories CRUD + status flow', () => {
     // detail（原始行，camelCase）
     res = await app.request(`/api/stories/${storyId}`);
     expect(res.status).toBe(200);
-    body = (await res.json()) as Array<Record<string, unknown>>;
+    body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body[0]?.id ?? (body as unknown as Record<string, unknown>).id).toBe(
       storyId
     );
@@ -315,7 +323,8 @@ describe('stories CRUD + status flow', () => {
 
     body = (await (
       await app.request(`/api/stories/${storyId}`)
-    ).json()) as Record<string, unknown>;
+    ).json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body.title).toBe('As a user I can login with SSO');
     expect(body.estimation).toBe(5);
 
@@ -329,7 +338,8 @@ describe('stories CRUD + status flow', () => {
 
     body = (await (
       await app.request(`/api/stories/${storyId}`)
-    ).json()) as Record<string, unknown>;
+    ).json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body.status).toBe('done');
 
     // status-changes 按 entity 查询
@@ -378,7 +388,8 @@ describe('tasks CRUD + topological next', () => {
     // list by story
     let res = await app.request(`/api/tasks?storyId=${storyId}`);
     expect(res.status).toBe(200);
-    let body = (await res.json()) as Array<Record<string, unknown>>;
+    let body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(taskId);
     expect(body[0].storyId).toBe(storyId);
@@ -390,7 +401,8 @@ describe('tasks CRUD + topological next', () => {
     // detail
     res = await app.request(`/api/tasks/${taskId}`);
     expect(res.status).toBe(200);
-    body = (await res.json()) as Array<Record<string, unknown>>;
+    body = (await res.json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body[0]?.id ?? (body as unknown as Record<string, unknown>).id).toBe(
       taskId
     );
@@ -406,7 +418,8 @@ describe('tasks CRUD + topological next', () => {
 
     body = (await (
       await app.request(`/api/tasks/${taskId}`)
-    ).json()) as Record<string, unknown>;
+    ).json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
     expect(body.title).toBe('Implement login v2');
     expect(body.assignee).toBe('bob');
     expect(body.estimation).toBe(4);
@@ -608,7 +621,7 @@ describe('PUT /api/projects/full transaction', () => {
     body = (await (
       await app.request(`/api/projects/${projectId}`)
     ).json()) as Record<string, unknown> & {
-      user_journeys: Array<Record<string, unknown>>;
+      user_journeys: Array<Record<string, unknown> & { stories: unknown[] }>;
     };
     expect(body.user_journeys).toHaveLength(1);
     expect(body.user_journeys[0].id).toBe('UJ-001');

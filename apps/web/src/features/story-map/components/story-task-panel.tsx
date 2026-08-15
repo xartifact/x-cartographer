@@ -11,7 +11,7 @@ import { createLogger } from '@/lib/logger';
 import { Plus, Trash2, Wand2, Loader2, Clock, AlertCircle } from 'lucide-react';
 import { Button, Input, Badge, Separator } from '@xpm/ui';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
-import { useCreateTask, useUpdateTask, useUpdateTaskStatus } from '@/lib/api/hooks';
+import { useCreateTask, useUpdateTaskStatus, useDeleteTask } from '@/lib/api/hooks';
 import { api } from '@/lib/api/client';
 import type { Task, TaskType, TaskPriority, Project, UserStory, LLMProvider } from '@/types';
 import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus, LLMProvider as LLMProviderEnum } from '@/types';
@@ -66,8 +66,8 @@ const log = createLogger('storyTaskPanel');
 
 export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
   const createTask = useCreateTask();
-  const updateTask = useUpdateTask();
   const updateTaskStatus = useUpdateTaskStatus();
+  const deleteTask = useDeleteTask();
   const tasks = story.tasks ?? [];
 
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -103,7 +103,7 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
   async function handleDeleteTask(taskId: string) {
     setSaving(true);
     try {
-      await updateTask.mutateAsync({ id: taskId, status: undefined });
+      await deleteTask.mutateAsync({ id: taskId });
     } finally {
       setSaving(false);
     }

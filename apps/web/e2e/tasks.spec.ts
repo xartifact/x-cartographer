@@ -33,24 +33,10 @@ test.describe('任务管理', () => {
     ).toBeVisible();
 
     // 统计面板：总任务数 0、已完成 0、进行中 0、完成率 0%
-    const stats = page.locator('div.grid.md\\:grid-cols-5');
-    await expect(stats).toBeVisible();
-
-    const totalCard = stats.locator('div').filter({ hasText: '总任务数' });
-    await expect(totalCard.getByText('0', { exact: true })).toBeVisible();
-
-    const doneCard = stats.locator('div').filter({ hasText: '已完成' });
-    await expect(doneCard.getByText('0', { exact: true })).toBeVisible();
-
-    const inProgressCard = stats
-      .locator('div')
-      .filter({ hasText: '进行中' });
-    await expect(
-      inProgressCard.getByText('0', { exact: true }),
-    ).toBeVisible();
-
-    const progressCard = stats.locator('div').filter({ hasText: '完成率' });
-    await expect(progressCard.getByText('0%', { exact: true })).toBeVisible();
+    // （集成 StatusOverview/ProgressStats 后布局变化，按文案断言）
+    // 空态时 StatusOverview 渲染（ProgressStats 空态隐藏）
+    await expect(page.getByText('状态概览')).toBeVisible();
+    await expect(page.getByText('0总数').first()).toBeVisible();
 
     // 清理：删除测试项目
     await page.request.delete(`/api/projects/${projectId}`);
