@@ -57,6 +57,8 @@ export interface HeaderProps {
 export interface SidebarProps {
   /** 导航菜单配置 */
   items: NavItem[];
+  /** 当前项目（有活动项目时侧边栏显示"当前项目"分组） */
+  currentProject?: { id: string; name: string } | null;
   /** 当前路径，用于高亮 */
   currentPath?: string;
   /** 侧边栏折叠状态 */

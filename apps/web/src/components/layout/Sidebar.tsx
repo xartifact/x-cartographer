@@ -6,6 +6,16 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '@xpm/ui';
 import { cn } from '@/lib/utils';
 import { SidebarProps, NavItem } from './types';
+import { projectNavItems } from './navigation';
+
+
+/** 生成项目作用域导航项（[id] 占位 → 实际项目 id） */
+function projectScopedItems(projectId: string): NavItem[] {
+  return projectNavItems.map((item) => ({
+    ...item,
+    href: item.href?.replace('[id]', projectId),
+  }));
+}
 
 /**
  * 递归渲染导航项
@@ -88,6 +98,7 @@ function NavItemContent({
  */
 export function Sidebar({
   items,
+  currentProject,
   collapsed = false,
   onCollapsedChange,
   footer,
@@ -138,6 +149,28 @@ export function Sidebar({
               currentPath={pathname}
             />
           ))}
+
+          {/* 当前项目分组：有活动项目时显示其功能入口 */}
+          {currentProject && !collapsed && (
+            <div className="pt-4 mt-4 border-t">
+              <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                当前项目
+              </div>
+              <div className="px-3 pb-2 text-sm font-semibold truncate">
+                {currentProject.name}
+              </div>
+              <div className="space-y-1">
+                {projectScopedItems(currentProject.id).map((item) => (
+                  <NavItemContent
+                    key={item.id}
+                    item={item}
+                    collapsed={false}
+                    currentPath={pathname}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* 底部自定义内容 */}

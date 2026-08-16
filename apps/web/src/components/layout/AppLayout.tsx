@@ -6,6 +6,8 @@ import { Header } from './Header';
 import { Sidebar, MobileSidebarOverlay } from './Sidebar';
 import { cn } from '@/lib/utils';
 import { mainNavItems } from './navigation';
+import { useProjectStore, selectActiveProjectId } from '@/features/projects/stores';
+import { useProject } from '@/lib/api/hooks';
 import { AppLayoutProps } from './types';
 
 /**
@@ -55,6 +57,10 @@ export function AppLayout({
     onMobileSidebarToggle?.(newOpen);
   };
 
+  // 活动项目：侧边栏显示"当前项目"分组
+  const activeProjectId = useProjectStore(selectActiveProjectId);
+  const { data: activeProject } = useProject(activeProjectId ?? undefined);
+
   // 检查是否是项目详情页面
   const isProjectPage = pathname?.startsWith('/projects/');
 
@@ -68,6 +74,11 @@ export function AppLayout({
         {showSidebar && !isProjectPage && (
           <Sidebar
             items={navigationItems}
+            currentProject={
+              activeProjectId && activeProject
+                ? { id: activeProjectId, name: activeProject.name }
+                : null
+            }
             collapsed={sidebarCollapsed}
             onCollapsedChange={setSidebarCollapsed}
           />
