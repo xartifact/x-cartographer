@@ -1,16 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { FolderKanban, Map, CheckSquare } from 'lucide-react';
-import { useProjectStore, selectActiveProjectId } from '@/features/projects/stores';
 
 
 
 export function HomePage() {
-  const activeProjectId = useProjectStore(selectActiveProjectId);
-
-  const storyMapTo = activeProjectId ? '/projects/$projectId/story-map' : '/projects';
-  const tasksTo = activeProjectId ? '/projects/$projectId/tasks' : '/projects';
-  const storyMapParams = activeProjectId ? { projectId: activeProjectId } : undefined;
-  const tasksParams = activeProjectId ? { projectId: activeProjectId } : undefined;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
@@ -28,8 +21,7 @@ export function HomePage() {
           <p className="mt-2 text-sm text-muted-foreground">创建、导入、管理你的项目</p>
         </Link>
         <Link
-          to={storyMapTo}
-          params={storyMapParams}
+          to="/projects"
           className="rounded-xl border bg-card p-6 shadow transition hover:shadow-md"
         >
           <div className="flex items-center gap-3">
@@ -39,8 +31,7 @@ export function HomePage() {
           <p className="mt-2 text-sm text-muted-foreground">可视化用户故事，梳理产品全局</p>
         </Link>
         <Link
-          to={tasksTo}
-          params={tasksParams}
+          to="/projects"
           className="rounded-xl border bg-card p-6 shadow transition hover:shadow-md"
         >
           <div className="flex items-center gap-3">

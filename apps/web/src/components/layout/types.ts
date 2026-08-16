@@ -16,7 +16,6 @@ export interface NavItem {
   /** 是否禁用 */
   disabled?: boolean;
   /** 是否依赖当前活动项目动态解析路由 */
-  projectScoped?: boolean;
   hidden?: boolean;
 }
 

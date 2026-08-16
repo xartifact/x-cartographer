@@ -5,7 +5,6 @@ import { useLocation } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '@xpm/ui';
 import { cn } from '@/lib/utils';
-import { useProjectStore, selectActiveProjectId } from '@/features/projects/stores';
 import { SidebarProps, NavItem } from './types';
 
 /**
@@ -20,7 +19,6 @@ function NavItemContent({
   collapsed: boolean;
   currentPath: string;
 }) {
-  const activeProjectId = useProjectStore(selectActiveProjectId);
 
   const isActive = item.href === currentPath;
 
@@ -63,30 +61,6 @@ function NavItemContent({
   // 没有子菜单的项
   if (!item.href || item.hidden) {
     return null;
-  }
-
-  // 项目作用域导航：根据是否存在活动项目动态跳转
-  if (item.projectScoped) {
-    const to = activeProjectId
-      ? `/projects/$projectId/${item.id}`
-      : '/projects';
-
-    return (
-      <Link
-        to={to}
-        params={activeProjectId ? { projectId: activeProjectId } : undefined}
-        className={cn(
-          'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-          'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-          item.disabled && 'pointer-events-none opacity-50'
-        )}
-      >
-        {item.icon && (
-          <item.icon className="h-4 w-4 shrink-0" />
-        )}
-        {!collapsed && <span>{item.label}</span>}
-      </Link>
-    );
   }
 
   return (

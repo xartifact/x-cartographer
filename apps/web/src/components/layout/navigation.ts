@@ -30,20 +30,6 @@ export const mainNavItems: NavItem[] = [
     icon: FolderKanban,
   },
   {
-    id: 'story-map',
-    label: '用户故事地图',
-    href: '/projects',
-    icon: Map,
-    projectScoped: true,
-  },
-  {
-    id: 'tasks',
-    label: '任务看板',
-    href: '/projects',
-    icon: CheckSquare,
-    projectScoped: true,
-  },
-  {
     id: 'settings',
     label: '设置',
     href: '/settings',
