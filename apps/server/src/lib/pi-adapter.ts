@@ -93,11 +93,38 @@ export async function piGenerateText(
     model: runtimeModel,
   });
 
-  const result = await session.prompt(`${system}\n\n${prompt}`);
+  // 从事件流收集 assistant 最终消息（SDK 的 state.messages 只保留 thinking 块，text 丢失）
+  const assistantText = await promptWithCapture(session, `${system}\n\n${prompt}`);
 
-  const text = extractText(result);
-  log.info('pi.generate.done', { model: modelId, textPreview: text.slice(0, 120) });
-  return text;
+  log.info('pi.generate.done', { model: modelId, textPreview: assistantText.slice(0, 120) });
+  return assistantText;
+}
+
+/** prompt 并捕获 assistant 的最终文本（跳过 thinking 块） */
+async function promptWithCapture(
+  session: { agent: unknown; prompt: (text: string) => Promise<void> },
+  text: string,
+): Promise<string> {
+  let captured = '';
+  const agent = session.agent as {
+    subscribe?: (fn: (evt: unknown) => void) => void;
+    waitForIdle?: () => Promise<void>;
+  };
+
+  agent.subscribe?.((evt) => {
+    const e = evt as { type?: string; message?: { role?: string; content?: unknown[] } };
+    if (e.type === 'message_end' && e.message?.role === 'assistant') {
+      for (const block of e.message.content ?? []) {
+        const b = block as { type?: string; text?: string };
+        if (b.type === 'text' && b.text) captured += b.text;
+      }
+    }
+  });
+
+  await session.prompt(text);
+  await agent.waitForIdle?.();
+  await new Promise((r) => setTimeout(r, 500));
+  return captured;
 }
 
 /** 从 prompt 结果提取 assistant 文本（finalMessage 兼容） */

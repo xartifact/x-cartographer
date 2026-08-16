@@ -117,7 +117,13 @@ export function toPiModel(entry: XHeraldModelEntry): PiModelConfig {
 
   if (entry.headers) model.headers = entry.headers;
   if (entry.thinking_level_map) model.thinkingLevelMap = entry.thinking_level_map;
-  if (entry.compat) model.compat = entry.compat;
+  if (entry.compat) {
+    model.compat = { ...entry.compat };
+  }
+  // x-herald 声明 supports_developer_role=true 但实现拒绝 developer 角色（400）。
+  // 强制走 system 角色，确保 Pi SDK 正常调用。
+  // Pi 读 camelCase compat.supportsDeveloperRole（snake_case 是网关 v1 契约，Pi 不认）
+  model.compat = { ...(model.compat ?? {}), supportsDeveloperRole: false };
 
   return model;
 }

@@ -93,3 +93,22 @@ parseJsonLoose + zod 校验 → 结构化结果
 | Pi SDK 每次 createAgentSession 开销 | modelRuntime 单例复用；session 复用 |
 | 网关模型变化 | 每次调用 discoverModels（轻量） |
 | 与现有 OpenAI/Anthropic 并存 | chatCompletion 按 provider 分支，互不影响 |
+
+## 7. 真实验证结果（2026-08-16，x-herald key 已配置）
+
+| 端点 | 结果 | 耗时 |
+|---|---|---|
+| POST /api/settings/llm/x-herald/test | `{"success":true}` | ~10s |
+| POST /api/llm/analyze-requirements | 结构化 personas/features（中文） | ~11s |
+| POST /api/llm/generate-journey-suggestions | 结构化 journeys+steps | ~20s |
+| POST /api/llm/decompose-story | 结构化 tasks（P0 优先级） | ~51s |
+
+### 集成中发现的 2 个关键适配点
+
+1. **developer 角色冲突**：x-herald 模型声明 `supports_developer_role=true`，但网关实际拒绝 `developer` 角色（400）。Pi 的 `useDeveloperRole = model.reasoning && compat.supportsDeveloperRole`。修复：`toPiModel` 强制 `compat.supportsDeveloperRole: false`（camelCase，Pi 读这个键），让 Pi 用 `system` 角色。
+
+2. **thinking/text 提取**：reasoning 模型的响应含 thinking 块；SDK 的 `state.messages` 只保留 thinking（text 丢失，SDK bug）。修复：`pi-adapter` 订阅 `message_end` 事件，提取 assistant 消息的 `text` 块（跳过 thinking）。
+
+### 使用
+- 设置页 → X-Herald 卡片填 key（`xg-` 前缀）+ 地址 `http://100.80.110.125:5005/api/v1`
+- 模型自动发现（9 个：Explorer/Coder/Plan/Designer 等），未指定用第一个
