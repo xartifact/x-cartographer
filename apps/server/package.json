@@ -26,6 +26,8 @@
     "zod": "^4.4.3",
     "nanoid": "^5.0.8",
     "drizzle-orm": "^0.45.1",
-    "@hono/zod-validator": "^0.7.0"
+    "@hono/zod-validator": "^0.7.0",
+    "@earendil-works/pi-coding-agent": "^0.84.2",
+    "@earendil-works/pi-ai": "^0.84.2"
   }
 }

@@ -50,6 +50,7 @@ export enum TaskStatus {
 export enum LLMProvider {
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
+  X_HERALD = 'x-herald',
 }
 
 /**

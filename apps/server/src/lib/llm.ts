@@ -7,6 +7,8 @@ import JSON5 from 'json5';
 import { jsonrepair } from 'jsonrepair';
 import { AppSettingsRepository, createLogger } from '@xpm/db';
 import { LLMProvider } from '@xpm/shared';
+import { piGenerateText } from './pi-adapter';
+import { X_HERALD_DEFAULT_BASE_URL } from './x-herald';
 
 const log = createLogger('llm');
 
@@ -20,6 +22,7 @@ export interface ProviderConfig {
 const DEFAULT_MODELS: Record<LLMProvider, string> = {
   [LLMProvider.OPENAI]: 'gpt-4o',
   [LLMProvider.ANTHROPIC]: 'claude-sonnet-4-6',
+  [LLMProvider.X_HERALD]: '',
 };
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
@@ -32,7 +35,9 @@ export async function getProviderConfig(provider: LLMProvider): Promise<Provider
   if (!apiKey) {
     throw new Error(`未配置 ${provider} API Key，请前往「设置」页面添加`);
   }
-  const baseURL = (await repo.get(`llm_base_url_${provider}`)) ?? undefined;
+  const baseURL =
+    (await repo.get(`llm_base_url_${provider}`)) ??
+    (provider === LLMProvider.X_HERALD ? X_HERALD_DEFAULT_BASE_URL : undefined);
   const model = (await repo.get(`llm_model_${provider}`)) ?? undefined;
 
   log.info('config.resolved', {
@@ -54,6 +59,19 @@ async function chatCompletion(
   opts: { maxTokens?: number; jsonMode?: boolean } = {},
 ): Promise<string> {
   const { provider, apiKey, model, baseURL } = config;
+
+  // X-Herald 网关：走 Pi SDK（自动适配，动态模型发现）
+  if (provider === LLMProvider.X_HERALD) {
+    const system = messages.find((m) => m.role === 'system')?.content ?? '';
+    const user = messages.find((m) => m.role === 'user')?.content ?? '';
+    return piGenerateText(system, user, {
+      provider: LLMProvider.X_HERALD,
+      model: model || undefined,
+      apiKey,
+      baseURL: baseURL ?? X_HERALD_DEFAULT_BASE_URL,
+    });
+  }
+
   const modelId = model ?? DEFAULT_MODELS[provider];
 
   if (provider === LLMProvider.ANTHROPIC) {

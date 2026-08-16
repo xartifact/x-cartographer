@@ -300,6 +300,14 @@ export function LLMSettings() {
           defaultEndpoint="https://api.anthropic.com"
           defaultModel="claude-sonnet-4-6"
         />
+        <ProviderCard
+          provider={LLMProvider.X_HERALD}
+          name="X-Herald 网关"
+          description="本地/内网 AI 网关（OpenAI 兼容），模型自动发现，服务地址 100.80.110.125:5005"
+          keyPrefix="xg-"
+          defaultEndpoint="http://100.80.110.125:5005/api/v1"
+          defaultModel=""
+        />
       </div>
 
       <Card className="border-muted bg-muted/30">
