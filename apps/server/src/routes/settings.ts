@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { AppSettingsRepository } from '@xpm/db';
 import { LLMProvider } from '@xpm/shared';
 import { getProviderConfig, testConnection } from '../lib/llm';
-
+import { nanoid } from 'nanoid';
 const providerSchema = z.nativeEnum(LLMProvider);
 
 const saveKeySchema = z.object({
@@ -92,4 +92,20 @@ export const settingsRoutes = new Hono()
         error: err instanceof Error ? err.message : '连接失败',
       });
     }
+  })
+  // GET /api/settings/token — 查询 API Token 是否已配置
+  .get('/token', async (c) => {
+    const token = await repo.get('api_token');
+    return c.json({ configured: !!token });
+  })
+  // POST /api/settings/token — 生成/轮换 API Token
+  .post('/token', async (c) => {
+    const token = nanoid(48);
+    await repo.set('api_token', token);
+    return c.json({ success: true, token }, 201);
+  })
+  // DELETE /api/settings/token — 撤销 API Token
+  .delete('/token', async (c) => {
+    await repo.delete('api_token');
+    return c.json({ success: true });
   });

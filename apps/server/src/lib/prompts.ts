@@ -293,6 +293,68 @@ export const estimationPrompt: PromptTemplate = {
 
 请提供工时估算和分解，以 JSON 格式返回。`,
 };
+/**
+ * 排期建议 Prompt
+ * 基于未排期故事的估算、依赖与优先级，建议分配到版本（里程碑）
+ */
+export const schedulingSuggestionPrompt: PromptTemplate = {
+  system: `你是一位敏捷研发负责人，擅长制定版本排期计划。
+
+排期原则：
+- 将未排期故事分配到合适的版本，高优先级（high）优先排入最早版本
+- 有依赖关系的故事应尽量同版本或按顺序排入后续版本
+- 每个版本的估算总工时尽量均衡，不要集中到一个版本
+- 版本容量上限由目标工时决定，超过时分配到后续版本
+- 已完成（done）的故事不需要排期
+
+返回 JSON 格式：
+{
+  "assignments": [
+    {
+      "story_id": "故事ID",
+      "milestone_name": "目标版本名称（必须是提供的版本之一，或保持未排期）",
+      "reason": "一句话说明分配理由"
+    }
+  ]
+}
+
+注意：每个故事只能分配到一个版本；若某故事不应排期（如依赖未明确），milestone_name 用 "unplanned"。`,
+
+  user: (params) => {
+    const milestones = params.milestones as Array<{ name: string; capacity: number; status: string }> | undefined;
+    const unplannedStories = params.unplannedStories as
+      | Array<{
+          id: string;
+          title: string;
+          priority: string;
+          estimation: number;
+          dependencies: string[];
+        }>
+      | undefined;
+
+    const sections: string[] = [];
+
+    // 可用版本
+    if (milestones?.length) {
+      const mLines = milestones
+        .map((m) => `- ${m.name}（状态: ${m.status}，容量上限: ${m.capacity} 小时）`)
+        .join('\n');
+      sections.push(`【可用版本】\n${mLines}`);
+    } else {
+      sections.push('【可用版本】\n（无已创建版本，全部建议保持 unplanned，或提示先创建版本）');
+    }
+
+    // 未排期故事
+    if (unplannedStories?.length) {
+      const sLines = unplannedStories
+        .map((s) => `- [${s.id}] ${s.title}（优先级: ${s.priority}，估算: ${s.estimation}h，依赖: ${s.dependencies.join(', ') || '无'}）`)
+        .join('\n');
+      sections.push(`【待排期故事】\n${sLines}`);
+    }
+
+    return sections.join('\n\n') + '\n\n请为每个待排期故事建议版本分配，以 JSON 格式返回。';
+  },
+};
 
 /**
  * 替换模板变量
@@ -318,8 +380,8 @@ export const prompts = {
   acceptanceCriteria: acceptanceCriteriaPrompt,
   taskBreakdown: taskBreakdownPrompt,
   estimation: estimationPrompt,
+  schedulingSuggestion: schedulingSuggestionPrompt,
 };
-
 /**
  * Prompt 模板名称
  */

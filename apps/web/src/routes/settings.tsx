@@ -1,4 +1,4 @@
-import { LLMSettings } from '@/features/settings';
+import { LLMSettings, ApiTokenSettings } from '@/features/settings';
 
 
 
@@ -14,8 +14,8 @@ export function SettingsPage() {
           管理应用配置和 AI 服务密钥
         </p>
       </div>
-
       <LLMSettings />
+      <ApiTokenSettings />
     </div>
   );
 }

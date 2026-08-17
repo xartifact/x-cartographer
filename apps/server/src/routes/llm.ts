@@ -13,9 +13,11 @@ import {
   requirementsAnalysisPrompt,
   userJourneyPrompt,
   taskBreakdownPrompt,
+  schedulingSuggestionPrompt,
 } from '../lib/prompts';
 import { LLMProvider } from '@xpm/shared';
 import { createLogger } from '@xpm/db';
+import { MilestoneRepository, StoryRepository, getProjectRepository } from '@xpm/db';
 
 const log = createLogger('llm-route');
 
@@ -191,4 +193,74 @@ export const llmRoutes = new Hono()
 
     log.info('decomposeStory.done', { taskCount: tasks.length, depsResolved: depResolved });
     return c.json({ tasks });
+  })
+  // POST /api/llm/scheduling-suggestions — 基于未排期故事生成版本排期建议
+  .post('/scheduling-suggestions', zValidator('json', z.object({
+    projectId: z.string(),
+    provider: providerSchema,
+  })), async (c) => {
+    const input = c.req.valid('json');
+
+    // 服务端读取项目与版本数据（不经客户端传，保证数据一致）
+    const project = await getProjectRepository().findById(input.projectId);
+    if (!project) return c.json({ error: '项目不存在' }, 404);
+
+    const milestoneRepo = new MilestoneRepository();
+    const milestones = await milestoneRepo.findByProjectId(input.projectId);
+
+    // 收集未排期故事（含任务依赖）
+    const unplannedStories = (project.user_journeys ?? [])
+      .flatMap((j) => j.stories ?? [])
+      .filter((s) => !s.milestone_id && s.status !== 'done')
+      .map((s) => ({
+        id: s.id,
+        title: s.title,
+        priority: s.priority,
+        estimation: s.estimation,
+        dependencies: (s.tasks ?? []).flatMap((t) => t.dependencies ?? []),
+      }));
+
+    if (unplannedStories.length === 0) {
+      return c.json({ assignments: [], message: '没有需要排期的未排期故事' });
+    }
+
+    const config = await getProviderConfig(input.provider);
+    const assignmentSchema = z.object({
+      assignments: z.array(
+        z.object({
+          story_id: z.string(),
+          milestone_name: z.string(),
+          reason: z.string(),
+        }),
+      ),
+    });
+
+    const raw = await generateJson(
+      assignmentSchema,
+      config,
+      schedulingSuggestionPrompt.system,
+      schedulingSuggestionPrompt.user({
+        milestones: milestones.map((m) => ({
+          name: m.name,
+          capacity: 40,
+          status: m.status,
+        })),
+        unplannedStories,
+      }),
+      'schedulingSuggestions',
+    );
+
+    // 将版本名解析为里程碑 ID
+    const nameToId = new Map(milestones.map((m) => [m.name, m.id]));
+    const assignments = raw.assignments
+      .filter((a) => nameToId.has(a.milestone_name))
+      .map((a) => ({
+        story_id: a.story_id,
+        milestone_id: nameToId.get(a.milestone_name),
+        milestone_name: a.milestone_name,
+        reason: a.reason,
+      }));
+
+    log.info('schedulingSuggestions.done', { assigned: assignments.length });
+    return c.json({ assignments });
   });
