@@ -333,7 +333,3 @@ tasks = [
   "测试数据持久化（PGlite）"
 ]
 
-[metadata]
-version = "1.1"
-author = "product-designer"
-notes = "2026-04-08 更新：TASK-101 到 TASK-116 全部完成。所有状态管理组件均已实现并集成到 PGlite 数据库持久化方案中。"
