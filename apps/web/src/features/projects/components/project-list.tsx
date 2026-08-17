@@ -38,11 +38,12 @@ import { formatRelativeTime } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
 import type { TomlParsedProject } from '@/features/projects/types';
-import { useProjects } from '@/lib/api/hooks';
+import { useProjects, useSaveFullProject } from '@/lib/api/hooks';
 import { useNavigate } from '@tanstack/react-router';
+import { nanoid } from 'nanoid';
 import { ProjectCreateDialog } from './project-create-dialog';
 import { ProjectEditDialog } from './project-edit-dialog';
-import type { Project } from '@xpm/shared';
+import { LLMProvider, type Priority, type Project } from '@xpm/shared';
 
 
 /**
@@ -419,6 +420,7 @@ export default function ProjectListPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const { createProject } = useProjectActions();
+  const { mutateAsync: saveFullProject } = useSaveFullProject();
 
   const handleCreateClick = () => {
     setShowCreateDialog(true);
@@ -432,17 +434,80 @@ export default function ProjectListPage() {
     setShowCreateDialog(false);
     navigate({ to: `/projects/$projectId`, params: { projectId } });
   };
-
   const handleImportSuccess = async (
     projectData: Omit<TomlParsedProject, 'id' | 'updated_at'>
   ) => {
-    const project = await createProject({
+    // 1) 先创建项目骨架（只写 name/description/tech_stack）
+    const created = await createProject({
       name: projectData.name ?? '导入项目',
       description: projectData.description || undefined,
       tech_stack: projectData.tech_stack ?? [],
     });
+
+    // 2) 构造完整项目树（含旅程、故事）并写入。
+    //    TOML 中的 UJ-001/US-001 等 ID 是文档语义编号，非全局唯一：
+    //    直接入库会与其它已导入项目的 ID 冲突（主键重复）。
+    //    因此为每个旅程/故事生成全局唯一 ID（保留语义前缀便于识别）。
+    const now = new Date().toISOString();
+    const fullProject: Project = {
+      id: created.id,
+      name: projectData.name ?? '导入项目',
+      description: projectData.description,
+      created_at: now,
+      updated_at: now,
+      user_journeys: (projectData.user_journeys ?? []).map(
+        (journey, journeyIndex) => {
+          const newJourneyId = `UJ-${nanoid(8)}`;
+          return {
+            id: newJourneyId,
+            name: journey.name,
+            description: journey.description,
+            persona: journey.persona,
+            project_id: created.id,
+            order: journey.order ?? journeyIndex,
+            created_at: now,
+            updated_at: now,
+            stories: (journey.stories ?? []).map((story, storyIndex) => ({
+              id: `US-${nanoid(8)}`,
+              journey_id: newJourneyId,
+              title: story.title,
+              description: story.description,
+              priority: story.priority as Priority,
+              estimation: story.estimation,
+              acceptance_criteria: story.acceptance_criteria.map(
+                (criterion) => criterion.description
+              ),
+              tags: story.tags ?? [],
+              tasks: [],
+              order: storyIndex,
+              status: story.status ?? 'backlog',
+              created_at: now,
+              updated_at: now,
+            })),
+          };
+        }
+      ),
+      metadata: {
+        tech_stack: projectData.tech_stack ?? [],
+        version: projectData.version ?? '1.0.0',
+        tags: [],
+      },
+      settings: {
+        llm_provider: LLMProvider.OPENAI,
+        auto_save: true,
+        display_preferences: {
+          show_priority_colors: true,
+          show_estimation: true,
+          default_view: 'map',
+        },
+      },
+    };
+
+    if (fullProject.user_journeys.length > 0) {
+      await saveFullProject({ project: fullProject });
+    }
     setShowImportDialog(false);
-    navigate({ to: `/projects/$projectId`, params: { projectId: project.id } });
+    navigate({ to: `/projects/$projectId`, params: { projectId: created.id } });
   };
 
   return (

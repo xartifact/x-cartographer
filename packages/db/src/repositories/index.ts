@@ -2,6 +2,7 @@ export { ProjectRepository } from './project.repository';
 export { JourneyRepository } from './journey.repository';
 export { StoryRepository } from './story.repository';
 export { TaskRepository } from './task.repository';
+export { MilestoneRepository } from './milestone.repository';
 export { StatusChangeRepository } from './status-change.repository';
 export { AppSettingsRepository } from './app-settings.repository';
 

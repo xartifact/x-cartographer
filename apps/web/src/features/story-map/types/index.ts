@@ -14,6 +14,8 @@ export interface StoryMapFilter {
   journeyIds: string[];
   /** 按状态筛选 */
   statuses: StoryStatus[];
+  /** 按版本（里程碑）筛选 */
+  milestoneIds: string[];
   /** 搜索关键词 */
   searchQuery: string;
 }

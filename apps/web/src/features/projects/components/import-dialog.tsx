@@ -69,8 +69,9 @@ export function ImportDialog({
 
         if (!validation.success) {
           setValidationErrors(formatValidationErrors(validation.errors!));
-          setError('TOML 数据验证失败');
-          setPreview(tomlData);
+          setError('TOML 数据验证失败：文件结构与预期的用户故事地图格式不符');
+          // 数据不合法时不写入 preview，避免预览区渲染崩溃
+          setPreview(null);
           setIsLoading(false);
           return;
         }

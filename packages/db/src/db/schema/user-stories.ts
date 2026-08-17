@@ -1,9 +1,11 @@
 import { pgTable, text, integer, real, jsonb, timestamp } from 'drizzle-orm/pg-core';
 import { userJourneys } from './user-journeys';
+import { milestones } from './milestones';
 
 export const userStories = pgTable('user_stories', {
   id: text('id').primaryKey(),
   journeyId: text('journey_id').notNull().references(() => userJourneys.id, { onDelete: 'cascade' }),
+  milestoneId: text('milestone_id').references(() => milestones.id, { onDelete: 'set null' }),
   title: text('title').notNull(),
   description: text('description').notNull().default(''),
   priority: text('priority').notNull().default('medium'),

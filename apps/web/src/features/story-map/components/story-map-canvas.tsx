@@ -35,8 +35,8 @@ import { StoryCreateDialog } from './story-create-dialog';
 import { FilterPanel } from './filter-panel';
 import { ZoomControls } from './zoom-controls';
 import { useStoryMapStore, filterStories } from '../stores/story-map-store';
-import { Priority } from '@/types';
-import { UserJourney, UserStory } from '@/types';
+import { useMilestonesByProject } from '@/lib/api/hooks';
+import { Priority, UserJourney, UserStory } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@xpm/ui';
 import { Card, CardHeader } from '@xpm/ui';
@@ -270,6 +270,9 @@ export function StoryMapCanvas({
 
   // 从 store 获取状态
   const { selectedStory, setSelectedStory, filter } = useStoryMapStore();
+
+  // 版本列表（用于筛选面板）
+  const { data: milestones = [] } = useMilestonesByProject(projectId);
 
   // 数据操作 hooks（gateway REST）
   const createStoryMutation = useCreateStory();
@@ -1168,10 +1171,9 @@ export function StoryMapCanvas({
         />
       </ReactFlow>
 
-      {/* 筛选面板 — 浮层，左侧 */}
       {filterPanelOpen && (
         <div className="absolute bottom-4 left-4 top-4 z-10 overflow-y-auto rounded-lg shadow-lg">
-          <FilterPanel journeys={journeys} />
+          <FilterPanel journeys={journeys} milestones={milestones} />
         </div>
       )}
 

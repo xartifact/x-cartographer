@@ -34,6 +34,8 @@ interface StoryMapState {
   setJourneyFilter: (journeyIds: string[]) => void;
   /** 设置状态筛选 */
   setStatusFilter: (statuses: StoryStatus[]) => void;
+  /** 设置版本筛选 */
+  setMilestoneFilter: (milestoneIds: string[]) => void;
   /** 设置搜索关键词 */
   setSearchQuery: (query: string) => void;
   /** 重置筛选条件 */
@@ -60,6 +62,7 @@ const defaultFilter: StoryMapFilter = {
   priorities: [],
   journeyIds: [],
   statuses: [],
+  milestoneIds: [],
   searchQuery: '',
 };
 
@@ -101,6 +104,12 @@ export const useStoryMapStore = create<StoryMapState>((set, get) => ({
   setStatusFilter: (statuses) => {
     set((state) => ({
       filter: { ...state.filter, statuses },
+    }));
+  },
+
+  setMilestoneFilter: (milestoneIds) => {
+    set((state) => ({
+      filter: { ...state.filter, milestoneIds },
     }));
   },
 
@@ -174,6 +183,7 @@ export function filterStories(
     filter.priorities.length > 0 ||
     filter.journeyIds.length > 0 ||
     filter.statuses.length > 0 ||
+    filter.milestoneIds.length > 0 ||
     filter.searchQuery.length > 0;
 
   return journeys
@@ -203,6 +213,17 @@ export function filterStories(
           }
         }
 
+        // 版本筛选：'unplanned' 表示未排期故事
+        if (filter.milestoneIds.length > 0) {
+          const storyMilestone = story.milestone_id ?? null;
+          const wantsUnplanned = filter.milestoneIds.includes('unplanned');
+          if (wantsUnplanned) {
+            // 选择未排期时，排除已排期故事
+            if (storyMilestone !== null) return false;
+          } else if (storyMilestone === null || !filter.milestoneIds.includes(storyMilestone)) {
+            return false;
+          }
+        }
         // 搜索关键词筛选
         if (filter.searchQuery) {
           const query = filter.searchQuery.toLowerCase();

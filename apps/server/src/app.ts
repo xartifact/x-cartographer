@@ -9,11 +9,12 @@ import { projectsRoutes } from './routes/projects';
 import { journeysRoutes } from './routes/journeys';
 import { storiesRoutes } from './routes/stories';
 import { tasksRoutes } from './routes/tasks';
+import { milestonesRoutes } from './routes/milestones';
 import { statusChangesRoutes } from './routes/status-changes';
 import { llmRoutes } from './routes/llm';
 import { settingsRoutes } from './routes/settings';
 import { createLogger } from '@xpm/db';
-
+import { apiTokenAuth } from './middleware/auth';
 const log = createLogger('gateway');
 
 /**
@@ -34,8 +35,15 @@ export const app = new Hono()
 
   // /api basePath：hc 端 key 为短路径
   .basePath('/api')
+  .use('/projects/*', apiTokenAuth)
+  .use('/journeys/*', apiTokenAuth)
+  .use('/milestones/*', apiTokenAuth)
+  .use('/stories/*', apiTokenAuth)
+  .use('/tasks/*', apiTokenAuth)
+  .use('/status-changes/*', apiTokenAuth)
   .route('/projects', projectsRoutes)
   .route('/journeys', journeysRoutes)
+  .route('/milestones', milestonesRoutes)
   .route('/stories', storiesRoutes)
   .route('/tasks', tasksRoutes)
   .route('/status-changes', statusChangesRoutes)

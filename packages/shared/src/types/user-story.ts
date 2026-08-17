@@ -50,6 +50,9 @@ export interface UserStory {
 
   /** 可视化位置（用于故事地图） */
   position?: Position;
+
+  /** 所属里程碑（版本）ID，未排期时为 undefined */
+  milestone_id?: string;
 }
 
 /**
@@ -106,4 +109,5 @@ export interface UpdateUserStoryDTO {
   tags?: string[];
   order?: number;
   position?: Position;
+  milestoneId?: string | null;
 }

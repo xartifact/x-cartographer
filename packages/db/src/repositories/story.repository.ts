@@ -50,6 +50,7 @@ export class StoryRepository {
     if (dto.tags !== undefined) updateData.tags = dto.tags;
     if (dto.order !== undefined) updateData.order = dto.order;
     if (dto.position !== undefined) updateData.position = dto.position;
+    if (dto.milestoneId !== undefined) updateData.milestoneId = dto.milestoneId;
 
     await db.update(userStories).set(updateData).where(eq(userStories.id, id));
   }

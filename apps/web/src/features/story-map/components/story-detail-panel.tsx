@@ -8,10 +8,10 @@ import { memo } from 'react';
 import { X, Clock, Tag, CheckCircle2, Calendar, Trash2 } from 'lucide-react';
 import { Button, Card, CardHeader, Badge, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from '@xpm/ui';
 import { StoryTaskPanel } from './story-task-panel';
+import { MilestoneSelect } from '@/features/roadmap/components/milestone-select';
 import type { UserStory } from '@/types/user-story';
 import { Priority, type Project } from '@/types';
 import { cn } from '@/lib/utils';
-
 interface StoryDetailPanelProps {
   story: UserStory | null;
   journeyName?: string;
@@ -114,6 +114,13 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
                   <span>估算工时: {story.estimation} 小时</span>
                 </div>
               )}
+
+              {/* 排期：所属版本 */}
+              <MilestoneSelect
+                projectId={project.id}
+                value={story.milestone_id}
+                storyId={story.id}
+              />
 
               <Separator />
 

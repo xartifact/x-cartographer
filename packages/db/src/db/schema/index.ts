@@ -1,12 +1,13 @@
 export { projects } from './projects';
 export { userJourneys } from './user-journeys';
 export { userStories } from './user-stories';
+export { milestones } from './milestones';
 export { tasks } from './tasks';
-export { statusChanges } from './status-changes';
 export {
   projectsRelations,
   userJourneysRelations,
   userStoriesRelations,
+  milestonesRelations,
   tasksRelations,
 } from './relations';
 export { appSettings } from './app-settings';

@@ -84,6 +84,7 @@ function dbRowToStory(
     order: row.order,
     status: (row.status ?? 'backlog') as UserStory['status'],
     position: row.position as UserStory['position'],
+    milestone_id: row.milestoneId ?? undefined,
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };

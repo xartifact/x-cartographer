@@ -25,6 +25,8 @@ import { cn } from '@/lib/utils';
 
 interface FilterPanelProps {
   journeys: UserJourney[];
+  /** 版本（里程碑）列表，用于按版本筛选 */
+  milestones?: Array<{ id: string; name: string; status: string }>;
   className?: string;
 }
 
@@ -33,25 +35,27 @@ const priorityOptions = [
   { value: Priority.MEDIUM, label: '中优先级', color: 'text-amber-600 dark:text-amber-400' },
   { value: Priority.LOW, label: '低优先级', color: 'text-green-600 dark:text-green-400' },
 ];
-
-export const FilterPanel = memo<FilterPanelProps>(({ journeys, className }) => {
+export const FilterPanel = memo<FilterPanelProps>(({ journeys, milestones = [], className }) => {
   const {
     filter,
     setSearchQuery,
     setPriorityFilter,
     setJourneyFilter,
     setStatusFilter,
+    setMilestoneFilter,
     resetFilter,
   } = useStoryMapStore();
 
   const [isPriorityOpen, setIsPriorityOpen] = useState(true);
   const [isStatusOpen, setIsStatusOpen] = useState(true);
   const [isJourneyOpen, setIsJourneyOpen] = useState(true);
+  const [isMilestoneOpen, setIsMilestoneOpen] = useState(false);
 
   const activeFilterCount =
     filter.priorities.length +
     filter.journeyIds.length +
     filter.statuses.length +
+    filter.milestoneIds.length +
     (filter.searchQuery ? 1 : 0);
 
   const handlePriorityChange = (priority: Priority, checked: boolean | string) => {
@@ -75,6 +79,14 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, className }) => {
       setJourneyFilter([...filter.journeyIds, journeyId]);
     } else {
       setJourneyFilter(filter.journeyIds.filter((id) => id !== journeyId));
+    }
+  };
+
+  const handleMilestoneChange = (milestoneId: string, checked: boolean | string) => {
+    if (checked) {
+      setMilestoneFilter([...filter.milestoneIds, milestoneId]);
+    } else {
+      setMilestoneFilter(filter.milestoneIds.filter((id) => id !== milestoneId));
     }
   };
 
@@ -231,6 +243,57 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, className }) => {
                   </Badge>
                 </div>
               ))
+            )}
+          </CollapsibleContent>
+        </Collapsible>
+
+        <Separator />
+
+        {/* 版本筛选 */}
+        <Collapsible open={isMilestoneOpen} onOpenChange={setIsMilestoneOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full justify-between p-0">
+              <span className="text-sm font-medium">版本</span>
+              {isMilestoneOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2 space-y-2 max-h-48 overflow-y-auto">
+            {milestones.length === 0 ? (
+              <p className="text-sm text-muted-foreground">暂无版本</p>
+            ) : (
+              <>
+                {/* 未排期选项 */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="milestone-unplanned"
+                    checked={filter.milestoneIds.includes('unplanned')}
+                    onCheckedChange={(checked) => handleMilestoneChange('unplanned', checked)}
+                  />
+                  <label htmlFor="milestone-unplanned" className="text-sm cursor-pointer">
+                    未排期
+                  </label>
+                </div>
+                {milestones.map((milestone) => (
+                  <div key={milestone.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`milestone-${milestone.id}`}
+                      checked={filter.milestoneIds.includes(milestone.id)}
+                      onCheckedChange={(checked) => handleMilestoneChange(milestone.id, checked)}
+                    />
+                    <label
+                      htmlFor={`milestone-${milestone.id}`}
+                      className="text-sm cursor-pointer truncate"
+                      title={milestone.name}
+                    >
+                      {milestone.name}
+                    </label>
+                  </div>
+                ))}
+              </>
             )}
           </CollapsibleContent>
         </Collapsible>

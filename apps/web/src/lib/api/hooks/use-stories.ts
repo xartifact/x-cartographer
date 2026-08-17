@@ -29,6 +29,7 @@ export interface UpdateStoryVariables {
   tags?: string[];
   order?: number;
   position?: { x: number; y: number };
+  milestoneId?: string | null;
 }
 
 export interface UpdateStoryStatusVariables {

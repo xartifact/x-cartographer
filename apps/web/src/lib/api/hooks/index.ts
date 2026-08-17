@@ -33,6 +33,12 @@ export {
   useDeleteTask,
   useUpdateTaskStatus,
 } from './use-tasks';
+export {
+  useMilestonesByProject,
+  useCreateMilestone,
+  useUpdateMilestone,
+  useDeleteMilestone,
+} from './use-milestones';
 
 export {
   useStatusHistory,

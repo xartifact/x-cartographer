@@ -7,6 +7,7 @@ import {
   FolderKanban,
   Map,
   CheckSquare,
+  Calendar,
   Database,
 } from 'lucide-react';
 import { Button } from '@xpm/ui';
@@ -44,6 +45,12 @@ const defaultProjectNavItems: ProjectNavProps['items'] = [
     label: '任务',
     href: '/projects/[id]/tasks',
     icon: CheckSquare,
+  },
+  {
+    id: 'roadmap',
+    label: '排期',
+    href: '/projects/[id]/roadmap',
+    icon: Calendar,
   },
   {
     id: 'data',

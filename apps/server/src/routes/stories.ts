@@ -27,6 +27,7 @@ const updateStorySchema = z.object({
   tags: z.array(z.string()).optional(),
   order: z.number().optional(),
   position: z.object({ x: z.number(), y: z.number() }).optional(),
+  milestoneId: z.string().nullable().optional(),
 });
 
 const updateStatusSchema = z.object({

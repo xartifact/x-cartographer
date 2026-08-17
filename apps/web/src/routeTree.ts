@@ -16,6 +16,7 @@ import { ProjectOverviewPage } from './routes/projects/$projectId.index';
 import { RequirementsRoutePage } from './routes/projects/$projectId.requirements';
 import { StoryMapRoutePage } from './routes/projects/$projectId.story-map';
 import { TasksRoutePage } from './routes/projects/$projectId.tasks';
+import { RoadmapRoutePage } from './routes/projects/$projectId.roadmap';
 import { DataRoutePage } from './routes/projects/$projectId.data';
 
 export interface RouterContext {
@@ -76,6 +77,12 @@ const projectTasksRoute = createRoute({
   component: TasksRoutePage,
 });
 
+const projectRoadmapRoute = createRoute({
+  getParentRoute: () => projectLayoutRoute,
+  path: '/roadmap',
+  component: RoadmapRoutePage,
+});
+
 const projectDataRoute = createRoute({
   getParentRoute: () => projectLayoutRoute,
   path: '/data',
@@ -92,6 +99,7 @@ const routeTree = rootRoute.addChildren([
     projectRequirementsRoute,
     projectStoryMapRoute,
     projectTasksRoute,
+    projectRoadmapRoute,
     projectDataRoute,
   ]),
 ]);

@@ -47,9 +47,20 @@ const TABLE_SQLS = [
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS "milestones" (
+    "id" text PRIMARY KEY NOT NULL,
+    "project_id" text NOT NULL REFERENCES "projects"("id") ON DELETE CASCADE,
+    "name" text NOT NULL,
+    "goal" text DEFAULT '' NOT NULL,
+    "target_date" timestamp with time zone,
+    "status" text DEFAULT 'planned' NOT NULL,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS "user_stories" (
     "id" text PRIMARY KEY NOT NULL,
     "journey_id" text NOT NULL REFERENCES "user_journeys"("id") ON DELETE CASCADE,
+    "milestone_id" text REFERENCES "milestones"("id") ON DELETE SET NULL,
     "title" text NOT NULL,
     "description" text DEFAULT '' NOT NULL,
     "priority" text DEFAULT 'medium' NOT NULL,
@@ -62,6 +73,7 @@ const TABLE_SQLS = [
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
+  `ALTER TABLE "user_stories" ADD COLUMN IF NOT EXISTS "milestone_id" text REFERENCES "milestones"("id") ON DELETE SET NULL`,
   `CREATE TABLE IF NOT EXISTS "tasks" (
     "id" text PRIMARY KEY NOT NULL,
     "story_id" text NOT NULL REFERENCES "user_stories"("id") ON DELETE CASCADE,
@@ -102,8 +114,22 @@ async function openPGlite(pgliteDir: string): Promise<DbInstance> {
   for (let attempt = 1; attempt <= 2; attempt++) {
     fs.mkdirSync(pgliteDir, { recursive: true });
 
+    // 处理 postmaster.pid：仅当对应进程已不存在（真正残留）才删除。
+    // 若进程仍存活（另一实例正持有该库），直接打开会失败 —— 等待重试，
+    // 而非清空数据目录（那是数据丢失的根源）。
     const pidFile = `${pgliteDir}/postmaster.pid`;
     if (fs.existsSync(pidFile)) {
+      const content = fs.readFileSync(pidFile, 'utf-8');
+      const pid = Number.parseInt(content.split('\n')[0] ?? '', 10);
+      const processAlive = Number.isInteger(pid) && pid > 0 && isProcessAlive(pid);
+      if (processAlive) {
+        log.warn('db.lock_held_by_live_process', { pid, path: pidFile });
+        // 等待持有者释放（最多 3 秒），随后重试
+        const { promise, resolve } = Promise.withResolvers<void>();
+        setTimeout(resolve, 3000);
+        await promise;
+        continue;
+      }
       fs.unlinkSync(pidFile);
       log.warn('db.stale_lock_removed', { path: pidFile, attempt });
     }
@@ -117,7 +143,7 @@ async function openPGlite(pgliteDir: string): Promise<DbInstance> {
       }
       return drizzlePglite(pglite, { schema });
     } catch (err) {
-      if (attempt === 1) {
+      if (attempt === 1 && !isLockError(err)) {
         log.warn('db.pgdata_corrupted_resetting', {
           dir: pgliteDir,
           error: err instanceof Error ? err.message : String(err),
@@ -131,6 +157,33 @@ async function openPGlite(pgliteDir: string): Promise<DbInstance> {
   }
   // TypeScript 要求有返回值（实际不可达）
   throw new Error('PGlite 初始化失败');
+}
+
+/**
+ * 检查进程是否存活（跨平台：macOS/Linux 用 kill(pid, 0)，Windows 用 tasklist）
+ */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    // ESRCH = 进程不存在；EPERM = 存在但无权信号（视为存活）
+    return (err as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/**
+ * 判断错误是否因"库被另一进程锁定"——这类错误不应触发清空重置
+ */
+function isLockError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes('lock') ||
+    msg.includes('another process') ||
+    msg.includes('database is being accessed by other users') ||
+    msg.includes('could not open file') ||
+    msg.includes('Permission denied')
+  );
 }
 
 async function initializeDb(): Promise<void> {
