@@ -8,6 +8,7 @@ import { nanoid } from 'nanoid';
 import {
   generateJson,
   getProviderConfig,
+  type ProviderConfig,
 } from '../lib/llm';
 import {
   requirementsAnalysisPrompt,
@@ -113,8 +114,15 @@ export const llmRoutes = new Hono()
       provider: input.provider,
       requirementsChars: input.requirements.length,
     });
-
-    const config = await getProviderConfig(input.provider);
+    let config: ProviderConfig;
+    try {
+      config = await getProviderConfig(input.provider);
+    } catch (err) {
+      return c.json(
+        { error: err instanceof Error ? err.message : 'LLM 未配置' },
+        400,
+      );
+    }
     const result = await generateJson(
       analysisSchema,
       config,
@@ -138,7 +146,15 @@ export const llmRoutes = new Hono()
       scenarios?: unknown[];
     };
 
-    const config = await getProviderConfig(input.provider);
+    let config: ProviderConfig;
+    try {
+      config = await getProviderConfig(input.provider);
+    } catch (err) {
+      return c.json(
+        { error: err instanceof Error ? err.message : 'LLM 未配置' },
+        400,
+      );
+    }
     const result = await generateJson(
       journeysSchema,
       config,
@@ -153,7 +169,15 @@ export const llmRoutes = new Hono()
   .post('/decompose-story', zValidator('json', decomposeStorySchema), async (c) => {
     const input = c.req.valid('json');
 
-    const config = await getProviderConfig(input.provider);
+    let config: ProviderConfig;
+    try {
+      config = await getProviderConfig(input.provider);
+    } catch (err) {
+      return c.json(
+        { error: err instanceof Error ? err.message : 'LLM 未配置' },
+        400,
+      );
+    }
     const raw = await generateJson(
       tasksSchema,
       config,
@@ -224,7 +248,16 @@ export const llmRoutes = new Hono()
       return c.json({ assignments: [], message: '没有需要排期的未排期故事' });
     }
 
-    const config = await getProviderConfig(input.provider);
+    let config: ProviderConfig;
+    try {
+      config = await getProviderConfig(input.provider);
+    } catch (err) {
+      // 未配置 API Key 等:返回 400 让前端可读,而非 500
+      return c.json(
+        { error: err instanceof Error ? err.message : 'LLM 未配置' },
+        400,
+      );
+    }
     const assignmentSchema = z.object({
       assignments: z.array(
         z.object({

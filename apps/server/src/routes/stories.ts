@@ -11,9 +11,9 @@ import { Priority } from '@xpm/shared';
 const createStorySchema = z.object({
   journeyId: z.string(),
   title: z.string(),
-  description: z.string(),
+  description: z.string().default(''),
   priority: z.nativeEnum(Priority),
-  estimation: z.number(),
+  estimation: z.number().default(0),
   acceptanceCriteria: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
 });
