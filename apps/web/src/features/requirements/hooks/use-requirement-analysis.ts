@@ -19,8 +19,8 @@ import type {
   UseScenario,
   JourneySuggestion,
 } from '../types';
-import type { Project } from '@xpm/shared';
-import { LLMProvider } from '@xpm/shared';
+import type { Project } from '@x-cartographer/shared';
+import { LLMProvider } from '@x-cartographer/shared';
 
 // ─── 辅助：获取项目 LLM provider ─────────────────────────────────────────────
 
@@ -69,7 +69,17 @@ export function useRequirementAnalysis() {
         const res = await api.api.llm['analyze-requirements'].$post({
           json: { requirements: inputText, provider },
         });
-        const data = await res.json();
+        const data = (await res.json()) as {
+          error?: string;
+          personas?: Array<{ name?: string; description?: string; goals?: string[] }>;
+          features?: Array<{ name?: string; description?: string; priority?: 'high' | 'medium' | 'low' }>;
+          scenarios?: Array<{
+            name?: string;
+            description?: string;
+            steps?: string[];
+          }>;
+        };
+        if (data.error) throw new Error(data.error);
 
         const personas: UserPersona[] = (data.personas ?? []).map((p) => ({
           name: p.name ?? '',
@@ -135,7 +145,16 @@ export function useRequirementAnalysis() {
       const res = await api.api.llm['generate-journey-suggestions'].$post({
         json: { analysis, provider },
       });
-      const data = await res.json();
+      const data = (await res.json()) as {
+        error?: string;
+        journeys?: Array<{
+          name?: string;
+          description?: string;
+          persona?: string;
+          steps?: Array<{ name?: string }>;
+        }>;
+      };
+      if (data.error) throw new Error(data.error);
 
       const priorities: Array<'high' | 'medium' | 'low'> = ['high', 'medium', 'low'];
 
@@ -147,7 +166,7 @@ export function useRequirementAnalysis() {
         stepCount: j.steps?.length ?? 0,
         priority: priorities[Math.min(idx, 2)],
         adopted: false,
-        suggestedStories: (j.steps ?? []).map((s) => s.name),
+        suggestedStories: (j.steps ?? []).map((s) => s.name ?? ''),
       }));
 
       setJourneySuggestions(suggestions);

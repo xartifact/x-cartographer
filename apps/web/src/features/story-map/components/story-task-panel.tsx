@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { createLogger } from '@/lib/logger';
 import { Plus, Trash2, Wand2, Loader2, Clock, AlertCircle } from 'lucide-react';
-import { Button, Input, Badge, Separator } from '@xpm/ui';
+import { Button, Input, Badge, Separator } from '@x-cartographer/ui';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { useCreateTask, useUpdateTaskStatus, useDeleteTask } from '@/lib/api/hooks';
 import { api } from '@/lib/api/client';
@@ -173,7 +173,20 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
           context,
         },
       });
-      const data = await res.json();
+      const data = (await res.json()) as {
+        error?: string;
+        tasks?: Array<{
+          id: string;
+          title: string;
+          description?: string;
+          type?: TaskType;
+          priority?: TaskPriority;
+          estimation?: number;
+          dependencies?: string[];
+          tags?: string[];
+        }>;
+      };
+      if (data.error) throw new Error(data.error);
 
       // gateway 已完成 id 生成和依赖序号映射，直接使用
       const generated: Task[] = (data.tasks ?? []).map((t) => ({
@@ -181,10 +194,8 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
         story_id: story.id,
         title: t.title,
         description: t.description ?? '',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        type: (t.type as TaskType) ?? TaskTypeEnum.TECHNICAL_TASK,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        priority: (t.priority as TaskPriority) ?? TaskPriorityEnum.P1,
+        type: t.type ?? TaskTypeEnum.TECHNICAL_TASK,
+        priority: t.priority ?? TaskPriorityEnum.P1,
         estimation: t.estimation ?? 2,
         status: TaskStatus.BACKLOG,
         dependencies: t.dependencies ?? [],
