@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { KeyRound, RefreshCw, Copy, Check } from 'lucide-react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@xpm/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@x-cartographer/ui';
 import { toast } from 'sonner';
 import { useApiTokenStatus, useCreateApiToken, useDeleteApiToken } from '@/lib/api/hooks/use-api-token';
 

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-import type { CreateUserJourneyDTO, UpdateUserJourneyDTO } from '@xpm/shared';
+import type { CreateUserJourneyDTO, UpdateUserJourneyDTO } from '@x-cartographer/shared';
 
 /**
  * Journey REST hooks (react-query)

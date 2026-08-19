@@ -1,4 +1,4 @@
-// @xpm/shared - Shared types, Zod schemas, and constants
+// @x-cartographer/shared - Shared types, Zod schemas, and constants
 
 // Core types
 export * from './types/common';

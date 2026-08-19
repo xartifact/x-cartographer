@@ -1,7 +1,7 @@
 import { eq, desc } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { statusChanges } from '../db/schema/status-changes';
-import type { StatusChangeRecord } from '@xpm/shared';
+import type { StatusChangeRecord } from '@x-cartographer/shared';
 
 export class StatusChangeRepository {
   async findByEntityId(entityId: string): Promise<StatusChangeRecord[]> {

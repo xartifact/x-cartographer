@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-import type { CreateMilestoneDTO, UpdateMilestoneDTO } from '@xpm/shared';
+import type { CreateMilestoneDTO, UpdateMilestoneDTO } from '@x-cartographer/shared';
 
 /**
  * Milestone REST hooks (react-query)

@@ -15,10 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@xpm/ui';
-import { Button } from '@xpm/ui';
-import { Input } from '@xpm/ui';
-import { Label } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Button } from '@x-cartographer/ui';
+import { Input } from '@x-cartographer/ui';
+import { Label } from '@x-cartographer/ui';
 import type { Task, TaskType, TaskPriority, Project } from '@/types';
 import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
 

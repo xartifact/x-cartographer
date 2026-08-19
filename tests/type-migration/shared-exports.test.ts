@@ -1,5 +1,5 @@
 /**
- * Verify that @xpm/shared index.ts exports all expected types.
+ * Verify that @x-cartographer/shared index.ts exports all expected types.
  *
  * These are the core types migrated to packages/shared in Phase 2.
  * Tests use static analysis + compile-time import checks.
@@ -18,7 +18,7 @@ const indexFilePath = resolve(
 );
 const indexContent = readFileSync(indexFilePath, 'utf-8');
 
-describe('@xpm/shared index — export declarations', () => {
+describe('@x-cartographer/shared index — export declarations', () => {
   test('exports from types/common', () => {
     expect(indexContent).toContain("export * from './types/common'");
   });
@@ -50,7 +50,7 @@ describe('@xpm/shared index — export declarations', () => {
 
 const typesDir = resolve(__dirname, '../../packages/shared/src/types');
 
-describe('@xpm/shared types — file existence and key exports', () => {
+describe('@x-cartographer/shared types — file existence and key exports', () => {
   test('common.ts exports Priority, TaskPriority, TaskType, TaskStatus enums', () => {
     const content = readFileSync(resolve(typesDir, 'common.ts'), 'utf-8');
     expect(content).toContain('export enum Priority');
@@ -115,7 +115,7 @@ describe('@xpm/shared types — file existence and key exports', () => {
 
 const sharedIndexPath = resolve(__dirname, '../../packages/shared/src/index.ts');
 
-describe('@xpm/shared — runtime import accessibility', () => {
+describe('@x-cartographer/shared — runtime import accessibility', () => {
   test('can import core enums from packages/shared', async () => {
     const shared = await import(sharedIndexPath);
     expect(shared.Priority).toBeDefined();
@@ -156,7 +156,7 @@ describe('@xpm/shared — runtime import accessibility', () => {
 // Property: No circular dependencies in type files
 // ---------------------------------------------------------------------------
 
-describe('@xpm/shared — no circular import issues', () => {
+describe('@x-cartographer/shared — no circular import issues', () => {
   test('index.ts does not contain circular patterns', () => {
     // Simple check: no self-referencing imports
     expect(indexContent).not.toContain("from './index'");

@@ -1,8 +1,8 @@
-// @xpm/gateway - Hono API server 启动入口
+// @x-cartographer/gateway - Hono API server 启动入口
 // 业务路由见 ./app.ts
 
 import { app } from './app';
-import { createLogger } from '@xpm/db';
+import { createLogger } from '@x-cartographer/db';
 
 const log = createLogger('gateway');
 

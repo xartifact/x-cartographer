@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
-import { JourneyRepository } from '@xpm/db';
+import { JourneyRepository } from '@x-cartographer/db';
 
 const createJourneySchema = z.object({
   projectId: z.string(),

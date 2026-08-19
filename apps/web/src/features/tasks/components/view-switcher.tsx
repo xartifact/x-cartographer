@@ -9,7 +9,7 @@
 import * as React from 'react';
 import { Check, LayoutGrid, List, Kanban, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,8 +17,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@xpm/ui';
-import { Checkbox as _Checkbox } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Checkbox as _Checkbox } from '@x-cartographer/ui';
 
 export type ViewType = 'list' | 'board' | 'timeline' | 'kanban';
 

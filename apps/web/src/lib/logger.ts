@@ -1,6 +1,6 @@
 /**
  * 浏览器端日志工具（轻量，无 pino 依赖）
- * 服务端日志由 @xpm/db 的 logger 提供（pino）
+ * 服务端日志由 @x-cartographer/db 的 logger 提供（pino）
  */
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'silent';

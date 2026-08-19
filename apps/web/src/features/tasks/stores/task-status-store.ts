@@ -9,7 +9,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { TaskStatus, StoryStatus } from '@xpm/shared';
+import type { TaskStatus, StoryStatus } from '@x-cartographer/shared';
 
 export {
   TASK_STATUS_OPTIONS,

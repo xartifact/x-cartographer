@@ -11,13 +11,13 @@ import { zhCN } from 'date-fns/locale';
 import { RotateCcw, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@xpm/ui';
-import { Separator } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Separator } from '@x-cartographer/ui';
 import { useStatusHistory, useCreateStatusChange } from '@/lib/api/hooks';
 import { StatusBadge } from './status-badge';
 import type { StatusChangeRecord, TaskStatus, StoryStatus } from '@/types';

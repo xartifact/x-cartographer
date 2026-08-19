@@ -9,8 +9,8 @@ import {
   TaskRepository,
   StatusChangeRepository,
   getProjectRepository,
-} from '@xpm/db';
-import { TaskStatus, TaskType, TaskPriority } from '@xpm/shared';
+} from '@x-cartographer/db';
+import { TaskStatus, TaskType, TaskPriority } from '@x-cartographer/shared';
 
 const createTaskSchema = z.object({
   storyId: z.string(),

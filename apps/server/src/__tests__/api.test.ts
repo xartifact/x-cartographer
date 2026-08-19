@@ -10,7 +10,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { sql } from 'drizzle-orm';
-import { ensureDb } from '@xpm/db';
+import { ensureDb } from '@x-cartographer/db';
 import { createApp } from '../app';
 
 // 强制走 PGlite（若环境里存在 DATABASE_URL，测试会误连 PostgreSQL）

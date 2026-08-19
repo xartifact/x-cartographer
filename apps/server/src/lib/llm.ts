@@ -5,8 +5,8 @@
 import { z } from 'zod';
 import JSON5 from 'json5';
 import { jsonrepair } from 'jsonrepair';
-import { AppSettingsRepository, createLogger } from '@xpm/db';
-import { LLMProvider } from '@xpm/shared';
+import { AppSettingsRepository, createLogger } from '@x-cartographer/db';
+import { LLMProvider } from '@x-cartographer/shared';
 import { piGenerateText } from './pi-adapter';
 import { X_HERALD_DEFAULT_BASE_URL } from './x-herald';
 

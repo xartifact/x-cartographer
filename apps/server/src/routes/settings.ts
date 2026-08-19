@@ -4,8 +4,8 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { AppSettingsRepository } from '@xpm/db';
-import { LLMProvider } from '@xpm/shared';
+import { AppSettingsRepository } from '@x-cartographer/db';
+import { LLMProvider } from '@x-cartographer/shared';
 import { getProviderConfig, testConnection } from '../lib/llm';
 import { nanoid } from 'nanoid';
 const providerSchema = z.nativeEnum(LLMProvider);

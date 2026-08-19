@@ -6,7 +6,7 @@
 
 import { memo } from 'react';
 import { X, Clock, Tag, CheckCircle2, Calendar, Trash2 } from 'lucide-react';
-import { Button, Card, CardHeader, Badge, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from '@xpm/ui';
+import { Button, Card, CardHeader, Badge, Separator, Tabs, TabsContent, TabsList, TabsTrigger } from '@x-cartographer/ui';
 import { StoryTaskPanel } from './story-task-panel';
 import { MilestoneSelect } from '@/features/roadmap/components/milestone-select';
 import type { UserStory } from '@/types/user-story';

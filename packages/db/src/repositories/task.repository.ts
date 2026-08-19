@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { tasks } from '../db/schema/tasks';
-import type { CreateTaskDTO, UpdateTaskDTO } from '@xpm/shared';
+import type { CreateTaskDTO, UpdateTaskDTO } from '@x-cartographer/shared';
 
 export class TaskRepository {
   async findById(id: string) {

@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
 import {
   Map,

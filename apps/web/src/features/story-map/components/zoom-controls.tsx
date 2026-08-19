@@ -6,13 +6,13 @@
 
 import { memo, useCallback, useState, useEffect } from 'react';
 import { ZoomIn, ZoomOut, Focus, Maximize2, Minimize2 } from 'lucide-react';
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { useReactFlow, useStore } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 

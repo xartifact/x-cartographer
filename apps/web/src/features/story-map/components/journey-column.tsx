@@ -7,8 +7,8 @@
 import { memo } from 'react';
 import type { UserJourney, UserStory } from '@/types';
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@xpm/ui';
-import { Badge } from '@xpm/ui';
+import { Card, CardContent } from '@x-cartographer/ui';
+import { Badge } from '@x-cartographer/ui';
 import { Clock, Tag } from 'lucide-react';
 import { Priority } from '@/types';
 

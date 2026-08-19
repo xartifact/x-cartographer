@@ -1,4 +1,4 @@
-// 类型定义导出 — 所有 TOML 相关类型已迁移到 @xpm/shared
+// 类型定义导出 — 所有 TOML 相关类型已迁移到 @x-cartographer/shared
 // 此文件通过重新导出保持向后兼容
 
 export type {
@@ -14,5 +14,5 @@ export type {
   TomlParsedProject,
   Tag,
   ProjectFormData,
-} from '@xpm/shared';
+} from '@x-cartographer/shared';
 

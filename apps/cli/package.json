@@ -1,10 +1,10 @@
 {
-  "name": "@xpm/cli",
+  "name": "@x-cartographer/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "xpm": "./src/index.ts"
+    "xcart": "./src/index.ts"
   },
   "scripts": {
     "dev": "bun run src/index.ts",
@@ -15,6 +15,6 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "@xpm/shared": "workspace:*"
+    "@x-cartographer/shared": "workspace:*"
   }
 }

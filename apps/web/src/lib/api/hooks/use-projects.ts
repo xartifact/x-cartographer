@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-import type { Project, CreateProjectDTO, UpdateProjectDTO } from '@xpm/shared';
+import type { Project, CreateProjectDTO, UpdateProjectDTO } from '@x-cartographer/shared';
 
 /**
  * Project REST hooks (react-query)

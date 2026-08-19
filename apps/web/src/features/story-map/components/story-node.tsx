@@ -8,7 +8,7 @@ import { memo } from 'react';
 import { Handle, Position, NodeProps, type Node } from '@xyflow/react';
 import { Clock, Tag, CheckSquare, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@xpm/ui';
+import { Card, CardContent } from '@x-cartographer/ui';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
 import type { StoryNodeData } from '../types';
 import { Priority } from '@/types';

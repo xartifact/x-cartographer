@@ -18,7 +18,7 @@ import {
   Input,
   Label,
   Textarea,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { useProjectActions } from '../hooks';
 import { toast } from 'sonner';
 

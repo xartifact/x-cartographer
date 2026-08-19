@@ -13,7 +13,7 @@ import { milestonesRoutes } from './routes/milestones';
 import { statusChangesRoutes } from './routes/status-changes';
 import { llmRoutes } from './routes/llm';
 import { settingsRoutes } from './routes/settings';
-import { createLogger } from '@xpm/db';
+import { createLogger } from '@x-cartographer/db';
 import { apiTokenAuth } from './middleware/auth';
 const log = createLogger('gateway');
 

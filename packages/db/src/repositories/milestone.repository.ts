@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { milestones } from '../db/schema/milestones';
-import type { CreateMilestoneDTO, UpdateMilestoneDTO } from '@xpm/shared';
+import type { CreateMilestoneDTO, UpdateMilestoneDTO } from '@x-cartographer/shared';
 
 export class MilestoneRepository {
   async findByProjectId(projectId: string) {

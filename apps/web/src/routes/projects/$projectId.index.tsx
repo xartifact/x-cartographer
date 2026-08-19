@@ -1,7 +1,7 @@
 import { useParams } from '@tanstack/react-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Upload, Download, FileText } from 'lucide-react';
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import { useProject, useSaveFullProject } from '@/lib/api/hooks';
 import { ImportDialog } from '@/features/projects/components/import-dialog';
 import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';

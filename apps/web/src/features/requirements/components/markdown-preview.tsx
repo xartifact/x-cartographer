@@ -7,7 +7,7 @@
 
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@xpm/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
 
 interface MarkdownPreviewProps {

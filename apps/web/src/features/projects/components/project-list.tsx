@@ -31,7 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Input,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { useProjectStore, selectSearchQuery } from '@/features/projects/stores';
 import { useProjectActions } from '../hooks';
 import { formatRelativeTime } from '@/utils/format';
@@ -43,7 +43,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { nanoid } from 'nanoid';
 import { ProjectCreateDialog } from './project-create-dialog';
 import { ProjectEditDialog } from './project-edit-dialog';
-import { LLMProvider, type Priority, type Project } from '@xpm/shared';
+import { LLMProvider, type Priority, type Project } from '@x-cartographer/shared';
 
 
 /**

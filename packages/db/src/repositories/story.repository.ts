@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { userStories } from '../db/schema/user-stories';
-import type { CreateUserStoryDTO, UpdateUserStoryDTO } from '@xpm/shared';
+import type { CreateUserStoryDTO, UpdateUserStoryDTO } from '@x-cartographer/shared';
 
 export class StoryRepository {
   async findById(id: string) {

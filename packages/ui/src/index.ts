@@ -1,4 +1,4 @@
-// @xpm/ui - shadcn 风格组件库
+// @x-cartographer/ui - shadcn 风格组件库
 export { cn } from './cn';
 
 export { Badge, badgeVariants } from './badge';

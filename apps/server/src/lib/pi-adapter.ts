@@ -9,7 +9,7 @@
  */
 
 import { createAgentSession, ModelRuntime, SessionManager } from '@earendil-works/pi-coding-agent';
-import { createLogger } from '@xpm/db';
+import { createLogger } from '@x-cartographer/db';
 import { discoverModels, buildXHeraldProviderConfig, X_HERALD_DEFAULT_BASE_URL } from './x-herald';
 
 const log = createLogger('pi-adapter');

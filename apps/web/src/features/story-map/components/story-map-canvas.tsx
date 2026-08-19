@@ -38,8 +38,8 @@ import { useStoryMapStore, filterStories } from '../stores/story-map-store';
 import { useMilestonesByProject } from '@/lib/api/hooks';
 import { Priority, UserJourney, UserStory } from '@/types';
 import { cn } from '@/lib/utils';
-import { Button } from '@xpm/ui';
-import { Card, CardHeader } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
+import { Card, CardHeader } from '@x-cartographer/ui';
 import {
   Dialog,
   DialogContent,
@@ -47,14 +47,14 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import {
   useCreateStory,
   useUpdateStory,

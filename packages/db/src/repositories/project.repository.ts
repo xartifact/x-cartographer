@@ -9,11 +9,11 @@ import type {
   CreateProjectDTO,
   UpdateProjectDTO,
   ProjectSettings,
-} from '@xpm/shared';
-import type { UserJourney } from '@xpm/shared';
-import type { UserStory } from '@xpm/shared';
-import type { Task } from '@xpm/shared';
-import { LLMProvider } from '@xpm/shared';
+} from '@x-cartographer/shared';
+import type { UserJourney } from '@x-cartographer/shared';
+import type { UserStory } from '@x-cartographer/shared';
+import type { Task } from '@x-cartographer/shared';
+import { LLMProvider } from '@x-cartographer/shared';
 
 function safeDate(value: unknown): Date {
   if (!value) return new Date();

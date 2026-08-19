@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
   Textarea,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { Loader2, Sparkles, Save, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-import type { Priority, StoryStatus } from '@xpm/shared';
+import type { Priority, StoryStatus } from '@x-cartographer/shared';
 
 /**
  * Story REST hooks (react-query)

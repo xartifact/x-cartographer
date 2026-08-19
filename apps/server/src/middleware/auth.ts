@@ -2,7 +2,7 @@
 // 设计：token 未配置时放行（本地开发），配置后写操作需 Bearer Token
 
 import { Hono, type MiddlewareHandler } from 'hono';
-import { AppSettingsRepository } from '@xpm/db';
+import { AppSettingsRepository } from '@x-cartographer/db';
 
 const repo = new AppSettingsRepository();
 

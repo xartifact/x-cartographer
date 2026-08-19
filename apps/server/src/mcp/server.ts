@@ -7,15 +7,15 @@
 //   - 配置到 Claude Code: mcpServers: { "x-cartographer": { command: "bun", args: ["run", "src/mcp/server.ts"], cwd: "<repo>/apps/server" } }
 //
 // 环境变量：
-//   XPM_API_URL - gateway 地址（默认 http://localhost:8787）
-//   XPM_API_TOKEN - API Token（若 gateway 已启用认证；未配置时无需）
+//   XCART_API_URL - gateway 地址（默认 http://localhost:8787）
+//   XCART_API_TOKEN - API Token（若 gateway 已启用认证；未配置时无需）
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
-const API_URL = process.env.XPM_API_URL ?? 'http://localhost:8787';
-const API_TOKEN = process.env.XPM_API_TOKEN ?? '';
+const API_URL = process.env.XCART_API_URL ?? 'http://localhost:8787';
+const API_TOKEN = process.env.XCART_API_TOKEN ?? '';
 
 async function api(path: string, options: { method?: string; body?: unknown } = {}) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

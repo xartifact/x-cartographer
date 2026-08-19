@@ -6,17 +6,17 @@
 
 import { memo, useState } from 'react';
 import { Search, FilterX, ChevronDown, ChevronUp } from 'lucide-react';
-import { Button } from '@xpm/ui';
-import { Input } from '@xpm/ui';
-import { Checkbox } from '@xpm/ui';
-import { Badge } from '@xpm/ui';
-import { Card, CardContent, CardHeader, CardTitle } from '@xpm/ui';
-import { Separator } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
+import { Input } from '@x-cartographer/ui';
+import { Checkbox } from '@x-cartographer/ui';
+import { Badge } from '@x-cartographer/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
+import { Separator } from '@x-cartographer/ui';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { useStoryMapStore } from '../stores/story-map-store';
 import { Priority, StoryStatus } from '@/types';
 import { UserJourney } from '@/types/user-journey';

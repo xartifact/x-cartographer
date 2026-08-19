@@ -15,7 +15,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import {
   TaskList,
   StatusFilterBar,

@@ -1,5 +1,5 @@
 {
-  "name": "@xpm/gateway",
+  "name": "@x-cartographer/gateway",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,8 +19,8 @@
     "@earendil-works/pi-coding-agent": "^0.84.2",
     "@hono/zod-validator": "^0.7.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@xpm/db": "workspace:*",
-    "@xpm/shared": "workspace:*",
+    "@x-cartographer/db": "workspace:*",
+    "@x-cartographer/shared": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.0.0",
     "json5": "^2.2.3",

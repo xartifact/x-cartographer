@@ -20,9 +20,9 @@ import {
   Input,
   Label,
   Separator,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { api } from '@/lib/api/client';
-import { LLMProvider } from '@xpm/shared';
+import { LLMProvider } from '@x-cartographer/shared';
 
 // ─── 单个供应商卡片 ───────────────────────────────────────────────────────────
 

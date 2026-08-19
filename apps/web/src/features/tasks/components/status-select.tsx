@@ -15,8 +15,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@xpm/ui';
-import { Button } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Button } from '@x-cartographer/ui';
 import { StatusIndicator, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from './status-badge';
 import { TaskStatus, type StoryStatus } from '@/types';
 

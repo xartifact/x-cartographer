@@ -6,7 +6,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { StatusBadge } from './status-badge';
 import type { TaskStatus, StoryStatus } from '@/types';
 

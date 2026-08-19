@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-import type { TaskStatus, TaskType, TaskPriority } from '@xpm/shared';
+import type { TaskStatus, TaskType, TaskPriority } from '@x-cartographer/shared';
 
 /**
  * Task REST hooks (react-query)

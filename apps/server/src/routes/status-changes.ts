@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
-import { StatusChangeRepository } from '@xpm/db';
+import { StatusChangeRepository } from '@x-cartographer/db';
 
 const createStatusChangeSchema = z.object({
   entityId: z.string(),

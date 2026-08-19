@@ -1,4 +1,4 @@
-// @xpm/db - Data layer: schema, client, repositories, logger
+// @x-cartographer/db - Data layer: schema, client, repositories, logger
 
 // Database schema
 export * from './db/schema';

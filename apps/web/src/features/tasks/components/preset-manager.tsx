@@ -18,9 +18,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createLogger } from '@/lib/logger';
-import { Button } from '@xpm/ui';
-import { Input } from '@xpm/ui';
-import { Badge } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
+import { Input } from '@x-cartographer/ui';
+import { Badge } from '@x-cartographer/ui';
 import {
   Dialog,
   DialogContent,
@@ -28,15 +28,15 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@xpm/ui';
-import { Separator } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Separator } from '@x-cartographer/ui';
 import { TaskStatus, Priority } from '@/types';
 import type { StoryStatus } from '@/types';
 

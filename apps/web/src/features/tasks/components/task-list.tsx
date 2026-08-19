@@ -16,17 +16,17 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@xpm/ui';
-import { Card, CardContent } from '@xpm/ui';
-import { Checkbox } from '@xpm/ui';
-import { Badge } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
+import { Card, CardContent } from '@x-cartographer/ui';
+import { Checkbox } from '@x-cartographer/ui';
+import { Badge } from '@x-cartographer/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { StatusFilterBar } from './status-filter';
 import { StatusBadge, TASK_STATUS_OPTIONS } from './status-badge';
 import type { Task, TaskStatus, TaskPriority, StoryStatus } from '@/types';

@@ -16,7 +16,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import {
   User,
   Lightbulb,

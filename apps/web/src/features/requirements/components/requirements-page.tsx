@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { Grid3X3 } from 'lucide-react';
 
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import { useRequirementAnalysis } from '../hooks/use-requirement-analysis';
 import { useDraftAutosave } from '../hooks/use-draft-autosave';
 import { RequirementInput } from './requirement-input';
@@ -16,8 +16,8 @@ import { JourneySuggestions } from './journey-suggestions';
 import { useProject, useSaveFullProject } from '@/lib/api/hooks';
 import { cn } from '@/lib/utils';
 import { nanoid } from 'nanoid';
-import type { UserJourney, UserStory, Project } from '@xpm/shared';
-import { Priority } from '@xpm/shared';
+import type { UserJourney, UserStory, Project } from '@x-cartographer/shared';
+import { Priority } from '@x-cartographer/shared';
 import type { JourneySuggestion } from '../types';
 
 type ViewMode = 'split' | 'input' | 'result';

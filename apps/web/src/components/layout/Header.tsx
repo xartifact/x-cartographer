@@ -2,8 +2,8 @@
 
 import { Link } from '@tanstack/react-router';
 import { Search, Bell, Menu, User, Settings, LogOut } from 'lucide-react';
-import { Button } from '@xpm/ui';
-import { Input } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
+import { Input } from '@x-cartographer/ui';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,13 +11,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
 import { HeaderProps } from './types';
 

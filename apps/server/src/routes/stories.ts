@@ -5,8 +5,8 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
-import { StoryRepository, StatusChangeRepository } from '@xpm/db';
-import { Priority } from '@xpm/shared';
+import { StoryRepository, StatusChangeRepository } from '@x-cartographer/db';
+import { Priority } from '@x-cartographer/shared';
 
 const createStorySchema = z.object({
   journeyId: z.string(),

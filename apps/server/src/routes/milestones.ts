@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
-import { MilestoneRepository } from '@xpm/db';
+import { MilestoneRepository } from '@x-cartographer/db';
 
 const milestoneStatusSchema = z.enum(['planned', 'active', 'completed']);
 

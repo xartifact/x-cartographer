@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@xpm/ui';
+import { Badge, Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
 import { UserJourney } from '@/types';
 import { StoryCard } from './story-card';
 import { cn } from '@/lib/utils';

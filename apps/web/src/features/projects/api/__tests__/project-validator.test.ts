@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Project } from '@/types';
-import type { LLMProvider } from '@xpm/shared';
+import type { LLMProvider } from '@x-cartographer/shared';
 import {
   validateProject,
   validateProjectName,

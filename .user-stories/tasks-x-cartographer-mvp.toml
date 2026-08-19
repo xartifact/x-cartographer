@@ -1685,7 +1685,7 @@ tags = ["AI集成", "MCP", "更新"]
 [[tasks]]
 id = "TASK-143"
 title = "实现 CLI 项目/故事查询"
-description = "@xpm/cli 支持项目列表/查看、故事查询（含排期信息）"
+description = "@x-cartographer/cli 支持项目列表/查看、故事查询（含排期信息）"
 type = "technical_task"
 priority = "P2"
 estimation = 3
@@ -1697,7 +1697,7 @@ tags = ["AI集成", "CLI"]
 [[tasks]]
 id = "TASK-144"
 title = "实现 CLI 任务/版本操作"
-description = "@xpm/cli 支持任务查询/状态更新、版本列表，输出脚本可解析格式"
+description = "@x-cartographer/cli 支持任务查询/状态更新、版本列表，输出脚本可解析格式"
 type = "technical_task"
 priority = "P2"
 estimation = 5

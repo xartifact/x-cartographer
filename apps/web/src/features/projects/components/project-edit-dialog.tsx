@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { FolderOpen } from 'lucide-react';
-import type { Project } from '@xpm/shared';
+import type { Project } from '@x-cartographer/shared';
 import { validateProjectName } from '@/features/projects/api';
 import {
   Button,
@@ -19,7 +19,7 @@ import {
   Input,
   Label,
   Textarea,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { useProjectActions } from '../hooks';
 import { toast } from 'sonner';
 

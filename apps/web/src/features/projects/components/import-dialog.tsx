@@ -18,7 +18,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 import { parseTomlFile, parseTomlStoryMap } from '@/lib/toml';
 import { validateTomlStoryMap, formatValidationErrors } from '@/lib/toml/validator';
 import type { TomlStoryMap } from '@/features/projects/types';

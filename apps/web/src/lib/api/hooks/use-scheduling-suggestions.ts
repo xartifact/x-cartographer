@@ -2,7 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-import { LLMProvider } from '@xpm/shared';
+import { LLMProvider } from '@x-cartographer/shared';
 
 /**
  * AI 排期建议 hooks

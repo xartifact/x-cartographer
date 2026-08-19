@@ -16,9 +16,9 @@ import {
   taskBreakdownPrompt,
   schedulingSuggestionPrompt,
 } from '../lib/prompts';
-import { LLMProvider } from '@xpm/shared';
-import { createLogger } from '@xpm/db';
-import { MilestoneRepository, StoryRepository, getProjectRepository } from '@xpm/db';
+import { LLMProvider } from '@x-cartographer/shared';
+import { createLogger } from '@x-cartographer/db';
+import { MilestoneRepository, StoryRepository, getProjectRepository } from '@x-cartographer/db';
 
 const log = createLogger('llm-route');
 

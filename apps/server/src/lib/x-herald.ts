@@ -7,7 +7,7 @@
  *  - 供 ModelRuntime.registerProvider 注册，实现网关模型变化自动适配
  */
 
-import { createLogger } from '@xpm/db';
+import { createLogger } from '@x-cartographer/db';
 
 const log = createLogger('x-herald');
 

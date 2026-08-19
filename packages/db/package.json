@@ -1,5 +1,5 @@
 {
-  "name": "@xpm/db",
+  "name": "@x-cartographer/db",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.4.3",
-    "@xpm/shared": "workspace:*",
+    "@x-cartographer/shared": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "postgres": "^3.4.3",
     "pino": "^8.17.2"

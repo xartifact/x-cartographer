@@ -6,7 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle2, Database } from 'lucide-react';
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import {
   Dialog,
   DialogContent,
@@ -14,9 +14,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@xpm/ui';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@xpm/ui';
-import { Badge } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@x-cartographer/ui';
+import { Badge } from '@x-cartographer/ui';
 import { parseTaskTomlFile, getTaskStats, type TomlTaskFile } from '@/lib/toml/task-parser';
 import type { AppTask } from '@/lib/toml/task-parser';
 

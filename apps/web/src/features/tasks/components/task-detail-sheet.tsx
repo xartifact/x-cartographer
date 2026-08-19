@@ -30,9 +30,9 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from '@xpm/ui';
-import { Badge } from '@xpm/ui';
-import { Separator } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Badge } from '@x-cartographer/ui';
+import { Separator } from '@x-cartographer/ui';
 import { StatusBadge } from './status-badge';
 import { cn } from '@/lib/utils';
 import type { Task, TaskStatus } from '@/types';

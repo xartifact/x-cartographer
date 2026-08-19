@@ -15,7 +15,7 @@ import {
   useDeleteProject,
 } from '@/lib/api/hooks';
 import { toast } from 'sonner';
-import type { CreateProjectDTO, UpdateProjectDTO, Project } from '@xpm/shared';
+import type { CreateProjectDTO, UpdateProjectDTO, Project } from '@x-cartographer/shared';
 
 /**
  * 项目操作 Hook — 基于 lib/api hooks（gateway REST）

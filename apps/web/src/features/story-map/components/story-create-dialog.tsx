@@ -15,11 +15,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@xpm/ui';
-import { Button } from '@xpm/ui';
-import { Input } from '@xpm/ui';
-import { Label } from '@xpm/ui';
-import { Textarea } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Button } from '@x-cartographer/ui';
+import { Input } from '@x-cartographer/ui';
+import { Label } from '@x-cartographer/ui';
+import { Textarea } from '@x-cartographer/ui';
 import { Priority } from '@/types';
 
 interface StoryCreateDialogProps {

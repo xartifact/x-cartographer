@@ -1,9 +1,9 @@
 /**
  * Verify backward compatibility of type re-exports.
  *
- * After migrating types to @xpm/shared, the old import paths should still work:
- * - `@/types` → re-exports from @xpm/shared
- * - `@/features/projects/types` → named re-exports of TOML types from @xpm/shared
+ * After migrating types to @x-cartographer/shared, the old import paths should still work:
+ * - `@/types` → re-exports from @x-cartographer/shared
+ * - `@/features/projects/types` → named re-exports of TOML types from @x-cartographer/shared
  *
  * This ensures existing code using old import paths doesn't break.
  */
@@ -25,17 +25,17 @@ const projectReexportPath = resolve(__dirname, '../../apps/web/src/types/project
 const projectReexportContent = readFileSync(projectReexportPath, 'utf-8');
 
 describe('Backward compatibility — @/types re-export', () => {
-  test('@/types/index.ts exists and re-exports from @xpm/shared', () => {
-    expect(typesIndexContent).toContain("export * from '@xpm/shared'");
+  test('@/types/index.ts exists and re-exports from @x-cartographer/shared', () => {
+    expect(typesIndexContent).toContain("export * from '@x-cartographer/shared'");
   });
 
   test('@/types/index.ts has migration comment', () => {
-    expect(typesIndexContent).toContain('@xpm/shared');
+    expect(typesIndexContent).toContain('@x-cartographer/shared');
     expect(typesIndexContent).toContain('向后兼容'); // "backward compatibility"
   });
 
-  test('@/types/project.ts exists and re-exports from @xpm/shared', () => {
-    expect(projectReexportContent).toContain("export * from '@xpm/shared'");
+  test('@/types/project.ts exists and re-exports from @x-cartographer/shared', () => {
+    expect(projectReexportContent).toContain("export * from '@x-cartographer/shared'");
   });
 });
 
@@ -65,12 +65,12 @@ describe('Backward compatibility — @/features/projects/types re-export', () =>
     expect(projectsTypesContent).toContain('ProjectFormData');
   });
 
-  test('all re-exports source from @xpm/shared', () => {
-    expect(projectsTypesContent).toContain("from '@xpm/shared'");
+  test('all re-exports source from @x-cartographer/shared', () => {
+    expect(projectsTypesContent).toContain("from '@x-cartographer/shared'");
   });
 
   test('has migration comment explaining the proxy pattern', () => {
-    expect(projectsTypesContent).toContain('@xpm/shared');
+    expect(projectsTypesContent).toContain('@x-cartographer/shared');
     expect(projectsTypesContent).toContain('向后兼容');
   });
 });
@@ -86,7 +86,7 @@ const sharedPath = resolve(__dirname, '../../packages/shared/src/index.ts');
 describe('Backward compatibility — runtime module resolution', () => {
   test('@/types resolves and exports core types', async () => {
     // This verifies the path alias @/types resolves to the re-export file
-    // and that it successfully re-exports from @xpm/shared
+    // and that it successfully re-exports from @x-cartographer/shared
     const types = await import(typesPath);
     expect(types).toBeDefined();
     // Should have runtime exports (enums, constants)
@@ -111,7 +111,7 @@ describe('Backward compatibility — runtime module resolution', () => {
     const projectReexportPath = resolve(__dirname, '../../apps/web/src/types/project.ts');
     const projectTypes = await import(projectReexportPath);
     expect(projectTypes).toBeDefined();
-    expect(projectTypes.TaskStatus).toBeDefined(); // inherited from @xpm/shared
+    expect(projectTypes.TaskStatus).toBeDefined(); // inherited from @x-cartographer/shared
   });
 });
 
@@ -119,7 +119,7 @@ describe('Backward compatibility — runtime module resolution', () => {
 // Property: Re-export completeness — all shared types accessible via old paths
 // ---------------------------------------------------------------------------
 
-describe('Property: Re-export parity — @/types exposes same as @xpm/shared', () => {
+describe('Property: Re-export parity — @/types exposes same as @x-cartographer/shared', () => {
   test('both modules load without error', async () => {
     const shared = await import(sharedPath);
     const local = await import(typesPath);
@@ -128,7 +128,7 @@ describe('Property: Re-export parity — @/types exposes same as @xpm/shared', (
     expect(typeof local).toBe('object');
   });
 
-  test('runtime exports from @/types match @xpm/shared', async () => {
+  test('runtime exports from @/types match @x-cartographer/shared', async () => {
     const shared = await import(sharedPath);
     const local = await import(typesPath);
 

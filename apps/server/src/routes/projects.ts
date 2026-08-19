@@ -5,8 +5,8 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
-import { getProjectRepository } from '@xpm/db';
-import type { Project } from '@xpm/shared';
+import { getProjectRepository } from '@x-cartographer/db';
+import type { Project } from '@x-cartographer/shared';
 const createProjectSchema = z.object({
   name: z.string(),
   description: z.string().optional(),

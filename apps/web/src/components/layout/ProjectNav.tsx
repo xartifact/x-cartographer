@@ -10,7 +10,7 @@ import {
   Calendar,
   Database,
 } from 'lucide-react';
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
 import { ProjectNavProps } from './types';
 import {
@@ -18,7 +18,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@xpm/ui';
+} from '@x-cartographer/ui';
 
 // 默认项目内导航项配置
 const defaultProjectNavItems: ProjectNavProps['items'] = [

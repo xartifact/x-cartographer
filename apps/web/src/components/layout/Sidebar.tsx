@@ -3,7 +3,7 @@
 import { Link } from '@tanstack/react-router';
 import { useLocation } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { Button } from '@xpm/ui';
+import { Button } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
 import { SidebarProps, NavItem } from './types';
 import { projectNavItems } from './navigation';

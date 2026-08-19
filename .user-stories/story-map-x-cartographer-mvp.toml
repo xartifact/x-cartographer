@@ -588,7 +588,7 @@ acceptance_criteria = [
   "基于 @modelcontextprotocol/sdk 实现 MCP Server",
   "提供项目/旅程/故事/任务/版本查询工具",
   "提供故事/任务/版本更新工具",
-  "复用 @xpm/shared 类型与 Repository",
+  "复用 @x-cartographer/shared 类型与 Repository",
   "AI 代理可连接并调用"
 ]
 tags = ["AI集成", "MCP", "被AI集成"]
@@ -596,15 +596,15 @@ tags = ["AI集成", "MCP", "被AI集成"]
 [[user_journeys.stories]]
 id = "US-046"
 title = "作为开发者，我想要通过 CLI 操作产品数据，以便脚本化与终端工作流集成"
-description = "@xpm/cli 从空壳变为可用工具：查询项目/故事/任务、更新任务状态、列出版本"
+description = "@x-cartographer/cli 从空壳变为可用工具：查询项目/故事/任务、更新任务状态、列出版本"
 priority = "medium"
 status = "done"
 estimation = 8
 acceptance_criteria = [
-  "xpm 命令支持项目列表/查看",
-  "xpm 命令支持故事/任务查询",
-  "xpm 命令支持更新任务状态",
-  "xpm 命令支持版本列表",
+  "xcart 命令支持项目列表/查看",
+  "xcart 命令支持故事/任务查询",
+  "xcart 命令支持更新任务状态",
+  "xcart 命令支持版本列表",
   "输出适合脚本解析的格式"
 ]
 tags = ["AI集成", "CLI"]

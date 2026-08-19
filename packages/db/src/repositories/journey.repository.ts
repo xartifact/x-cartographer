@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { userJourneys } from '../db/schema/user-journeys';
-import type { CreateUserJourneyDTO, UpdateUserJourneyDTO } from '@xpm/shared';
+import type { CreateUserJourneyDTO, UpdateUserJourneyDTO } from '@x-cartographer/shared';
 
 export class JourneyRepository {
   async findByProjectId(projectId: string) {

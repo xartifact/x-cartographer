@@ -10,7 +10,7 @@
 
 import { useMemo, useState } from 'react';
 import { Plus, Calendar as CalendarIcon, Sparkles, Check, Loader2 } from 'lucide-react';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@xpm/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
 import { useProject, useUpdateStory } from '@/lib/api/hooks';
 import {
   useMilestonesByProject,
@@ -19,7 +19,7 @@ import {
   useDeleteMilestone,
 } from '@/lib/api/hooks';
 import { useSchedulingSuggestions, type SchedulingAssignment } from '@/lib/api/hooks/use-scheduling-suggestions';
-import { LLMProvider } from '@xpm/shared';
+import { LLMProvider } from '@x-cartographer/shared';
 import { MilestoneDialog } from './components/milestone-dialog';
 
 interface RoadmapPageProps {

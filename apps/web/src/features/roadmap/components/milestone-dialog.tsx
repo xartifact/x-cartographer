@@ -13,8 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@xpm/ui';
-import { Button, Input, Label, Textarea } from '@xpm/ui';
+} from '@x-cartographer/ui';
+import { Button, Input, Label, Textarea } from '@x-cartographer/ui';
 
 export type MilestoneStatus = 'planned' | 'active' | 'completed';
 
