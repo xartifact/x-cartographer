@@ -43,7 +43,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { nanoid } from 'nanoid';
 import { ProjectCreateDialog } from './project-create-dialog';
 import { ProjectEditDialog } from './project-edit-dialog';
-import { LLMProvider, type Priority, type Project } from '@x-cartographer/shared';
+import { type Priority, type Project } from '@x-cartographer/shared';
 
 
 /**
@@ -493,7 +493,6 @@ export default function ProjectListPage() {
         tags: [],
       },
       settings: {
-        llm_provider: LLMProvider.OPENAI,
         auto_save: true,
         display_preferences: {
           show_priority_colors: true,

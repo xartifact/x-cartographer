@@ -289,7 +289,6 @@ export function StoryMapCanvas({
       name: '',
       metadata: { tech_stack: [], version: '', tags: [] },
       settings: {
-        llm_provider: undefined as never,
         auto_save: true,
         display_preferences: {
           show_priority_colors: true,
@@ -1045,15 +1044,6 @@ export function StoryMapCanvas({
               <Button size="sm" onClick={() => setJourneyCreateOpen(true)}>
                 <Plus className="mr-1.5 h-4 w-4" />
                 添加旅程
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  navigate({ to: `/projects/$projectId/requirements`, params: { projectId } })
-                }
-              >
-                前往需求分析
               </Button>
             </div>
           </div>

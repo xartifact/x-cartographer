@@ -2,7 +2,7 @@
  * 项目相关类型定义
  */
 
-import { Timestamp, LLMProvider } from './common';
+import { Timestamp } from './common';
 import { UserJourney } from './user-journey';
 
 /**
@@ -61,8 +61,6 @@ export interface ProjectMetadata {
  * 项目设置
  */
 export interface ProjectSettings {
-  /** LLM 提供商 */
-  llm_provider: LLMProvider;
 
   /** 自动保存 */
   auto_save: boolean;

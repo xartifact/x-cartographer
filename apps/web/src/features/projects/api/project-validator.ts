@@ -44,13 +44,6 @@ export function validateProject(project: Project): ValidationResult {
     }
   }
 
-  // 验证设置
-  if (project.settings) {
-    if (!project.settings.llm_provider) {
-      errors.push('LLM provider is required');
-    }
-  }
-
   // 验证用户旅程
   if (project.user_journeys) {
     project.user_journeys.forEach((journey, index) => {
@@ -103,36 +96,6 @@ export function validateProjectDescription(description: string): ValidationResul
 
   if (description && description.length > 1000) {
     errors.push('Description must be 1000 characters or less');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
-
-/**
- * 验证 LLM 设置
- */
-export function validateLLMSettings(settings: {
-  provider: string;
-  model: string;
-  apiKey?: string;
-}): ValidationResult {
-  const errors: string[] = [];
-
-  if (!settings.provider) {
-    errors.push('LLM provider is required');
-  }
-
-  if (!settings.model) {
-    errors.push('LLM model is required');
-  }
-
-  if (settings.apiKey !== undefined) {
-    if (settings.apiKey.length === 0) {
-      errors.push('API key cannot be empty');
-    }
   }
 
   return {

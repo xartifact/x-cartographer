@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { Project } from '@/types';
-import type { LLMProvider } from '@x-cartographer/shared';
 import {
   validateProject,
   validateProjectName,
   validateProjectDescription,
-  validateLLMSettings,
 } from '../project-validator';
 
 function makeProject(overrides: Partial<Project> = {}): Project {
@@ -18,7 +16,6 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     user_journeys: [],
     metadata: { tech_stack: [], version: '1.0', tags: [] },
     settings: {
-      llm_provider: 'openai' as LLMProvider,
       auto_save: true,
       display_preferences: { show_priority_colors: true, show_estimation: true, default_view: 'map' },
     },
@@ -60,18 +57,6 @@ describe('validateProject', () => {
     expect(result.errors).toContain('Tech stack must be an array');
   });
 
-  it('settings 存在但缺 llm_provider 时报错', () => {
-    const result = validateProject(
-      makeProject({
-        settings: {
-          llm_provider: '' as Project['settings']['llm_provider'],
-          auto_save: true,
-          display_preferences: { show_priority_colors: true, show_estimation: true, default_view: 'map' },
-        },
-      })
-    );
-    expect(result.errors).toContain('LLM provider is required');
-  });
 
   it('用户旅程缺 id/name 时报错并标注索引', () => {
     const result = validateProject(
@@ -164,19 +149,3 @@ describe('validateProjectDescription', () => {
   });
 });
 
-describe('validateLLMSettings', () => {
-  it('完整设置通过', () => {
-    expect(validateLLMSettings({ provider: 'openai', model: 'gpt-4' }).valid).toBe(true);
-  });
-
-  it('缺少 provider 或 model 报错', () => {
-    const result = validateLLMSettings({ provider: '', model: '' });
-    expect(result.errors).toContain('LLM provider is required');
-    expect(result.errors).toContain('LLM model is required');
-  });
-
-  it('空 apiKey 报错', () => {
-    const result = validateLLMSettings({ provider: 'openai', model: 'gpt-4', apiKey: '' });
-    expect(result.errors).toContain('API key cannot be empty');
-  });
-});

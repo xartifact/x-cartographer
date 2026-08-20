@@ -6,6 +6,7 @@ import { uniqueProjectName } from './helpers';
  *
  * - 版本创建依赖 Dialog（DIALOG_BUG_FIXED=true 已启用）
  * - 项目/版本数据通过 gateway REST API 直接创建，聚焦 Roadmap 页自身行为
+ * - 内置 AI（排期建议）已移除，智能由外部 Agent 驱动
  */
 
 test.describe('排期规划', () => {
@@ -27,10 +28,7 @@ test.describe('排期规划', () => {
       page.getByText('按版本组织交付计划，未排期故事进入待规划池'),
     ).toBeVisible();
 
-    // 核心按钮:AI 排期建议 + 新建版本
-    await expect(
-      page.getByRole('button', { name: 'AI 排期建议' }),
-    ).toBeVisible();
+    // 核心按钮:新建版本（AI 排期建议已移除）
     await expect(
       page.getByRole('button', { name: '新建版本' }),
     ).toBeVisible();

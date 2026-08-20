@@ -39,13 +39,7 @@ export declare enum TaskStatus {
     DONE = "done",
     CANCELLED = "cancelled"
 }
-/**
- * LLM 提供商
- */
-export declare enum LLMProvider {
-    OPENAI = "openai",
-    ANTHROPIC = "anthropic"
-}
+
 /**
  * 时间戳类型 (ISO 8601 格式)
  */

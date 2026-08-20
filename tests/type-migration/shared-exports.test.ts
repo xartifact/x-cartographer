@@ -57,7 +57,6 @@ describe('@x-cartographer/shared types — file existence and key exports', () =
     expect(content).toContain('export enum TaskPriority');
     expect(content).toContain('export enum TaskType');
     expect(content).toContain('export enum TaskStatus');
-    expect(content).toContain('export enum LLMProvider');
     expect(content).toContain('export interface Position');
     expect(content).toContain('export type StoryStatus');
     expect(content).toContain('export type Timestamp');

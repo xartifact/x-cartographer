@@ -3,32 +3,20 @@
 /**
  * 故事任务拆解面板
  *
- * 支持手动新增任务、删除任务、切换任务状态，以及 AI 自动拆解（POST /api/llm/decompose-story）。
+ * 支持手动新增任务、删除任务、切换任务状态（任务拆解由外部 Agent 通过 xcart CLI 完成）。
  */
 
 import { useState } from 'react';
-import { createLogger } from '@/lib/logger';
-import { Plus, Trash2, Wand2, Loader2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Loader2, Clock } from 'lucide-react';
 import { Button, Input, Badge, Separator } from '@x-cartographer/ui';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { useCreateTask, useUpdateTaskStatus, useDeleteTask } from '@/lib/api/hooks';
-import { api } from '@/lib/api/client';
-import type { Task, TaskType, TaskPriority, Project, UserStory, LLMProvider } from '@/types';
-import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus, LLMProvider as LLMProviderEnum } from '@/types';
+import type { Task, TaskType, TaskPriority, UserStory } from '@/types';
+import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface StoryTaskPanelProps {
   story: UserStory;
-  /** 项目上下文（含 journeys/settings 等，供 AI 拆解使用） */
-  project: Pick<
-    Project,
-    | 'id'
-    | 'name'
-    | 'description'
-    | 'metadata'
-    | 'settings'
-    | 'user_journeys'
-  >;
 }
 /** 任务类型选项 */
 const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
@@ -62,9 +50,8 @@ function typeLabelOf(t: TaskType) {
   return TASK_TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t;
 }
 
-const log = createLogger('storyTaskPanel');
 
-export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
+export function StoryTaskPanel({ story }: StoryTaskPanelProps) {
   const createTask = useCreateTask();
   const updateTaskStatus = useUpdateTaskStatus();
   const deleteTask = useDeleteTask();
@@ -72,8 +59,6 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
 
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [isDecomposing, setIsDecomposing] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   /** 手动新增任务 */
@@ -119,123 +104,6 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
     }
   }
 
-  /** AI 自动拆解 */
-  async function handleAIDecompose() {
-    setAiError(null);
-    const provider: LLMProvider =
-      project.settings?.llm_provider ?? LLMProviderEnum.OPENAI;
-
-    // 构建产品全景上下文
-    const storyMapSummary = project.user_journeys
-      .map((j) => {
-        const storyLines = (j.stories ?? []).map((s) => {
-          const marker = s.id === story.id ? ' ← 【当前】' : '';
-          const taskCount = s.tasks?.length ?? 0;
-          return `  - ${s.title} [${s.status ?? 'backlog'}]${taskCount > 0 ? ` (${taskCount}个任务)` : ''}${marker}`;
-        });
-        return [`旅程：${j.name}（${j.persona ?? ''}）`, ...storyLines].join('\n');
-      })
-      .join('\n\n');
-
-    const currentJourney = project.user_journeys.find((j) =>
-      j.stories?.some((s) => s.id === story.id)
-    );
-    const currentJourneyTasks = (currentJourney?.stories ?? [])
-      .flatMap((s) => s.tasks ?? [])
-      .map((t) => ({ id: t.id, title: t.title }));
-
-    const context = {
-      projectName: project.name,
-      projectDescription: project.description ?? undefined,
-      techStack: project.metadata?.tech_stack ?? [],
-      storyMapSummary,
-      currentJourneyTasks,
-    };
-
-    log.info('decompose.start', {
-      storyId: story.id,
-      story: story.title,
-      journeys: project.user_journeys.length,
-      currentJourneyTasks: currentJourneyTasks.length,
-      techStack: project.metadata?.tech_stack ?? [],
-    });
-
-    setIsDecomposing(true);
-    try {
-      const res = await api.api.llm['decompose-story'].$post({
-        json: {
-          story: {
-            title: story.title,
-            description: story.description,
-            acceptance_criteria: story.acceptance_criteria ?? [],
-          },
-          provider,
-          context,
-        },
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        tasks?: Array<{
-          id: string;
-          title: string;
-          description?: string;
-          type?: TaskType;
-          priority?: TaskPriority;
-          estimation?: number;
-          dependencies?: string[];
-          tags?: string[];
-        }>;
-      };
-      if (data.error) throw new Error(data.error);
-
-      // gateway 已完成 id 生成和依赖序号映射，直接使用
-      const generated: Task[] = (data.tasks ?? []).map((t) => ({
-        id: t.id,
-        story_id: story.id,
-        title: t.title,
-        description: t.description ?? '',
-        type: t.type ?? TaskTypeEnum.TECHNICAL_TASK,
-        priority: t.priority ?? TaskPriorityEnum.P1,
-        estimation: t.estimation ?? 2,
-        status: TaskStatus.BACKLOG,
-        dependencies: t.dependencies ?? [],
-        tags: t.tags ?? [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
-
-      log.info('decompose.done', {
-        storyId: story.id,
-        taskCount: generated.length,
-      });
-      // 逐个创建拆解出的任务
-      await Promise.all(
-        generated.map((t) =>
-          createTask.mutateAsync({
-            storyId: story.id,
-            title: t.title,
-            description: t.description,
-            type: t.type,
-            priority: t.priority,
-            estimation: t.estimation,
-            dependencies: t.dependencies,
-            tags: t.tags,
-          })
-        )
-      );
-    } catch (err) {
-      log.error('decompose.error', {
-        storyId: story.id,
-        message: err instanceof Error ? err.message : String(err),
-      });
-      setAiError(
-        err instanceof Error ? err.message : '请求失败，请检查 API Key 配置'
-      );
-    } finally {
-      setIsDecomposing(false);
-    }
-  }
-
   return (
     <div className="space-y-3">
       {/* 操作按钮行 */}
@@ -244,38 +112,13 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
           size="sm"
           variant="outline"
           className="flex-1"
-          onClick={() => {
-            setIsAddingTask(true);
-            setAiError(null);
-          }}
+          onClick={() => setIsAddingTask(true)}
           disabled={isAddingTask || saving}
         >
           <Plus className="h-3.5 w-3.5 mr-1" />
           新增任务
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="flex-1"
-          onClick={handleAIDecompose}
-          disabled={isDecomposing || saving}
-        >
-          {isDecomposing ? (
-            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          ) : (
-            <Wand2 className="h-3.5 w-3.5 mr-1" />
-          )}
-          AI 拆解
-        </Button>
       </div>
-
-      {/* AI 错误提示 */}
-      {aiError && (
-        <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 text-destructive text-xs">
-          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <span>{aiError}</span>
-        </div>
-      )}
 
       {/* 手动新增表单 */}
       {isAddingTask && (
@@ -377,7 +220,7 @@ export function StoryTaskPanel({ story, project }: StoryTaskPanelProps) {
         </div>
       ) : !isAddingTask ? (
         <p className="text-xs text-muted-foreground text-center py-4">
-          暂无任务，点击「新增任务」或「AI 拆解」开始
+          暂无任务，点击「新增任务」或由外部 Agent 通过 xcart CLI 拆解
         </p>
       ) : null}
     </div>

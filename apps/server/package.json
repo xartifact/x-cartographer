@@ -15,16 +15,11 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "@earendil-works/pi-ai": "^0.84.2",
-    "@earendil-works/pi-coding-agent": "^0.84.2",
     "@hono/zod-validator": "^0.7.0",
-    "@modelcontextprotocol/sdk": "^1.30.0",
     "@x-cartographer/db": "workspace:*",
     "@x-cartographer/shared": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.0.0",
-    "json5": "^2.2.3",
-    "jsonrepair": "^3.13.2",
     "nanoid": "^5.0.8",
     "pino": "^8.17.2",
     "pino-pretty": "^10.3.1",

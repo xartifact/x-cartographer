@@ -181,12 +181,12 @@ function serializeValue(value: unknown): string {
 /**
  * 创建模块级日志器
  *
- * @param module - 模块名称（如 'db', 'llm', 'executor'）
+ * @param module - 模块名称（如 'db', 'gateway'）
  * @returns 带有 trace/debug/info/warn/error/fatal 方法的日志器
  *
  * @example
- * const log = createLogger('llm');
- * log.info('decomposeStory.start', { provider: 'openai', taskCount: 5 });
+ * const log = createLogger('gateway');
+ * log.info('api.start', { path: '/api/projects', taskCount: 5 });
  * log.debug('query.executed', { sql: 'SELECT ...', durationMs: 42 });
  * log.error('api.failed', { error: err.message, statusCode: 500 });
  */

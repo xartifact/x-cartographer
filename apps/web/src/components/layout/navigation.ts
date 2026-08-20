@@ -48,12 +48,6 @@ export const projectNavItems: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    id: 'requirements',
-    label: '需求分析',
-    href: '/projects/[id]/requirements',
-    icon: FolderKanban,
-  },
-  {
     id: 'story-map',
     label: '故事地图',
     href: '/projects/[id]/story-map',

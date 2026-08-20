@@ -198,10 +198,6 @@ describe('projects CRUD', () => {
     expect(
       (body.settings as { auto_save: boolean }).auto_save
     ).toBe(false);
-    // settings 合并：未传的 llm_provider 保留默认值
-    expect(
-      (body.settings as { llm_provider: string }).llm_provider
-    ).toBe('openai');
 
     // delete（返回 JSON true）
     res = await app.request(`/api/projects/${id}`, { method: 'DELETE' });
@@ -521,7 +517,6 @@ describe('PUT /api/projects/full transaction', () => {
       updated_at: now,
       metadata: { tech_stack: ['bun'], version: '1.0.0', tags: ['x'] },
       settings: {
-        llm_provider: 'openai',
         auto_save: true,
         display_preferences: {
           show_priority_colors: true,
@@ -631,108 +626,6 @@ describe('PUT /api/projects/full transaction', () => {
   });
 });
 
-describe('settings LLM key CRUD + status', () => {
-  it('CRUD provider keys and reports configuration status', async () => {
-    // 初始：两个 provider 均未配置
-    let res = await app.request('/api/settings/llm/status');
-    expect(res.status).toBe(200);
-    let status = (await res.json()) as Record<
-      string,
-      { configured: boolean; baseURL?: string; model?: string }
-    >;
-    expect(status.openai.configured).toBe(false);
-    expect(status.anthropic.configured).toBe(false);
-
-    // 未配置时 test 端点不发起真实请求，直接报错
-    res = await jsonRequest('POST', '/api/settings/llm/openai/test', {});
-    expect(res.status).toBe(200);
-    const testBody = (await res.json()) as {
-      success: boolean;
-      error?: string;
-    };
-    expect(testBody.success).toBe(false);
-    expect(testBody.error).toContain('未配置');
-
-    // 保存 openai key + baseURL + model
-    res = await jsonRequest('PUT', '/api/settings/llm/openai', {
-      apiKey: 'sk-test-123',
-      baseURL: 'https://example.com/v1',
-      model: 'gpt-test',
-    });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ success: true });
-
-    status = (await (
-      await app.request('/api/settings/llm/status')
-    ).json()) as Record<
-      string,
-      { configured: boolean; baseURL?: string; model?: string }
-    >;
-    expect(status.openai.configured).toBe(true);
-    expect(status.openai.baseURL).toBe('https://example.com/v1');
-    expect(status.openai.model).toBe('gpt-test');
-    // anthropic 不受影响
-    expect(status.anthropic.configured).toBe(false);
-
-    // anthropic 独立保存
-    res = await jsonRequest('PUT', '/api/settings/llm/anthropic', {
-      apiKey: 'sk-ant-test',
-    });
-    expect(res.status).toBe(200);
-    status = (await (
-      await app.request('/api/settings/llm/status')
-    ).json()) as Record<
-      string,
-      { configured: boolean; baseURL?: string; model?: string }
-    >;
-    expect(status.anthropic.configured).toBe(true);
-
-    // 删除 openai → baseURL/model 一并清除
-    res = await app.request('/api/settings/llm/openai', {
-      method: 'DELETE',
-    });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ success: true });
-
-    status = (await (
-      await app.request('/api/settings/llm/status')
-    ).json()) as Record<
-      string,
-      { configured: boolean; baseURL?: string; model?: string }
-    >;
-    expect(status.openai.configured).toBe(false);
-    expect(status.openai.baseURL).toBeUndefined();
-    expect(status.anthropic.configured).toBe(true);
-  });
-
-  it('PUT overwrites existing key without touching other providers', async () => {
-    await jsonRequest('PUT', '/api/settings/llm/openai', {
-      apiKey: 'key-1',
-    });
-    await jsonRequest('PUT', '/api/settings/llm/openai', {
-      apiKey: 'key-2',
-      model: 'm2',
-    });
-    await jsonRequest('PUT', '/api/settings/llm/anthropic', {
-      apiKey: 'key-a',
-    });
-
-    const status = (await (
-      await app.request('/api/settings/llm/status')
-    ).json()) as Record<string, { configured: boolean; model?: string }>;
-    expect(status.openai.configured).toBe(true);
-    expect(status.openai.model).toBe('m2');
-    expect(status.anthropic.configured).toBe(true);
-
-    // 删除 anthropic，openai 仍配置
-    await app.request('/api/settings/llm/anthropic', { method: 'DELETE' });
-    const after = (await (
-      await app.request('/api/settings/llm/status')
-    ).json()) as Record<string, { configured: boolean }>;
-    expect(after.anthropic.configured).toBe(false);
-    expect(after.openai.configured).toBe(true);
-  });
-});
 
 describe('validation failures return 400', () => {
   it('zValidator rejects invalid bodies', async () => {
@@ -766,10 +659,5 @@ describe('validation failures return 400', () => {
     });
     expect(res.status).toBe(400);
 
-    // 非法 provider 路径参数（不在 nativeEnum 内）→ 500
-    res = await jsonRequest('PUT', '/api/settings/llm/gemini', {
-      apiKey: 'x',
-    });
-    expect(res.status).toBe(500);
   });
 });

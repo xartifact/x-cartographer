@@ -1,4 +1,6 @@
-# X-Cartographer - 产品分析报告
+# X-Cartographer MVP 分析报告
+
+> **状态：已废止（2026-08-20）**：报告中的内置 AI（LLM/MCP/AI 集成）已从 X-Cartographer 移除，智能由外部 Agent 通过 xcart CLI 驱动。本报告作为历史参考保留。
 
 **项目名称**: X-Cartographer
 **版本**: 2.0

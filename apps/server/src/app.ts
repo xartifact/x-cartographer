@@ -11,7 +11,6 @@ import { storiesRoutes } from './routes/stories';
 import { tasksRoutes } from './routes/tasks';
 import { milestonesRoutes } from './routes/milestones';
 import { statusChangesRoutes } from './routes/status-changes';
-import { llmRoutes } from './routes/llm';
 import { settingsRoutes } from './routes/settings';
 import { createLogger } from '@x-cartographer/db';
 import { apiTokenAuth } from './middleware/auth';
@@ -47,7 +46,6 @@ export const app = new Hono()
   .route('/stories', storiesRoutes)
   .route('/tasks', tasksRoutes)
   .route('/status-changes', statusChangesRoutes)
-  .route('/llm', llmRoutes)
   .route('/settings', settingsRoutes)
 
   .onError((err, c) => {

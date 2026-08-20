@@ -13,7 +13,6 @@ import { SettingsPage } from './routes/settings';
 import { ProjectsPage } from './routes/projects/index';
 import { ProjectDetailLayout } from './routes/projects/$projectId._layout';
 import { ProjectOverviewPage } from './routes/projects/$projectId.index';
-import { RequirementsRoutePage } from './routes/projects/$projectId.requirements';
 import { StoryMapRoutePage } from './routes/projects/$projectId.story-map';
 import { TasksRoutePage } from './routes/projects/$projectId.tasks';
 import { RoadmapRoutePage } from './routes/projects/$projectId.roadmap';
@@ -59,11 +58,6 @@ const projectOverviewRoute = createRoute({
   component: ProjectOverviewPage,
 });
 
-const projectRequirementsRoute = createRoute({
-  getParentRoute: () => projectLayoutRoute,
-  path: '/requirements',
-  component: RequirementsRoutePage,
-});
 
 const projectStoryMapRoute = createRoute({
   getParentRoute: () => projectLayoutRoute,
@@ -96,7 +90,6 @@ const routeTree = rootRoute.addChildren([
   projectsRoute,
   projectLayoutRoute.addChildren([
     projectOverviewRoute,
-    projectRequirementsRoute,
     projectStoryMapRoute,
     projectTasksRoute,
     projectRoadmapRoute,

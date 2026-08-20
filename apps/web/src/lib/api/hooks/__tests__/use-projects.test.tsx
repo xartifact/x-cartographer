@@ -26,7 +26,6 @@ const mockProjects = [
     user_journeys: [],
     metadata: { tech_stack: ['TypeScript'], version: '1.0', tags: [] },
     settings: {
-      llm_provider: 'openai',
       auto_save: true,
       display_preferences: { show_priority_colors: true, show_estimation: true, default_view: 'map' as const },
     },

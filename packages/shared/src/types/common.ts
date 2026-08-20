@@ -45,15 +45,6 @@ export enum TaskStatus {
 }
 
 /**
- * LLM 提供商
- */
-export enum LLMProvider {
-  OPENAI = 'openai',
-  ANTHROPIC = 'anthropic',
-  X_HERALD = 'x-herald',
-}
-
-/**
  * 时间戳类型 (ISO 8601 格式)
  */
 export type Timestamp = string;

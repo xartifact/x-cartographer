@@ -125,15 +125,25 @@ xcart skill install --dir <path>   # 或自定义目标目录
 | Cursor | `.cursor/rules/xcart-*.md` |
 | Cline | `.clinerules/xcart-*.md` |
 
-## 其他 AI 集成入口
+## 设计哲学
 
-- **REST API**：`apps/server`（basePath `/api`），Go `GET /api/projects` 或 `POST /api/stories` 等；写操作需 `Authorization: Bearer <token>`（未配置 token 时本地放行）。
-- **MCP Server**：`apps/server/src/mcp/server.ts`，stdio 传输，供 Claude Code 等直连：
-  ```bash
-  bun run --cwd apps/server src/mcp/server.ts
-  # 环境变量：XCART_API_URL / XCART_API_TOKEN
-  ```
-- **AI 调度**：`POST /api/llm/scheduling-suggestions` 基于里程碑智能排期。
+X-Cartographer 是**纯存储与协调层**，**不内置任何 LLM/AI 处理能力**。智能（需求分析、故事拆解、里程碑排期等）由**外部 Agent** 通过 `xcart` CLI + Skills 驱动，调用现有 `create / update / bulk-create` 命令把结果写回。
+
+```
+┌─────────────────────────┐
+│  外部 AI Agent          │
+│  (Claude Code / OpenCode │
+│   / Cursor / 自建)      │
+│  + xcart CLI + Skills   │
+└────────────┬────────────┘
+             │ xcart create / update / bulk-create
+             ▼
+┌─────────────────────────┐
+│  X-Cartographer         │
+│  REST + CLI             │
+│  (纯数据/协调层)         │
+└─────────────────────────┘
+```
 
 ## 许可证
 

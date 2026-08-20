@@ -4,7 +4,6 @@ import { Link, useLocation } from '@tanstack/react-router';
 import {
   ArrowLeft,
   LayoutDashboard,
-  FolderKanban,
   Map,
   CheckSquare,
   Calendar,
@@ -27,12 +26,6 @@ const defaultProjectNavItems: ProjectNavProps['items'] = [
     label: '概览',
     href: '/projects/[id]',
     icon: LayoutDashboard,
-  },
-  {
-    id: 'requirements',
-    label: '需求分析',
-    href: '/projects/[id]/requirements',
-    icon: FolderKanban,
   },
   {
     id: 'story-map',

@@ -235,7 +235,7 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
           {/* 任务 Tab */}
           <TabsContent value="tasks" className="m-0 flex-1 overflow-y-auto">
             <div className="px-4 py-3">
-              <StoryTaskPanel story={story} project={project} />
+              <StoryTaskPanel story={story} />
             </div>
           </TabsContent>
         </Tabs>

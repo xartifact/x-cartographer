@@ -21,7 +21,6 @@ export const projects = pgTable('projects', {
     }),
   settings: jsonb('settings')
     .$type<{
-      llm_provider: string;
       auto_save: boolean;
       display_preferences: {
         show_priority_colors: boolean;

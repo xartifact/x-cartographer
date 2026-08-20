@@ -1,5 +1,8 @@
 # Pi Agent SDK 集成方案：LLM 功能切换
 
+> **已废止（2026-08-20）**：内置 AI 已从 X-Cartographer 移除，本设计文档作为历史参考保留。
+
+
 > 状态: 待评审
 > 目标: 将 gateway 的 LLM 调用层（需求分析/旅程生成/任务拆解）从原生 fetch（OpenAI/Anthropic API）切换为 Pi agent SDK（`@earendil-works/pi-coding-agent`）
 

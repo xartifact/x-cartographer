@@ -9,17 +9,15 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Plus, Calendar as CalendarIcon, Sparkles, Check, Loader2 } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
-import { useProject, useUpdateStory } from '@/lib/api/hooks';
+import { useProject } from '@/lib/api/hooks';
 import {
   useMilestonesByProject,
   useCreateMilestone,
   useUpdateMilestone,
   useDeleteMilestone,
 } from '@/lib/api/hooks';
-import { useSchedulingSuggestions, type SchedulingAssignment } from '@/lib/api/hooks/use-scheduling-suggestions';
-import { LLMProvider } from '@x-cartographer/shared';
 import { MilestoneDialog } from './components/milestone-dialog';
 
 interface RoadmapPageProps {
@@ -52,10 +50,6 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
   const deleteMilestone = useDeleteMilestone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MilestoneJson | null>(null);
-  const [suggestions, setSuggestions] = useState<SchedulingAssignment[] | null>(null);
-  const [applied, setApplied] = useState<Set<string>>(new Set());
-  const updateStory = useUpdateStory();
-  const suggestMutation = useSchedulingSuggestions();
 
   // 待规划池：未排期的故事（milestone_id 为空）
   const unplannedStories = useMemo(() => {
@@ -84,29 +78,8 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
     return stories.reduce((sum, s) => sum + (s.estimation ?? 0), 0);
   }
 
-  async function handleSuggest() {
-    setSuggestions(null);
-    const result = await suggestMutation.mutateAsync({
-      projectId,
-      provider: LLMProvider.OPENAI,
-    });
-    setSuggestions(result.assignments);
-  }
 
-  async function handleApplyAll() {
-    if (!suggestions) return;
-    for (const a of suggestions) {
-      await updateStory.mutateAsync({ id: a.story_id, milestoneId: a.milestone_id });
-      setApplied((prev) => new Set(prev).add(a.story_id));
-    }
-    // 刷新项目数据
-    window.location.reload();
-  }
 
-  async function handleApplyOne(a: SchedulingAssignment) {
-    await updateStory.mutateAsync({ id: a.story_id, milestoneId: a.milestone_id });
-    setApplied((prev) => new Set(prev).add(a.story_id));
-  }
 
   async function handleCreate(data: {
     name: string;
@@ -168,18 +141,6 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSuggest}
-            disabled={suggestMutation.isPending}
-          >
-            {suggestMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            AI 排期建议
-          </Button>
           <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" />
             新建版本
@@ -187,58 +148,6 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
         </div>
       </div>
 
-      {/* AI 排期建议面板 */}
-      {suggestions && suggestions.length > 0 && (
-        <Card className="border-primary/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Sparkles className="h-4 w-4" />
-              AI 排期建议
-              <span className="text-xs font-normal text-muted-foreground">
-                {suggestions.length} 个故事建议排期
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {suggestions.map((a) => (
-              <div
-                key={a.story_id}
-                className="flex items-center justify-between gap-4 rounded-md border p-2 text-sm"
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-medium">
-                    {a.story_id}
-                    <span className="ml-2 text-muted-foreground">
-                      → {a.milestone_name}
-                    </span>
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground">{a.reason}</div>
-                </div>
-                <Button
-                  size="sm"
-                  variant={applied.has(a.story_id) ? 'ghost' : 'outline'}
-                  disabled={applied.has(a.story_id)}
-                  onClick={() => handleApplyOne(a)}
-                >
-                  {applied.has(a.story_id) ? (
-                    <Check className="mr-1 h-3 w-3" />
-                  ) : null}
-                  {applied.has(a.story_id) ? '已排期' : '采纳'}
-                </Button>
-              </div>
-            ))}
-            <Button size="sm" onClick={handleApplyAll} className="mt-2">
-              全部采纳
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {suggestMutation.isError && (
-        <p className="text-sm text-destructive">
-          排期建议生成失败：{suggestMutation.error?.message ?? '未知错误'}
-        </p>
-      )}
 
       {/* 泳道视图：待规划池置首，后接各版本 */}
       <div className="flex gap-4 overflow-x-auto pb-4">

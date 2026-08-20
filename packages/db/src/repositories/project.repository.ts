@@ -13,7 +13,6 @@ import type {
 import type { UserJourney } from '@x-cartographer/shared';
 import type { UserStory } from '@x-cartographer/shared';
 import type { Task } from '@x-cartographer/shared';
-import { LLMProvider } from '@x-cartographer/shared';
 
 function safeDate(value: unknown): Date {
   if (!value) return new Date();
@@ -23,7 +22,6 @@ function safeDate(value: unknown): Date {
 
 function getDefaultSettings(): ProjectSettings {
   return {
-    llm_provider: LLMProvider.OPENAI,
     auto_save: true,
     display_preferences: {
       show_priority_colors: true,

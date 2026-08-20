@@ -566,7 +566,7 @@ id = "US-044"
 title = "作为开发者，我想要为 API 配置访问令牌，以便外部 AI 代理安全地读写数据"
 description = "生成项目级/全局 API Token，AI 代理通过 Bearer Token 调用 REST API；未认证请求受限"
 priority = "high"
-status = "done"
+status = "cancelled"
 estimation = 8
 acceptance_criteria = [
   "支持生成/撤销 API Token",
@@ -582,7 +582,7 @@ id = "US-045"
 title = "作为开发者，我想要通过 MCP Server 访问产品数据，以便 AI 代理直接读写项目"
 description = "用 MCP SDK 将 REST API 包装为 MCP tools（项目/故事/任务/版本查询与更新），Claude Code 等代理可调用"
 priority = "high"
-status = "done"
+status = "cancelled"
 estimation = 13
 acceptance_criteria = [
   "基于 @modelcontextprotocol/sdk 实现 MCP Server",
@@ -598,7 +598,7 @@ id = "US-046"
 title = "作为开发者，我想要通过 CLI 操作产品数据，以便脚本化与终端工作流集成"
 description = "@x-cartographer/cli 从空壳变为可用工具：查询项目/故事/任务、更新任务状态、列出版本"
 priority = "medium"
-status = "done"
+status = "cancelled"
 estimation = 8
 acceptance_criteria = [
   "xcart 命令支持项目列表/查看",
@@ -614,7 +614,7 @@ id = "US-047"
 title = "作为用户，我想要导出项目全景上下文，以便直接提供给 LLM 做评审与规划"
 description = "一键导出项目全景 Markdown（需求/故事/任务/排期/统计），可直接粘贴给 LLM"
 priority = "medium"
-status = "done"
+status = "cancelled"
 estimation = 5
 acceptance_criteria = [
   "导出包含项目信息与统计",
