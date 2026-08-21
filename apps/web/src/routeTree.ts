@@ -9,6 +9,7 @@ import type { QueryClient } from '@tanstack/react-query';
 // ─── 根路由 ───────────────────────────────────────────────
 import { RootComponent } from './routes/__root';
 import { HomePage } from './routes/index';
+import { ActiveRoutePage } from './routes/active';
 import { SettingsPage } from './routes/settings';
 import { ProjectsPage } from './routes/projects/index';
 import { ProjectDetailLayout } from './routes/projects/$projectId._layout';
@@ -37,6 +38,12 @@ const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
   component: SettingsPage,
+});
+
+const activeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/active',
+  component: ActiveRoutePage,
 });
 
 const projectsRoute = createRoute({
@@ -87,6 +94,7 @@ const projectDataRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   settingsRoute,
+  activeRoute,
   projectsRoute,
   projectLayoutRoute.addChildren([
     projectOverviewRoute,

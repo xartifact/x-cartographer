@@ -10,6 +10,7 @@ import {
   Settings,
   ChevronRight,
   Home,
+  Layers,
 } from 'lucide-react';
 import { NavItem } from './types';
 
@@ -22,6 +23,12 @@ export const mainNavItems: NavItem[] = [
     label: '首页',
     href: '/',
     icon: Home,
+  },
+  {
+    id: 'active',
+    label: '并行工作台',
+    href: '/active',
+    icon: Layers,
   },
   {
     id: 'projects',
