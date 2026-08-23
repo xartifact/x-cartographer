@@ -437,12 +437,12 @@ src/features/feature-name/
    - 按优先级组织（P0/P1/P2）
    - 包含验收标准
 
-2. **架构设计**: `.docs/架构设计-项目脚手架与技术栈.md`
+2. **架构设计**: `docs/架构设计-项目脚手架与技术栈.md`
    - 完整的技术栈说明
    - Bulletproof React 规范
    - 目录结构和职责
 
-3. **数据模型**: `.docs/数据模型与API设计.md`
+3. **数据模型**: `docs/数据模型与API设计.md`
    - TypeScript 类型定义
    - LLM Prompt 设计
    - API 接口规范
@@ -520,8 +520,8 @@ src/features/feature-name/
 
 **A**: Agent 可以读取以下文档：
 - `.user-stories/tasks-x-cartographer-mvp.toml`
-- `.docs/架构设计-项目脚手架与技术栈.md`
-- `.docs/数据模型与API设计.md`
+- `docs/架构设计-项目脚手架与技术栈.md`
+- `docs/数据模型与API设计.md`
 - `.user-stories/x-cartographer-mvp-分析报告.md`
 - 以及所有 `src/` 目录下的代码文件
 
