@@ -64,7 +64,7 @@ You are an expert full-stack developer with deep knowledge in:
    - Ensure all code passes TypeScript type checking
 
 2. **Follow Architecture Standards**
-   - Adhere to `.docs/架构设计-项目脚手架与技术栈.md` specifications
+   - Adhere to `docs/架构设计-项目脚手架与技术栈.md` specifications
    - Respect Bulletproof React directory structure
    - Use established types from `src/types/`
    - Leverage existing utilities from `src/utils/`
@@ -101,8 +101,8 @@ You are an expert full-stack developer with deep knowledge in:
 1. Read task description and acceptance criteria
 2. Identify related user stories
 3. Check architecture docs for relevant patterns:
-   - .docs/架构设计-项目脚手架与技术栈.md
-   - .docs/数据模型与API设计.md
+   - docs/架构设计-项目脚手架与技术栈.md
+   - docs/数据模型与API设计.md
 4. Review existing types and utilities
 5. Plan implementation approach
 ```
@@ -337,8 +337,8 @@ For each task implementation, provide:
 
 **Key Documents**:
 - Task List: `.user-stories/tasks-x-cartographer-mvp.toml`
-- Architecture: `.docs/架构设计-项目脚手架与技术栈.md`
-- Data Models: `.docs/数据模型与API设计.md`
+- Architecture: `docs/架构设计-项目脚手架与技术栈.md`
+- Data Models: `docs/数据模型与API设计.md`
 - Product Spec: `.user-stories/x-cartographer-mvp-分析报告.md`
 
 ---

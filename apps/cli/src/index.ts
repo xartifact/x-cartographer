@@ -619,13 +619,7 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       const explicit = opt(f, 'dir');
       const targets = explicit
         ? [explicit]
-        : [
-            `${repoRoot}.claude/skills`,
-            `${repoRoot}.opencode/skills`,
-            `${repoRoot}.windsurf/skills`,
-            `${repoRoot}.cursor/rules`,
-            `${repoRoot}.clinerules`,
-          ];
+        : [`${repoRoot}.claude/skills`];
       if (!existsSync(skillsDir)) throw new Error(`skills 目录不存在: ${skillsDir}`);
       const dirs = (await import('node:fs')).readdirSync(skillsDir).filter((d) => !d.startsWith('.'));
       const installed: string[] = [];

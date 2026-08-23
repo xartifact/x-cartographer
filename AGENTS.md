@@ -93,7 +93,7 @@ xcart overview --project 4m-v4na1I9O2gvdpNFnDO
 xcart context export 4m-v4na1I9O2gvdpNFnDO            # 全景 Markdown 供 LLM
 ```
 
-## 状态事实（以 `.docs/任务状态审计报告.md` 为准，勿信 toml 的 status）
+## 状态事实（以 `docs/任务状态审计报告.md` 为准，勿信 toml 的 status）
 
 - 137 任务：done 87 / todo 19 / in_progress 3 / cancelled 28
 - `todo` 是可实现候选；`cancelled` = **架构决策废弃（内置 LLM 移除 / MCP 确认不实现）**，勿当作待办
@@ -105,6 +105,6 @@ xcart context export 4m-v4na1I9O2gvdpNFnDO            # 全景 Markdown 供 LLM
 - **先查板再动手**：`task next` 或 `task list --story` 找到对应任务；没有则用 `task create` 建（默认 backlog）
 - **状态必须带 `--reason`**：写清依据（如「实现 X 模块」「架构决策移除」）
 - **完成闭环**：实现完 → `task status <id> done --reason "…"`；放弃/废弃 → `cancelled`
-- 完成任务与 toml 不一致时，更新 `.docs/任务状态审计报告.md` 的明细表
+- 完成任务与 toml 不一致时，更新 `docs/任务状态审计报告.md` 的明细表
 
 <!-- xcart:end -->

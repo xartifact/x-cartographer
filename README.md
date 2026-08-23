@@ -84,7 +84,7 @@ xcart task status <taskId> in_progress --reason "开始"
 xcart milestone list --project <projectId>
 xcart overview --project <projectId>           # 项目总览
 xcart context export <projectId>               # 全景 Markdown（供 LLM）
-xcart skill install                            # 安装 Skills 到各 agent 目录
+xcart skill install                            # 安装 Skills 到 .claude/skills
 xcart --help
 ```
 
@@ -110,20 +110,12 @@ xcart --help
 | `skills/xcart-story-breakdown/SKILL.md` | 旅程/故事维护、需求拆分为故事、版本排期 |
 | `skills/xcart-task-management/SKILL.md` | 任务生命周期、`task next` 可执行任务、统计与历史 |
 
-一键安装到各 agent 平台：
+一键安装到 Claude Code（`xcart` 面向 Claude Code 优化；`--dir` 可自定义安装目录）：
 
 ```bash
-xcart skill install            # 默认安装到仓库内 .claude/.opencode/.windsurf/.cursor/.clinerules
-xcart skill install --dir <path>   # 或自定义目标目录
+xcart skill install            # 默认安装到仓库内 .claude/skills
+xcart skill install --dir <path>   # 或自定义目标目录（如 ~/.claude/skills）
 ```
-
-| 平台 | 安装位置 |
-|---|---|
-| Claude Code | `.claude/skills/` 或 `~/.claude/skills/` |
-| OpenCode | `.opencode/skills/` 或 `~/.config/opencode/skills/` |
-| Windsurf | `.windsurf/skills/` 或 `~/.codeium/windsurf/skills/` |
-| Cursor | `.cursor/rules/xcart-*.md` |
-| Cline | `.clinerules/xcart-*.md` |
 
 ## 设计哲学
 
