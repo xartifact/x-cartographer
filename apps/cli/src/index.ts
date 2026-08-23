@@ -44,7 +44,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       const eq = a.indexOf('=');
       if (eq !== -1) {
         flags.set(a.slice(2, eq), a.slice(eq + 1));
-      } else if (i + 1 < argv.length && !argv[i + 1].startsWith('-')) {
+      } else if (i + 1 < argv.length && !argv[i + 1].startsWith('--')) {
         flags.set(a.slice(2), argv[++i]);
       } else {
         boolFlags.add(a.slice(2));
@@ -390,7 +390,8 @@ async function cmdTask(ctx: Ctx): Promise<void> {
       const type = opt(f, 'type'); if (type !== undefined) body.type = type;
       const priority = opt(f, 'priority'); if (priority !== undefined) body.priority = priority;
       const est = opt(f, 'estimation'); if (est !== undefined) body.estimation = Number(est);
-      const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
+      const deps = opt(f, 'deps');
+      if (deps !== undefined) body.dependencies = splitList(deps);
       const assignee = opt(f, 'assignee'); if (assignee !== undefined) body.assignee = assignee;
       const status = opt(f, 'status');
       if (status !== undefined) {

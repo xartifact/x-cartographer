@@ -67,7 +67,11 @@ export const storiesRoutes = new Hono()
   // PATCH /api/stories/:id
   .patch('/:id', zValidator('json', updateStorySchema), async (c) => {
     const input = c.req.valid('json');
-    await storyRepo.update(c.req.param('id'), input);
+    const dto = {
+      ...input,
+      acceptance_criteria: input.acceptanceCriteria,
+    };
+    await storyRepo.update(c.req.param('id'), dto);
     return c.json({ success: true });
   })
   // DELETE /api/stories/:id
