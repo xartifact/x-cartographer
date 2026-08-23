@@ -56,6 +56,7 @@ function dbRowToTask(row: typeof tasks.$inferSelect): Task {
     status: row.status as Task['status'],
     dependencies: (row.dependencies ?? []) as string[],
     story_id: row.storyId,
+    project_id: row.projectId ?? '',
     tags: (row.tags ?? []) as string[],
     assignee: row.assignee ?? undefined,
     started_at: row.startedAt?.toISOString(),

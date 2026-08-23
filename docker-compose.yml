@@ -1,0 +1,26 @@
+# x-cartographer 部署（外部 PostgreSQL，参照 x-herald 形态）
+# 用法：
+#   cp .env.example .env && vim .env        # 填写 DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD
+#   docker compose up -d --build
+services:
+  x-cartographer:
+    # 当前：本地已 load 的镜像（x-cartographer:test）。CI 发布 ghcr 后切回：
+    #   image: ghcr.io/xartifact/x-cartographer:${IMAGE_TAG:-latest}
+    image: x-cartographer:${IMAGE_TAG:-test}
+    container_name: x-cartographer
+    restart: always
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-8787}
+      HOST: 0.0.0.0
+      # 外部 PostgreSQL（复用 x99 共享 postgresql 实例：postgresql-db-1）
+      DATABASE_URL: postgresql://${DB_USER:-example}:${DB_PASSWORD:-example}@${DB_HOST:-100.80.110.125}:${DB_PORT:-5432}/${DB_NAME:-x_cartographer}
+    ports:
+      - '${HOST_PORT:-8787}:8787'
+    healthcheck:
+      test: ['CMD-SHELL', 'bun -e "fetch(\"http://localhost:8787/health\").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

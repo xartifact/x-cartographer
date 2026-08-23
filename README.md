@@ -140,3 +140,50 @@ X-Cartographer 是**纯存储与协调层**，**不内置任何 LLM/AI 处理能
 ## 许可证
 
 （按需补充）
+
+## Docker 部署（x99）
+
+参照 x-herald 形态：源码构建发布到 GHCR，`~/Docker/x-cartographer` 用 compose 部署，连接外部 PostgreSQL。
+
+### CI 自动发布（GitHub Actions）
+
+`.github/workflows/docker-build.yml`（参照 x-herald）：
+
+- **build**：`ubuntu-latest` 构建 multi-arch（amd64/arm64）镜像并推送 `ghcr.io/xartifact/x-cartographer:{latest|alpha|branch|sha}`（build 需要 `packages: write` 权限）
+- **deploy**：`runs-on: self-hosted`，由 x99 上的 runner 拉镜像 → `docker compose up -d` → 健康检查（容器内 `:8787/health`）
+- **notify**：部署完成发 Discord 通知（`secrets.DISCORD_WEBHOOK`）
+
+### 前置：x99 自托管 runner 授权（一次性，需 org admin）
+
+x99-arch-server runner 注册在 **org 级 runner 组**（gitHubUrl 显示为 `x-llm-gateway` 仓库，实际是 org 共享）。runner 组默认只对部分仓库可见，**x-cartographer 未在可见列表**，导致 deploy job 无限 queued。
+
+修复（任选其一）：
+
+**UI**：GitHub → `xartifact` org → Settings → Actions → Runners → 找到 `x99-arch-server` 所在组 → Repository access → **Add repository** → 勾选 `x-cartographer` → Save。
+
+**CLI**（需 `admin:org` scope）：
+```bash
+gh auth refresh -h github.com -s admin:org
+# 查看 runner 组 id 与当前可见仓库
+gh api orgs/xartifact/actions/runner-groups
+# 把 x-cartographer 加入 Default 组（<gid> 替换为实际 id）
+gh api -X POST orgs/xartifact/actions/runner-groups/<gid>/repositories \
+  -H "Accept: application/vnd.github+json" -f repository_id=<repo_id>
+```
+
+同理，notify 用到的 `DISCORD_WEBHOOK` secret 需在 **x-cartographer 仓库**添加（org Settings → Secrets → Actions → 添加）。
+
+### 手动部署（CI 未生效时的过渡方式）
+
+```bash
+# x99 上
+mkdir -p ~/Docker/x-cartographer
+# 从仓库拷贝 Dockerfile / docker-compose.yml / .env.example.x99 → .env（改 DB_*）
+docker pull ghcr.io/xartifact/x-cartographer:latest
+cd ~/Docker/x-cartographer && docker compose up -d
+curl http://localhost:8787/health   # {"status":"ok"}
+```
+
+### 外部 PostgreSQL
+
+复用 x99 共享 postgresql 实例（`postgresql-db-1`，Postgres 18，`example` 用户）。`.env` 配置 `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD`，compose 拼成 `DATABASE_URL`。首次部署时 `ensureDb()` 自动跑 `TABLE_SQLS` 建表（drizzle 幂等 DDL），无需手动迁移。

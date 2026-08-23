@@ -81,6 +81,7 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
     const task: Task = {
       id: `TASK-${nanoid(8)}`,
       story_id: selectedStoryId,
+      project_id: project.id,
       title: title.trim(),
       description: '',
       type,

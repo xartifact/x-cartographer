@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 /**
  * 设置页：API Token 配置流程
@@ -12,7 +12,9 @@ test.describe('设置页（API Token）', () => {
     await page.goto('/settings');
 
     await expect(page.getByRole('heading', { name: '设置' })).toBeVisible();
-    await expect(page.getByText(/API Token|Token/)).toBeVisible();
+    await expect(
+      page.getByText('API Token', { exact: true }),
+    ).toBeVisible();
   });
 
   test('通过 gateway REST API 生成校验并撤销 Token', async ({ page }) => {

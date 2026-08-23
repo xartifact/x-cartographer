@@ -21,7 +21,8 @@ export class TaskRepository {
     const now = new Date();
     await db.insert(tasks).values({
       id,
-      storyId: dto.story_id,
+      storyId: dto.story_id ?? null,
+      projectId: dto.project_id ?? null,
       title: dto.title,
       description: dto.description,
       type: dto.type,
@@ -34,7 +35,6 @@ export class TaskRepository {
       updatedAt: now,
     });
   }
-
   async update(id: string, dto: UpdateTaskDTO): Promise<void> {
     const db = await ensureDb();
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
@@ -47,8 +47,17 @@ export class TaskRepository {
     if (dto.dependencies !== undefined) updateData.dependencies = dto.dependencies;
     if (dto.tags !== undefined) updateData.tags = dto.tags;
     if (dto.assignee !== undefined) updateData.assignee = dto.assignee;
+    if (dto.project_id !== undefined) updateData.projectId = dto.project_id;
 
     await db.update(tasks).set(updateData).where(eq(tasks.id, id));
+  }
+
+  /** 查询项目中所有任务（含项目级任务池） */
+  async findByProjectId(projectId: string) {
+    const db = await ensureDb();
+    return db.query.tasks.findMany({
+      where: eq(tasks.projectId, projectId),
+    });
   }
 
   async delete(id: string): Promise<void> {

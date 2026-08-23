@@ -20,6 +20,7 @@ import { Button } from '@x-cartographer/ui';
 import { Input } from '@x-cartographer/ui';
 import { Label } from '@x-cartographer/ui';
 import { Textarea } from '@x-cartographer/ui';
+import { MarkdownField } from './markdown-field';
 import { Priority } from '@/types';
 
 interface StoryCreateDialogProps {
@@ -134,17 +135,15 @@ export function StoryCreateDialog({
             />
           </div>
 
-          {/* 描述 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="new-story-description">详细描述</Label>
-            <Textarea
-              id="new-story-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="补充背景信息、业务逻辑说明等..."
-              className="min-h-[80px] resize-none"
-            />
-          </div>
+          {/* 描述（Markdown 实时预览 + 草稿自动保存） */}
+          <MarkdownField
+            id="new-story-description"
+            label="详细描述"
+            value={description}
+            onChange={setDescription}
+            placeholder="补充背景信息、业务逻辑说明等...（支持 Markdown 语法）"
+            draftKey={`story-create:${journeyId}`}
+          />
 
           {/* 优先级 + 工时 */}
           <div className="grid grid-cols-2 gap-4">

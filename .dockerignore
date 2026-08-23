@@ -1,0 +1,12 @@
+node_modules
+.git
+.gitnexus
+.idea
+data
+dist
+coverage
+*.log
+.env
+.env.*
+!.env.example
+*.md

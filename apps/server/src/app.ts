@@ -14,6 +14,7 @@ import { statusChangesRoutes } from './routes/status-changes';
 import { settingsRoutes } from './routes/settings';
 import { createLogger } from '@x-cartographer/db';
 import { apiTokenAuth } from './middleware/auth';
+import { spaStaticMiddleware } from './middleware/spa-static';
 const log = createLogger('gateway');
 
 /**
@@ -24,6 +25,9 @@ const log = createLogger('gateway');
 export const app = new Hono()
   .use('*', cors())
   .use('*', logger())
+
+  // 生产镜像托管 apps/web/dist；dev 下文件不存在，中间件透传所有请求
+  .use('*', spaStaticMiddleware())
 
   .get('/health', (c) => c.json({ status: 'ok' }))
 

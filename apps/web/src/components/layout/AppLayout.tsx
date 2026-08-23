@@ -9,6 +9,7 @@ import { mainNavItems } from './navigation';
 import { useProjectStore, selectActiveProjectId } from '@/features/projects/stores';
 import { useProject } from '@/lib/api/hooks';
 import { AppLayoutProps } from './types';
+import { OnboardingGate } from '@/features/onboarding';
 
 /**
  * AppLayout - 全局应用布局组件
@@ -109,6 +110,7 @@ export function AppLayout({
             {children}
           </div>
         </main>
+      <OnboardingGate />
       </div>
     </div>
   );

@@ -10,10 +10,16 @@ import {
   StatusChangeRepository,
   getProjectRepository,
 } from '@x-cartographer/db';
-import { TaskStatus, TaskType, TaskPriority } from '@x-cartographer/shared';
+import {
+  TaskStatus,
+  TaskType,
+  TaskPriority,
+  type Task,
+} from '@x-cartographer/shared';
 
 const createTaskSchema = z.object({
-  storyId: z.string(),
+  storyId: z.string().optional(),
+  projectId: z.string().optional(),
   title: z.string(),
   description: z.string(),
   type: z.nativeEnum(TaskType),
@@ -33,11 +39,18 @@ const updateTaskSchema = z.object({
   dependencies: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   assignee: z.string().optional(),
+  projectId: z.string().optional(),
+  storyId: z.string().nullable().optional(),
 });
 
 const updateStatusSchema = z.object({
   status: z.nativeEnum(TaskStatus),
   reason: z.string().optional(),
+});
+
+const allTasksQuerySchema = z.object({
+  status: z.nativeEnum(TaskStatus).optional(),
+  priority: z.nativeEnum(TaskPriority).optional(),
 });
 
 const taskRepo = new TaskRepository();
@@ -81,9 +94,61 @@ export const tasksRoutes = new Hono()
         }
       }
     }
-
     return c.json(null);
   })
+
+  // GET /api/tasks/all (跨项目任务聚合)
+  .get('/all', zValidator('query', allTasksQuerySchema), async (c) => {
+    const { status, priority } = c.req.valid('query');
+    const projectRepo = getProjectRepository();
+    const projects = await projectRepo.findAll();
+    const result: Array<
+      Task & { project: { id: string; name: string }; story: { id: string; title: string } | null }
+    > = [];
+    for (const project of projects) {
+      for (const journey of project.user_journeys ?? []) {
+        for (const story of journey.stories ?? []) {
+          for (const task of story.tasks ?? []) {
+            if (status && task.status !== status) continue;
+            if (priority && task.priority !== priority) continue;
+            result.push({
+              ...task,
+              project: { id: project.id, name: project.name },
+              story: { id: story.id, title: story.title },
+            });
+          }
+        }
+      }
+      // 项目级任务池（story_id 为 null 的任务）
+      const poolTasks = await taskRepo.findByProjectId(project.id);
+      for (const row of poolTasks) {
+        if (status && row.status !== status) continue;
+        if (priority && row.priority !== priority) continue;
+        result.push({
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          type: row.type as Task['type'],
+          priority: row.priority as Task['priority'],
+          estimation: row.estimation,
+          status: row.status as Task['status'],
+          dependencies: row.dependencies ?? [],
+          story_id: row.storyId,
+          project_id: row.projectId ?? project.id,
+          tags: row.tags ?? [],
+          assignee: row.assignee ?? undefined,
+          started_at: row.startedAt?.toISOString(),
+          completed_at: row.completedAt?.toISOString(),
+          created_at: row.createdAt.toISOString(),
+          updated_at: row.updatedAt.toISOString(),
+          project: { id: project.id, name: project.name },
+          story: null,
+        });
+      }
+    }
+    return c.json(result);
+  })
+
   // GET /api/tasks/:id
   .get('/:id', async (c) => {
     return c.json(await taskRepo.findById(c.req.param('id')));
@@ -94,6 +159,7 @@ export const tasksRoutes = new Hono()
     const id = nanoid();
     await taskRepo.create(id, {
       story_id: input.storyId,
+      project_id: input.projectId,
       title: input.title,
       description: input.description,
       type: input.type,

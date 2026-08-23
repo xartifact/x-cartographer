@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { createProjectViaUI, uniqueProjectName } from './helpers';
 import { DIALOG_BUG_FIXED } from './known-bugs';
 

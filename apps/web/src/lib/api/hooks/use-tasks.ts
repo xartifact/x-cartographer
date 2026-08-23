@@ -2,7 +2,12 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
-import type { TaskStatus, TaskType, TaskPriority } from '@x-cartographer/shared';
+import type {
+  Task,
+  TaskStatus,
+  TaskType,
+  TaskPriority,
+} from '@x-cartographer/shared';
 
 /**
  * Task REST hooks (react-query)
@@ -10,7 +15,8 @@ import type { TaskStatus, TaskType, TaskPriority } from '@x-cartographer/shared'
  */
 
 export interface CreateTaskVariables {
-  storyId: string;
+  storyId?: string;
+  projectId?: string;
   title: string;
   description: string;
   type: TaskType;
@@ -63,6 +69,24 @@ export function useTasksByStory(storyId: string) {
   });
 }
 
+export function useAllTasks(options?: { status?: TaskStatus; priority?: TaskPriority }) {
+  const { status, priority } = options ?? {};
+  return useQuery({
+    queryKey: ['tasks', 'all', { status, priority }],
+    queryFn: async () => {
+      const res = await api.api.tasks.all.$get({ query: { status, priority } });
+      return res.json() as Promise<
+        Array<
+          Task & {
+            project: { id: string; name: string };
+            story: { id: string; title: string } | null;
+          }
+        >
+      >;
+    },
+  });
+}
+
 export function useNextTask(projectId: string) {
   return useQuery({
     queryKey: ['tasks', 'next', projectId],
@@ -107,20 +131,6 @@ export function useUpdateTask() {
   });
 }
 
-export function useDeleteTask() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (variables: { id: string }) => {
-      const res = await api.api.tasks[':id'].$delete({ param: { id: variables.id } });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-    },
-  });
-}
-
 export function useUpdateTaskStatus() {
   const queryClient = useQueryClient();
 
@@ -139,6 +149,21 @@ export function useUpdateTaskStatus() {
       queryClient.invalidateQueries({ queryKey: ['status-changes', variables.id] });
       // Invalidate next task query
       queryClient.invalidateQueries({ queryKey: ['tasks', 'next'] });
+      // Invalidate cross-project task aggregation
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'all'] });
+    },
+  });
+}
+
+export function useDeleteTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (variables: { id: string }) => {
+      const res = await api.api.tasks[':id'].$delete({ param: { id: variables.id } });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }

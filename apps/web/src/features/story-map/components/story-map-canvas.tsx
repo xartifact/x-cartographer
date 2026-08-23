@@ -34,9 +34,11 @@ import { JourneyEditDialog } from './journey-edit-dialog';
 import { StoryCreateDialog } from './story-create-dialog';
 import { FilterPanel } from './filter-panel';
 import { ZoomControls } from './zoom-controls';
+import { StoryBulkBar } from './story-bulk-bar';
 import { useStoryMapStore, filterStories } from '../stores/story-map-store';
 import { useMilestonesByProject } from '@/lib/api/hooks';
 import { Priority, UserJourney, UserStory } from '@/types';
+import type { StoryStatus } from '@x-cartographer/shared';
 import { cn } from '@/lib/utils';
 import { Button } from '@x-cartographer/ui';
 import { Card, CardHeader } from '@x-cartographer/ui';
@@ -59,6 +61,7 @@ import {
   useCreateStory,
   useUpdateStory,
   useDeleteStory,
+  useUpdateStoryStatus,
   useCreateJourney,
   useUpdateJourney,
   useDeleteJourney,
@@ -281,6 +284,7 @@ export function StoryMapCanvas({
   const createJourneyMutation = useCreateJourney();
   const updateJourneyMutation = useUpdateJourney();
   const deleteJourneyMutation = useDeleteJourney();
+  const updateStoryStatusMutation = useUpdateStoryStatus();
 
   // 本地项目引用（由父组件传入的 journeys 推导，供选中故事/详情面板展示用）
   const project = useMemo(
@@ -808,21 +812,89 @@ export function StoryMapCanvas({
     draggingNodeType,
   ]);
 
-  // 处理节点点击
+  // US-006 批量编辑模式
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
+
+  /** 当前批量选中的故事对象 */
+  const bulkSelectedStories = useMemo(() => {
+    const all: UserStory[] = [];
+    for (const journey of journeys) {
+      for (const story of journey.stories ?? []) {
+        if (bulkSelectedIds.includes(story.id)) all.push(story);
+      }
+    }
+    return all;
+  }, [journeys, bulkSelectedIds]);
+
+  const toggleBulkSelect = (storyId: string) => {
+    setBulkSelectedIds((prev) =>
+      prev.includes(storyId)
+        ? prev.filter((id) => id !== storyId)
+        : [...prev, storyId]
+    );
+  };
+
+  // 批量改优先级 / 加标签 / 改状态
+  const applyBulkPriority = useCallback(
+    async (storyIds: string[], priority: string) => {
+      await Promise.all(
+        storyIds.map((id) =>
+          updateStoryMutation.mutateAsync({ id, priority: priority as Priority })
+        )
+      );
+      toast.success('批量修改完成', { description: `已更新 ${storyIds.length} 个故事优先级` });
+    },
+    [updateStoryMutation]
+  );
+
+  const applyBulkTags = useCallback(
+    async (storyIds: string[], tags: string[]) => {
+      await Promise.all(
+        storyIds.map((id) => {
+          const story = bulkSelectedStories.find((s) => s.id === id);
+          const merged = [...new Set([...(story?.tags ?? []), ...tags])];
+          return updateStoryMutation.mutateAsync({ id, tags: merged });
+        })
+      );
+      toast.success('批量添加完成', { description: `已为 ${storyIds.length} 个故事添加标签` });
+    },
+    [updateStoryMutation, bulkSelectedStories]
+  );
+
+  const applyBulkStatus = useCallback(
+    async (storyIds: string[], status: StoryStatus) => {
+      await Promise.all(
+        storyIds.map((id) =>
+          updateStoryStatusMutation.mutateAsync({ id, status })
+        )
+      );
+      toast.success('批量状态更新完成', { description: `已更新 ${storyIds.length} 个故事状态` });
+    },
+    [updateStoryStatusMutation]
+  );
+
+  // 处理节点点击（批量模式切换选择，否则打开详情）
   const onNodeClick = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (_: React.MouseEvent, node: Node<any>) => {
       if (node.type === 'story' && node.data.story) {
-        setSelectedStory(node.data.story);
+        if (bulkMode) {
+          toggleBulkSelect(node.data.story.id);
+        } else {
+          setSelectedStory(node.data.story);
+        }
       }
     },
-    [setSelectedStory]
+    [bulkMode, setSelectedStory]
   );
 
-  // 处理画布点击
+  // 处理画布点击（批量模式不清空选择，普通模式清空）
   const onPaneClick = useCallback(() => {
-    setSelectedStory(null);
-  }, [setSelectedStory]);
+    if (!bulkMode) {
+      setSelectedStory(null);
+    }
+  }, [bulkMode, setSelectedStory]);
 
   // 保存故事编辑
   const handleSaveStory = useCallback(
@@ -868,7 +940,12 @@ export function StoryMapCanvas({
 
   /** 创建新用户旅程 */
   const handleCreateJourney = useCallback(
-    async (data: { name: string; description: string; persona: string }) => {
+    async (data: {
+      name: string;
+      description: string;
+      persona: string;
+      priority?: 'high' | 'medium' | 'low';
+    }) => {
       log.info('journey.create.start', {
         projectId,
         hasProject: !!project,
@@ -889,6 +966,7 @@ export function StoryMapCanvas({
           name: data.name,
           description: data.description,
           persona: data.persona,
+          priority: data.priority ?? 'medium',
         });
         log.info('journey.create.success', { name: data.name });
         toast.success('旅程已创建', { description: `「${data.name}」创建成功` });
@@ -1142,6 +1220,20 @@ export function StoryMapCanvas({
             </Button>
             <Button
               size="sm"
+              variant={bulkMode ? 'default' : 'outline'}
+              className="h-8 gap-1 bg-background/80 backdrop-blur-sm"
+              onClick={() => {
+                const next = !bulkMode;
+                setBulkMode(next);
+                if (!next) setBulkSelectedIds([]);
+              }}
+              title="批量编辑故事"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              批量编辑
+            </Button>
+            <Button
+              size="sm"
               variant={filterPanelOpen ? 'default' : 'outline'}
               className="h-8 gap-1 bg-background/80 backdrop-blur-sm"
               onClick={() => setFilterPanelOpen((v) => !v)}
@@ -1152,6 +1244,18 @@ export function StoryMapCanvas({
           </div>
         </Panel>
 
+      {/* 批量编辑工具栏（US-006） */}
+      {bulkMode && (
+        <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
+          <StoryBulkBar
+            selectedStories={bulkSelectedStories}
+            onClearSelection={() => setBulkSelectedIds([])}
+            onUpdatePriority={applyBulkPriority}
+            onAddTags={applyBulkTags}
+            onUpdateStatus={applyBulkStatus}
+          />
+        </div>
+      )}
         {/* 控制按钮 */}
         <Controls
           className="rounded-lg border bg-background shadow-sm"

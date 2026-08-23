@@ -19,6 +19,7 @@ import { Button } from '@x-cartographer/ui';
 import { Input } from '@x-cartographer/ui';
 import { Label } from '@x-cartographer/ui';
 import { Textarea } from '@x-cartographer/ui';
+type JourneyPriority = 'high' | 'medium' | 'low';
 
 interface JourneyCreateDialogProps {
   open: boolean;
@@ -28,8 +29,15 @@ interface JourneyCreateDialogProps {
     name: string;
     description: string;
     persona: string;
+    priority: JourneyPriority;
   }) => Promise<void>;
 }
+
+const PRIORITY_OPTIONS: { value: JourneyPriority; label: string }[] = [
+  { value: 'high', label: '高优先级' },
+  { value: 'medium', label: '中优先级' },
+  { value: 'low', label: '低优先级' },
+];
 
 export function JourneyCreateDialog({
   open,
@@ -39,6 +47,7 @@ export function JourneyCreateDialog({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [persona, setPersona] = useState('');
+  const [priority, setPriority] = useState<JourneyPriority>('medium');
   const [saving, setSaving] = useState(false);
 
   // 打开时重置表单
@@ -47,6 +56,7 @@ export function JourneyCreateDialog({
       setName('');
       setDescription('');
       setPersona('');
+      setPriority('medium');
     }
   }, [open]);
 
@@ -63,6 +73,7 @@ export function JourneyCreateDialog({
         name: name.trim(),
         description: description.trim(),
         persona: persona.trim(),
+        priority,
       });
       handleClose();
     } finally {
@@ -105,6 +116,23 @@ export function JourneyCreateDialog({
               onChange={(e) => setPersona(e.target.value)}
               placeholder="例如：新注册用户、管理员、开发者"
             />
+          </div>
+
+          {/* 优先级 */}
+          <div className="space-y-1.5">
+            <Label htmlFor="journey-priority">优先级</Label>
+            <select
+              id="journey-priority"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as JourneyPriority)}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              {PRIORITY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* 描述 */}

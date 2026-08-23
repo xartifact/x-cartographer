@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from './theme-toggle';
 import { HeaderProps } from './types';
 
 interface HeaderLogoProps {
@@ -177,9 +178,8 @@ export function Header({
 
           {/* 自定义操作 */}
           {actions}
-
-          {/* 主题切换 - 可以放在这里 */}
-          {/* <ThemeToggle /> */}
+          {/* 主题切换 */}
+          <ThemeToggle />
         </div>
       </div>
     </header>

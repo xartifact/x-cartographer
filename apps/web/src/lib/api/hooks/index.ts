@@ -27,11 +27,17 @@ export {
 export {
   useTask,
   useTasksByStory,
+  useAllTasks,
   useNextTask,
   useCreateTask,
   useUpdateTask,
   useDeleteTask,
   useUpdateTaskStatus,
+} from './use-tasks';
+export type {
+  CreateTaskVariables,
+  UpdateTaskVariables,
+  UpdateTaskStatusVariables,
 } from './use-tasks';
 export {
   useMilestonesByProject,

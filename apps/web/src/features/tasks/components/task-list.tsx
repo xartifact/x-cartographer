@@ -201,7 +201,11 @@ export function TaskList({
               onClick={onTaskClick}
               editableStatus={editableStatus}
               onStatusCycle={handleStatusCycle}
-              storyContext={storyContextMap?.[task.story_id]}
+              storyContext={
+                task.story_id
+                  ? (storyContextMap?.[task.story_id] ?? undefined)
+                  : undefined
+              }
               onExecute={onExecute}
               isExecuting={isExecutingIds.includes(task.id)}
             />

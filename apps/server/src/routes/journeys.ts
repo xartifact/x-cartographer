@@ -12,6 +12,7 @@ const createJourneySchema = z.object({
   name: z.string(),
   description: z.string(),
   persona: z.string(),
+  priority: z.enum(['high', 'medium', 'low']).optional(),
 });
 
 const updateJourneySchema = z.object({
@@ -19,6 +20,7 @@ const updateJourneySchema = z.object({
   description: z.string().optional(),
   persona: z.string().optional(),
   order: z.number().optional(),
+  priority: z.enum(['high', 'medium', 'low']).optional(),
 });
 
 const journeyRepo = new JourneyRepository();
@@ -39,6 +41,7 @@ export const journeysRoutes = new Hono()
       name: input.name,
       description: input.description,
       persona: input.persona,
+      priority: input.priority,
     });
     return c.json({ success: true, id }, 201);
   })

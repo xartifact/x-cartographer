@@ -7,6 +7,7 @@ export const userJourneys = pgTable('user_journeys', {
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
   persona: text('persona').notNull().default(''),
+  priority: text('priority').notNull().default('medium'),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

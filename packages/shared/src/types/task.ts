@@ -31,9 +31,11 @@ export interface Task {
 
   /** 依赖的任务 ID 列表 */
   dependencies: string[];
+  /** 所属用户故事 ID（项目级任务池任务可为空） */
+  story_id: string | null;
 
-  /** 所属用户故事 ID */
-  story_id: string;
+  /** 所属项目 ID */
+  project_id: string;
 
   /** 标签 */
   tags: string[];
@@ -64,7 +66,10 @@ export interface CreateTaskDTO {
   priority: TaskPriority;
   estimation: number;
   dependencies?: string[];
-  story_id: string;
+  /** 所属用户故事（项目级任务池任务可省略） */
+  story_id?: string;
+  /** 所属项目 ID（未关联故事的必需） */
+  project_id?: string;
   tags?: string[];
 }
 
@@ -81,4 +86,6 @@ export interface UpdateTaskDTO {
   dependencies?: string[];
   tags?: string[];
   assignee?: string;
+  project_id?: string;
 }
+

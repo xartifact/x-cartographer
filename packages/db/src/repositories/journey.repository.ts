@@ -29,6 +29,7 @@ export class JourneyRepository {
       name: dto.name,
       description: dto.description,
       persona: dto.persona,
+      priority: dto.priority ?? 'medium',
       order: 0,
       createdAt: now,
       updatedAt: now,
@@ -42,6 +43,7 @@ export class JourneyRepository {
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.persona !== undefined) updateData.persona = dto.persona;
     if (dto.order !== undefined) updateData.order = dto.order;
+    if (dto.priority !== undefined) updateData.priority = dto.priority;
 
     await db.update(userJourneys).set(updateData).where(eq(userJourneys.id, id));
   }

@@ -42,4 +42,8 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
     fields: [tasks.storyId],
     references: [userStories.id],
   }),
+  project: one(projects, {
+    fields: [tasks.projectId],
+    references: [projects.id],
+  }),
 }));

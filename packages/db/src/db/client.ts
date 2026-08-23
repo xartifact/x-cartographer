@@ -76,7 +76,8 @@ const TABLE_SQLS = [
   `ALTER TABLE "user_stories" ADD COLUMN IF NOT EXISTS "milestone_id" text REFERENCES "milestones"("id") ON DELETE SET NULL`,
   `CREATE TABLE IF NOT EXISTS "tasks" (
     "id" text PRIMARY KEY NOT NULL,
-    "story_id" text NOT NULL REFERENCES "user_stories"("id") ON DELETE CASCADE,
+    "story_id" text REFERENCES "user_stories"("id") ON DELETE CASCADE,
+    "project_id" text REFERENCES "projects"("id") ON DELETE CASCADE,
     "title" text NOT NULL,
     "description" text DEFAULT '' NOT NULL,
     "type" text DEFAULT 'technical_task' NOT NULL,
@@ -91,6 +92,9 @@ const TABLE_SQLS = [
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
+  `ALTER TABLE "tasks" ADD COLUMN IF NOT EXISTS "project_id" text REFERENCES "projects"("id") ON DELETE CASCADE`,
+  `ALTER TABLE "tasks" ALTER COLUMN "story_id" DROP NOT NULL`,
+  `ALTER TABLE "user_journeys" ADD COLUMN IF NOT EXISTS "priority" text DEFAULT 'medium' NOT NULL`,
   `CREATE TABLE IF NOT EXISTS "app_settings" (
     "key" text PRIMARY KEY NOT NULL,
     "value" text NOT NULL,
@@ -199,9 +203,11 @@ async function initializeDb(): Promise<void> {
     log.info('db.ready', { type: 'postgresql' });
   } else {
     log.info('db.connecting', { type: 'pglite' });
-    const pgliteDir = `${process.cwd()}/data/pglite`;
+    // 数据目录可覆盖（隔离测试环境：e2e 用独立目录，避免污染 dev 数据）
+    const dbDir = process.env.XPR_DB_DIR ?? `${process.cwd()}/data/pglite`;
+    const pgliteDir = dbDir;
     g.__xpr_db = await openPGlite(pgliteDir);
-    log.info('db.ready', { type: 'pglite' });
+    log.info('db.ready', { type: 'pglite', dir: pgliteDir });
   }
 }
 

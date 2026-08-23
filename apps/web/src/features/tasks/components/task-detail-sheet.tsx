@@ -23,6 +23,13 @@ import {
   User,
   FileText,
   ExternalLink,
+  Loader2,
+  Pencil,
+  Workflow,
+  Trash2,
+  Plus,
+  X,
+  Check,
 } from 'lucide-react';
 import {
   Sheet,
@@ -33,6 +40,7 @@ import {
 } from '@x-cartographer/ui';
 import { Badge } from '@x-cartographer/ui';
 import { Separator } from '@x-cartographer/ui';
+import { Button } from '@x-cartographer/ui';
 import { StatusBadge } from './status-badge';
 import { cn } from '@/lib/utils';
 import type { Task, TaskStatus } from '@/types';
@@ -50,6 +58,8 @@ interface TaskDetailSheetProps {
   storyContextMap?: Record<string, { storyTitle: string; journeyName: string }>;
   /** 点击依赖任务时的回调（用于跳转到其他任务详情） */
   onTaskNavigate?: (task: Task) => void;
+  /** 更新依赖关系的回调（TASK-062） */
+  onUpdateDependencies?: (taskId: string, dependencies: string[]) => Promise<void>;
 }
 
 const priorityConfig: Record<string, { label: string; color: string }> = {
@@ -76,7 +86,46 @@ export function TaskDetailSheet({
   allTasks,
   storyContextMap,
   onTaskNavigate,
+  onUpdateDependencies,
 }: TaskDetailSheetProps) {
+  // TASK-062：依赖编辑状态
+  const [editingDeps, setEditingDeps] = React.useState(false);
+  const [draftDeps, setDraftDeps] = React.useState<string[]>([]);
+  const [savingDeps, setSavingDeps] = React.useState(false);
+
+  // 打开详情时重置编辑状态
+  React.useEffect(() => {
+    if (open && task) {
+      setEditingDeps(false);
+      setDraftDeps(task.dependencies ?? []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, task?.id]);
+
+  /** 候选任务（排除自身与已选依赖） */
+  const candidateTasks = React.useMemo(() => {
+    if (!task) return [];
+    return allTasks.filter(
+      (t) => t.id !== task.id && !(task.dependencies ?? []).includes(t.id)
+    );
+  }, [allTasks, task]);
+
+  const toggleDraftDep = (depId: string) => {
+    setDraftDeps((prev) =>
+      prev.includes(depId) ? prev.filter((d) => d !== depId) : [...prev, depId]
+    );
+  };
+
+  const saveDependencies = async () => {
+    if (!task || !onUpdateDependencies) return;
+    setSavingDeps(true);
+    try {
+      await onUpdateDependencies(task.id, draftDeps);
+      setEditingDeps(false);
+    } finally {
+      setSavingDeps(false);
+    }
+  };
   // 解析依赖任务（当前任务依赖的任务）
   const dependsOn = React.useMemo(() => {
     if (!task) return [];
@@ -106,7 +155,9 @@ export function TaskDetailSheet({
 
   const priority = priorityConfig[task.priority] ?? priorityConfig.P2;
   const typeInfo = typeConfig[task.type] ?? typeConfig.technical_task;
-  const storyContext = storyContextMap?.[task.story_id];
+  const storyContext = task.story_id
+    ? (storyContextMap?.[task.story_id] ?? undefined)
+    : undefined;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -215,77 +266,195 @@ export function TaskDetailSheet({
 
           {/* 依赖关系 */}
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">依赖关系</h3>
-
-            {/* 依赖的任务（前置依赖） */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <ArrowLeft className="h-3 w-3" />
-                <span>前置依赖（当前任务依赖于）</span>
-                {dependsOn.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 text-[10px]">
-                    {dependsOn.length}
-                  </Badge>
-                )}
-              </div>
-              {dependsOn.length > 0 ? (
-                <div className="space-y-1.5">
-                  {dependsOn.map((dep) => (
-                    <DependencyCard
-                      key={dep.id}
-                      id={dep.id}
-                      title={dep.title}
-                      status={dep.status}
-                      found={dep.task !== null}
-                      onClick={() => {
-                        if (dep.task && onTaskNavigate) {
-                          onTaskNavigate(dep.task);
-                        }
-                      }}
-                      clickable={dep.task !== null && !!onTaskNavigate}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="py-2 text-center text-xs text-muted-foreground/60">
-                  无前置依赖
-                </p>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">依赖关系</h3>
+              {onUpdateDependencies && !editingDeps && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => {
+                    setDraftDeps(task.dependencies ?? []);
+                    setEditingDeps(true);
+                  }}
+                >
+                  <Pencil className="mr-1 h-3 w-3" />
+                  编辑
+                </Button>
               )}
             </div>
 
-            <div className="my-2" />
-
-            {/* 被依赖的任务（后续任务） */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <ArrowRight className="h-3 w-3" />
-                <span>被依赖（以下任务依赖当前任务）</span>
-                {dependedBy.length > 0 && (
+            {/* 编辑模式：添加/移除依赖（TASK-062） */}
+            {editingDeps ? (
+              <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Workflow className="h-3 w-3" />
+                  <span>已选择依赖（勾选以移除）</span>
                   <Badge variant="secondary" className="ml-1 text-[10px]">
-                    {dependedBy.length}
+                    {draftDeps.length}
                   </Badge>
-                )}
-              </div>
-              {dependedBy.length > 0 ? (
-                <div className="space-y-1.5">
-                  {dependedBy.map((depTask) => (
-                    <DependencyCard
-                      key={depTask.id}
-                      id={depTask.id}
-                      title={depTask.title}
-                      status={depTask.status as TaskStatus}
-                      found={true}
-                      onClick={() => onTaskNavigate?.(depTask)}
-                      clickable={!!onTaskNavigate}
-                    />
-                  ))}
                 </div>
-              ) : (
-                <p className="py-2 text-center text-xs text-muted-foreground/60">
-                  无后续依赖
-                </p>
-              )}
-            </div>
+                <div className="space-y-1.5">
+                  {draftDeps.length > 0 ? (
+                    draftDeps.map((depId) => {
+                      const depTask = allTasks.find((t) => t.id === depId);
+                      return (
+                        <button
+                          key={depId}
+                          type="button"
+                          onClick={() => toggleDraftDep(depId)}
+                          className="flex w-full items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-left text-xs hover:border-primary"
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                          <span className="font-mono text-muted-foreground">
+                            {depId}
+                          </span>
+                          <span className="flex-1 truncate">
+                            {depTask?.title ?? '未知任务'}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="py-1 text-center text-xs text-muted-foreground/60">
+                      尚无依赖，从下方候选中添加
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Plus className="h-3 w-3" />
+                  <span>添加依赖（点击选择）</span>
+                </div>
+                <div className="max-h-40 space-y-1 overflow-y-auto">
+                  {candidateTasks.length > 0 ? (
+                    candidateTasks.slice(0, 50).map((candidate) => (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        onClick={() => toggleDraftDep(candidate.id)}
+                        className="flex w-full items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-left text-xs hover:border-primary"
+                      >
+                        <Plus className="h-3 w-3 text-primary" />
+                        <span className="font-mono text-muted-foreground">
+                          {candidate.id}
+                        </span>
+                        <span className="flex-1 truncate">
+                          {candidate.title}
+                        </span>
+                        <StatusBadge
+                          status={candidate.status}
+                          isTask
+                          size="sm"
+                        />
+                      </button>
+                    ))
+                  ) : (
+                    <p className="py-1 text-center text-xs text-muted-foreground/60">
+                      没有可添加的候选任务
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setEditingDeps(false)}
+                    disabled={savingDeps}
+                  >
+                    <X className="mr-1 h-3 w-3" />
+                    取消
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={saveDependencies}
+                    disabled={savingDeps}
+                  >
+                    {savingDeps ? (
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Check className="mr-1 h-3 w-3" />
+                    )}
+                    保存
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* 依赖的任务（前置依赖） */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <ArrowLeft className="h-3 w-3" />
+                    <span>前置依赖（当前任务依赖于）</span>
+                    {dependsOn.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 text-[10px]">
+                        {dependsOn.length}
+                      </Badge>
+                    )}
+                  </div>
+                  {dependsOn.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {dependsOn.map((dep) => (
+                        <DependencyCard
+                          key={dep.id}
+                          id={dep.id}
+                          title={dep.title}
+                          status={dep.status}
+                          found={dep.task !== null}
+                          onClick={() => {
+                            if (dep.task && onTaskNavigate) {
+                              onTaskNavigate(dep.task);
+                            }
+                          }}
+                          clickable={dep.task !== null && !!onTaskNavigate}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-2 text-center text-xs text-muted-foreground/60">
+                      无前置依赖
+                    </p>
+                  )}
+                </div>
+
+                <div className="my-2" />
+
+                {/* 被依赖的任务（后续任务） */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <ArrowRight className="h-3 w-3" />
+                    <span>被依赖（以下任务依赖当前任务）</span>
+                    {dependedBy.length > 0 && (
+                      <Badge variant="secondary" className="ml-1 text-[10px]">
+                        {dependedBy.length}
+                      </Badge>
+                    )}
+                  </div>
+                  {dependedBy.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {dependedBy.map((depTask) => (
+                        <DependencyCard
+                          key={depTask.id}
+                          id={depTask.id}
+                          title={depTask.title}
+                          status={depTask.status as TaskStatus}
+                          found={true}
+                          onClick={() => onTaskNavigate?.(depTask)}
+                          clickable={!!onTaskNavigate}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-2 text-center text-xs text-muted-foreground/60">
+                      无后续依赖
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
           </section>
 
           {/* 标签 */}

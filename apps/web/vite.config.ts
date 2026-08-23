@@ -23,13 +23,13 @@ export default defineConfig({
   server: {
     port: 3001,
     proxy: {
-      // 开发时把 /api 代理到 gateway
+      // 开发时把 /api 代理到 gateway（可通过 VITE_PROXY_TARGET 覆盖，e2e 用 8791 测试网关）
       '/api': {
-        target: 'http://localhost:8787',
+        target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:8787',
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://localhost:8787',
+        target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:8787',
         changeOrigin: true,
       },
     },

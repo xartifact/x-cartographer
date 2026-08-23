@@ -24,6 +24,9 @@ export interface UserJourney {
   /** 所属项目 ID */
   project_id: string;
 
+  /** 优先级（TASK-030：high/medium/low） */
+  priority?: 'high' | 'medium' | 'low';
+
   /** 包含的用户故事 */
   stories: UserStory[];
 
@@ -45,6 +48,7 @@ export interface CreateUserJourneyDTO {
   description: string;
   persona: string;
   project_id: string;
+  priority?: 'high' | 'medium' | 'low';
 }
 
 /**
@@ -55,4 +59,5 @@ export interface UpdateUserJourneyDTO {
   description?: string;
   persona?: string;
   order?: number;
+  priority?: 'high' | 'medium' | 'low';
 }

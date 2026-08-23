@@ -88,7 +88,15 @@ function StoryCard({ story, journeyName, isSelected, onSelect }: {
 }
 
 export const JourneyColumn = memo<JourneyColumnProps>(
-  ({ journey: _journey, stories, journeyName, columnWidth, rowHeight, onStorySelect, selectedStoryId }) => {
+  ({ journey, stories, journeyName, columnWidth, rowHeight, onStorySelect, selectedStoryId }) => {
+    const journeyPriority = journey.priority ?? 'medium';
+    const journeyPriorityColor =
+      journeyPriority === 'high'
+        ? 'bg-red-100 border-red-300 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
+        : journeyPriority === 'low'
+          ? 'bg-green-100 border-green-300 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300'
+          : 'bg-amber-100 border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300';
+
     return (
       <div
         className="flex flex-col gap-4"
@@ -101,7 +109,21 @@ export const JourneyColumn = memo<JourneyColumnProps>(
         <div className="sticky top-0 z-10">
           <Card className="bg-primary/5 border-primary/20">
             <CardContent className="p-4 text-center">
-              <h3 className="font-semibold text-sm line-clamp-2">{journeyName}</h3>
+              <div className="flex items-center justify-center gap-2">
+                <h3 className="font-semibold text-sm line-clamp-2">{journeyName}</h3>
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium',
+                    journeyPriorityColor
+                  )}
+                >
+                  {journeyPriority === 'high'
+                    ? '高'
+                    : journeyPriority === 'low'
+                      ? '低'
+                      : '中'}
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {stories.length} 个故事
               </p>

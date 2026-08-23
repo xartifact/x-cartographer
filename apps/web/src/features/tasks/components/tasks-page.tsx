@@ -31,18 +31,25 @@ import type { ViewType, FilterConditions } from '@/features/tasks/components';
 import { TaskImportDialog } from './task-import-dialog';
 import { TaskCreateDialog } from './task-create-dialog';
 import { TaskDetailSheet } from './task-detail-sheet';
-import { useUpdateTaskStatus, useCreateTask } from '@/lib/api/hooks';
+import {
+  useUpdateTaskStatus,
+  useCreateTask,
+  useUpdateTask,
+  type CreateTaskVariables,
+} from '@/lib/api/hooks';
 import type { Task, TaskStatus, StoryStatus, Project } from '@/types';
+import { serializeKanbanMarkdown } from '@/lib/markdown';
+import { useHotkeys } from '@/lib/hooks/use-hotkeys';
 import type { AppTask } from '@/lib/toml/task-parser';
 
 interface TasksPageProps {
   /** 当前项目 */
   project: Project;
 }
-
 export function TasksPage({ project: initialProject }: TasksPageProps) {
   const updateTaskStatus = useUpdateTaskStatus();
   const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<
     (TaskStatus | StoryStatus)[]
@@ -63,6 +70,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   const [importMeta, setImportMeta] = React.useState<{
     projectName: string;
     createdAt: string;
+    importSummary?: string;
   } | null>(null);
   /** 任务详情抽屉 */
   const [detailTask, setDetailTask] = React.useState<Task | null>(null);
@@ -75,6 +83,21 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
     setDetailTask(task);
     setDetailSheetOpen(true);
   }, []);
+  /** 搜索框 ref（快捷键聚焦用） */
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // TASK-090：键盘快捷键
+  useHotkeys('n', () => setCreateDialogOpen(true), {
+    enabled: !createDialogOpen && !detailSheetOpen,
+  });
+  useHotkeys('mod+s', (e) => {
+    e.preventDefault();
+    handleExportKanban();
+  });
+  useHotkeys('mod+k', (e) => {
+    e.preventDefault();
+    searchInputRef.current?.focus();
+  });
 
   // 同步项目数据
   React.useEffect(() => {
@@ -101,15 +124,13 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       id: t.id,
       title: t.title,
       description: t.description,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      type: t.type as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      priority: t.priority as any,
+      type: t.type as Task['type'],
+      priority: t.priority as Task['priority'],
       estimation: t.estimation,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      status: t.status as any,
+      status: t.status as Task['status'],
       dependencies: t.dependencies,
-      story_id: '',
+      story_id: null,
+      project_id: project.id,
       tags: t.tags,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -257,6 +278,27 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       console.error('update task status failed', err);
     }
   };
+
+  // 导出 Kanban Markdown
+  const handleExportKanban = React.useCallback(() => {
+    try {
+      const markdown = serializeKanbanMarkdown(project);
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      const safeName = project.name.replace(/[/\\:*?"<>|]/g, '_');
+      anchor.download = `kanban-${safeName}.md`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Kanban 导出失败:', error);
+      alert(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  }, [project]);
+
   // 进度统计
   const completedCount = statusStats.done || 0;
   const totalCount = displayTasks.length;
@@ -291,16 +333,55 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       console.error('create task failed', err);
     }
   };
-  const handleImport = (
+  const handleImport = async (
     tasks: AppTask[],
     metadata: { project_name: string; created_at: string }
   ) => {
+    // 建立 story 引用映射：related_story (US-XXX) → story.id
+    const storyByRef: Record<string, string> = {};
+    project.user_journeys?.forEach((journey) => {
+      journey.stories?.forEach((story) => {
+        storyByRef[story.id] = story.id;
+        // 兼容标题中 [US-XXX] 前缀或 id 形式
+        const ref = story.title.match(/\[(US-[^\]]+)\]/)?.[1];
+        if (ref) storyByRef[ref] = story.id;
+      });
+    });
+
+    // 逐条写入数据库：匹配故事 → 关联故事；未匹配 → 项目级任务池
+    let matched = 0;
+    let pooled = 0;
+    for (const task of tasks) {
+      const storyId = task.relatedStory
+        ? (storyByRef[task.relatedStory] ?? null)
+        : null;
+      try {
+        await createTask.mutateAsync({
+          storyId: storyId ?? undefined,
+          projectId: storyId ? undefined : project.id,
+          title: task.title,
+          description: task.description,
+          type: task.type as CreateTaskVariables['type'],
+          priority: task.priority as CreateTaskVariables['priority'],
+          estimation: task.estimation,
+          dependencies: task.dependencies,
+          tags: task.tags,
+        });
+        if (storyId) matched++;
+        else pooled++;
+      } catch (err) {
+        console.error(`import task ${task.id} failed`, err);
+      }
+    }
+
     setImportedTasks(tasks);
     setImportMeta({
       projectName: metadata.project_name,
       createdAt: metadata.created_at,
+      importSummary: `已写入 ${matched} 个任务到故事，${pooled} 个进入项目任务池`,
     });
   };
+
 
   // 处理导入任务的状态变更
   const _handleImportedTaskStatusChange = (
@@ -320,7 +401,8 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Input
-            placeholder="搜索任务..."
+            ref={searchInputRef}
+            placeholder="搜索任务... (⌘K)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-64"
@@ -348,7 +430,11 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
             <Upload className="mr-2 h-4 w-4" />
             导入
           </Button>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportKanban}
+          >
             <Download className="mr-2 h-4 w-4" />
             导出
           </Button>
@@ -366,6 +452,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
           <span>
             已导入 &ldquo;{importMeta.projectName}&rdquo; (
             {importMeta.createdAt}) 的 {importedTasks.length} 个任务
+            {importMeta.importSummary ? ` — ${importMeta.importSummary}` : ''}
           </span>
         </div>
       )}
@@ -580,6 +667,24 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         storyContextMap={storyContextMap}
         onTaskNavigate={(navTask) => {
           setDetailTask(navTask);
+        }}
+        onUpdateDependencies={async (taskId, dependencies) => {
+          await updateTask.mutateAsync({ id: taskId, dependencies });
+          // 乐观更新本地项目状态
+          setProject((prev) => ({
+            ...prev,
+            user_journeys: prev.user_journeys?.map((journey) => ({
+              ...journey,
+              stories: journey.stories?.map((story) => ({
+                ...story,
+                tasks: story.tasks?.map((task) =>
+                  task.id === taskId
+                    ? { ...task, dependencies }
+                    : task
+                ),
+              })),
+            })),
+          }));
         }}
       />
     </div>

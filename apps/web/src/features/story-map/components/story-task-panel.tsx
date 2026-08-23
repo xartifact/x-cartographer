@@ -6,14 +6,18 @@
  * 支持手动新增任务、删除任务、切换任务状态（任务拆解由外部 Agent 通过 xcart CLI 完成）。
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Plus, Trash2, Loader2, Clock } from 'lucide-react';
 import { Button, Input, Badge, Separator } from '@x-cartographer/ui';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { useCreateTask, useUpdateTaskStatus, useDeleteTask } from '@/lib/api/hooks';
+import { useVirtualList } from '@/lib/hooks/use-virtual-list';
 import type { Task, TaskType, TaskPriority, UserStory } from '@/types';
 import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
 import { cn } from '@/lib/utils';
+
+/** 虚拟滚动行高（TaskRow 高度 + 间距） */
+const TASK_ROW_HEIGHT = 64;
 
 interface StoryTaskPanelProps {
   story: UserStory;
@@ -56,6 +60,14 @@ export function StoryTaskPanel({ story }: StoryTaskPanelProps) {
   const updateTaskStatus = useUpdateTaskStatus();
   const deleteTask = useDeleteTask();
   const tasks = story.tasks ?? [];
+
+  // TASK-089：虚拟滚动容器与窗口
+  const taskListRef = useRef<HTMLDivElement>(null);
+  const { start, end, totalHeight, offsetY } = useVirtualList(
+    tasks.length,
+    taskListRef,
+    TASK_ROW_HEIGHT
+  );
 
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -208,15 +220,35 @@ export function StoryTaskPanel({ story }: StoryTaskPanelProps) {
         <div className="space-y-2">
           <Separator />
           <p className="text-xs text-muted-foreground">{tasks.length} 个任务</p>
-          {tasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              onDelete={handleDeleteTask}
-              onStatusChange={handleStatusChange}
-              disabled={saving}
-            />
-          ))}
+          {/* 虚拟滚动容器（TASK-089） */}
+          <div
+            ref={taskListRef}
+            className="overflow-y-auto"
+            style={{ maxHeight: Math.min(tasks.length * TASK_ROW_HEIGHT, 320) }}
+          >
+            <div style={{ height: totalHeight, position: 'relative' }}>
+              <div
+                style={{
+                  transform: `translateY(${offsetY}px)`,
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                }}
+              >
+                {tasks.slice(start, end).map((task) => (
+                  <div key={task.id} style={{ height: TASK_ROW_HEIGHT }}>
+                    <TaskRow
+                      task={task}
+                      onDelete={handleDeleteTask}
+                      onStatusChange={handleStatusChange}
+                      disabled={saving}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       ) : !isAddingTask ? (
         <p className="text-xs text-muted-foreground text-center py-4">
