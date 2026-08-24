@@ -26,6 +26,33 @@
 
 const VERSION = '0.2.0';
 const DEFAULT_SERVER = 'http://localhost:8787';
+import { readFileSync, existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+// ─── 配置文件 ─────────────────────────────────────────────────
+// 路径：$XDG_CONFIG_HOME/xcart/config 或 ~/.config/xcart/config
+// 格式：key=value 每行一个，支持 # 注释与空行
+const CONFIG_PATH = join(
+  process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
+  'xcart',
+  'config',
+);
+
+function loadConfig(): Record<string, string> {
+  if (!existsSync(CONFIG_PATH)) return {};
+  const out: Record<string, string> = {};
+  for (const raw of readFileSync(CONFIG_PATH, 'utf8').split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq === -1) continue;
+    out[line.slice(0, eq).trim()] = line.slice(eq + 1).trim();
+  }
+  return out;
+}
+
+const config = loadConfig();
 
 // ─── 参数解析 ─────────────────────────────────────────────────
 interface ParsedArgs {
@@ -64,10 +91,8 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
   return { flags, boolFlags, positional };
 }
-
-// ─── HTTP 客户端 ─────────────────────────────────────────────
-let server = process.env.XCART_API_URL ?? DEFAULT_SERVER;
-let token = process.env.XCART_API_TOKEN ?? '';
+let server = config.server ?? process.env.XCART_API_URL ?? DEFAULT_SERVER;
+let token = config.token ?? process.env.XCART_API_TOKEN ?? '';
 
 async function api(path: string, method = 'GET', body?: unknown): Promise<any> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -712,11 +737,14 @@ Skills
   xcart skill list
   xcart skill install [--dir <target>]          # 安装 skills/*.SKILL.md 到 agent 目录
 
-全局选项
-  --server, -s <url>   gateway 地址（默认 $XCART_API_URL / http://localhost:8787）
-  --token,  -t <token> API Token（默认 $XCART_API_TOKEN）
+  --server, -s <url>   gateway 地址（优先级: flag > 配置文件 ~/.config/xcart/config > $XCART_API_URL > http://localhost:8787）
+  --token,  -t <token> API Token（优先级: flag > 配置文件 > $XCART_API_TOKEN）
   --format, -f <fmt>   table | json | markdown（默认 table）
   --help, -h / --version, -v
+
+配置文件
+  路径: ~/.config/xcart/config（或 $XDG_CONFIG_HOME/xcart/config）
+  格式: key=value 每行一个（server=..., token=...），# 注释
 `;
 }
 
