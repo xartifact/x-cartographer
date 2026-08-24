@@ -74,16 +74,30 @@ function toTomlProject(project: {
 import { ImportDialog } from './import-dialog';
 
 /**
- * 格式化项目统计信息
+ * 格式化项目统计信息。
+ *
+ * 故事/任务数从旅程树实时统计（API 返回的 Project.user_journeys.stories / .tasks 已展开），
+ * 不依赖 metadata.total_stories/total_tasks —— 该字段服务端从未写入，恒为 undefined，
+ * 读它会得到错误的 0。
  */
-function formatProjectStats(project: {
-  user_journeys?: Array<{ id: string }>;
+export function formatProjectStats(project: {
+  user_journeys?: Array<{
+    id: string;
+    stories?: Array<{ id: string; tasks?: Array<{ id: string }> }>;
+  }>;
   metadata?: { total_stories?: number; total_tasks?: number };
 }): { journeyCount: number; storyCount: number; taskCount: number } {
+  const journeys = project.user_journeys ?? [];
+  const storyCount = journeys.reduce((acc, j) => acc + (j.stories?.length ?? 0), 0);
+  const taskCount = journeys.reduce(
+    (acc, j) => acc + (j.stories ?? []).reduce((a, s) => a + (s.tasks?.length ?? 0), 0),
+    0,
+  );
   return {
-    journeyCount: project.user_journeys?.length || 0,
-    storyCount: project.metadata?.total_stories || 0,
-    taskCount: project.metadata?.total_tasks || 0,
+    journeyCount: journeys.length,
+    // metadata 兜底（历史数据可能带快照计数，但不应优先于实时树）
+    storyCount: storyCount || project.metadata?.total_stories || 0,
+    taskCount: taskCount || project.metadata?.total_tasks || 0,
   };
 }
 
