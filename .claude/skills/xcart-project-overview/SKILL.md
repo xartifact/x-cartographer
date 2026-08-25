@@ -34,8 +34,13 @@ xcart context export <projectId>         # 导出全景 Markdown（需求/故事
 3. **提供评审上下文**：`xcart context export <projectId>`（Markdown）→ 直接粘贴给 LLM。
 4. **机械读取**：所有命令加 `--format json` 以 JSON 解析。
 
+## 效率提示（agent 用）
+
+- `overview --format json` 返回结构化统计（`{ journeys, stories, tasks, task_status, ... }`），单次 API 完成，**不要**逐个 story 拉 `task list` 凑统计。
+- `context export <id>` 默认输出 Markdown（`--format json` 得结构数据）；树内已含任务明细，无需再查 `task list`。
+- `project list` 的 description 截断至 60 字；查全量描述用 `project info --id`。
 ## 输出契约（--format json 片段）
 
-`project list` → `[{ "id", "name", "description", "journeys" }]`
-`overview` → `{ "project_id", "total", "by_status": {...}, "done_ratio" }`
-`context export`（markdown 内置，json 模式返回 `{ "project", "milestones", "journeys" }`）
+`project list` → `[{ "id", "name", "description"(截断), "journeys" }]`
+`overview` → `{ "project_id", "name", "journeys", "stories", "done_stories", "tasks", "done_tasks", "task_status", "story_status" }`
+`context export`：默认 Markdown；`--format json` → `{ "project"(精简), "milestones", "journeys"(树含故事任务) }`

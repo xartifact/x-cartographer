@@ -182,8 +182,13 @@ async function cmdProject(ctx: Ctx): Promise<void> {
   switch (sub) {
     case 'list': {
       const data = await api('/api/projects');
+      const trim = (s: unknown, n: number) =>
+        typeof s === 'string' && s.length > n ? s.slice(0, n) + '…' : (typeof s === 'string' ? s : '');
       const rows = (Array.isArray(data) ? data : []).map((p) => ({
-        id: p.id, name: p.name, description: p.description ?? '', journeys: p.user_journeys?.length ?? 0,
+        id: (p && typeof p === 'object' && 'id' in p && typeof p.id === 'string') ? p.id : '?',
+        name: trim(p && typeof p === 'object' && 'name' in p ? p.name : '', 40),
+        description: trim(p && typeof p === 'object' && 'description' in p ? p.description : '', 60),
+        journeys: p && typeof p === 'object' && 'user_journeys' in p && Array.isArray(p.user_journeys) ? p.user_journeys.length : 0,
       }));
       console.log(render(rows, ctx.format));
       break;
@@ -569,23 +574,57 @@ async function cmdStatus(ctx: Ctx): Promise<void> {
 }
 
 // ---------- context / overview ----------
+// 树直读：project API 返回的 user_journeys[].stories[].tasks 已含全字段，
+// 不再逐 story 发起 N+1 请求（原实现对 41 故事的项目 = 42 次 HTTP）。
+
+type TreeJourney = {
+  id?: string; name?: string; persona?: string;
+  stories?: Array<{ id?: string; title?: string; description?: string; status?: string;
+    priority?: string; estimation?: number; tasks?: Array<{ status?: string }> }>;
+};
+
+/** 从项目树汇总统计（journeys/stories/tasks 计数与状态分布） */
+function summarizeTree(proj: Record<string, unknown>): {
+  journeys: TreeJourney[];
+  storyCount: number; doneStories: number;
+  taskCount: number; doneTasks: number;
+  taskStatus: Record<string, number>;
+  storyStatus: Record<string, number>;
+} {
+  const journeys: TreeJourney[] = (Array.isArray(proj.user_journeys) ? proj.user_journeys : []) as TreeJourney[];
+  let storyCount = 0, doneStories = 0, taskCount = 0, doneTasks = 0;
+  const taskStatus: Record<string, number> = {};
+  const storyStatus: Record<string, number> = {};
+  for (const j of journeys) {
+    const stories = Array.isArray(j.stories) ? j.stories : [];
+    for (const s of stories) {
+      storyCount++;
+      const ss = s.status ?? 'backlog';
+      storyStatus[ss] = (storyStatus[ss] ?? 0) + 1;
+      if (ss === 'done') doneStories++;
+      for (const t of Array.isArray(s.tasks) ? s.tasks : []) {
+        taskCount++;
+        const ts = t.status ?? 'backlog';
+        taskStatus[ts] = (taskStatus[ts] ?? 0) + 1;
+        if (ts === 'done') doneTasks++;
+      }
+    }
+  }
+  return { journeys, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus };
+}
+
 async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
   const proj = await api(`/api/projects/${projectId}`);
   if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${projectId}`);
   const milestones = await api(`/api/milestones?projectId=${encodeURIComponent(projectId)}`).catch(() => []);
-  const journeys: any[] = Array.isArray(proj.user_journeys) ? proj.user_journeys : [];
-  const storyCount = journeys.reduce((n, j) => n + (j.stories?.length ?? 0), 0);
-  let taskCount = 0, doneTasks = 0;
+  const { journeys, storyCount, taskCount, doneTasks } = summarizeTree(proj);
   const journeyBlocks: string[] = [];
   for (const j of journeys) {
-    const stories: any[] = Array.isArray(j.stories) ? j.stories : [];
-    const storyBlocks = [];
-    for (const s of stories) {
-      const tasks: any[] = await api(`/api/tasks?storyId=${encodeURIComponent(s.id)}`).catch(() => []);
-      taskCount += tasks.length;
-      doneTasks += tasks.filter((t) => t.status === 'done').length;
-      storyBlocks.push(`- [${s.status ?? 'backlog'}] **${s.title}** (${s.id}, priority=${s.priority}, ${s.estimation}h)\n  ${(s.description ?? '').split('\n')[0] || ''}`);
-    }
+    const stories = Array.isArray(j.stories) ? j.stories : [];
+    const storyBlocks = stories.map((s) =>
+      `- [${s.status ?? 'backlog'}] **${s.title}** (${s.id}, priority=${s.priority}, ${s.estimation}h)`
+      + (Array.isArray(s.tasks) && s.tasks.length ? ` — ${s.tasks.length} 任务` : '')
+      + `\n  ${(s.description ?? '').split('\n')[0] || ''}`);
     journeyBlocks.push(`### 旅程 ${j.name} (${j.id}) — 角色: ${j.persona}\n${storyBlocks.join('\n')}`);
   }
   const md = `# ${proj.name} — 全景上下文\n
@@ -596,33 +635,29 @@ async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
 ## 用户旅程与故事\n
 ${journeyBlocks.join('\n\n')}\n`;
   if (fmt === 'markdown') console.log(md);
-  else if (fmt === 'json') console.log(JSON.stringify({ project: proj, milestones, journeys }, null, 2));
+  else if (fmt === 'json') console.log(JSON.stringify({ project: { id: proj.id, name: proj.name, description: proj.description }, milestones, journeys }, null, 2));
   else console.log(JSON.stringify(md, null, 2));
 }
 
 async function cmdOverview(ctx: Ctx): Promise<void> {
   const projectId = req(ctx.flags, 'project', 'projectId');
   const proj = await api(`/api/projects/${projectId}`);
-  const journeys: any[] = Array.isArray(proj.user_journeys) ? proj.user_journeys : [];
-  let storyTotal = 0, doneStories = 0, taskTotal = 0, doneTasks = 0;
-  const statusAgg: Record<string, number> = {};
-  for (const j of journeys) {
-    const stories: any[] = Array.isArray(j.stories) ? j.stories : [];
-    storyTotal += stories.length;
-    doneStories += stories.filter((s) => (s.status ?? 'backlog') === 'done').length;
-    for (const s of stories) {
-      const tasks: any[] = await api(`/api/tasks?storyId=${encodeURIComponent(s.id)}`).catch(() => []);
-      taskTotal += tasks.length;
-      for (const t of tasks) {
-        statusAgg[t.status] = (statusAgg[t.status] ?? 0) + 1;
-        if (t.status === 'done') doneTasks++;
-      }
-    }
+  if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${projectId}`);
+  const { journeys, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus } = summarizeTree(proj);
+  if (ctx.format === 'json') {
+    console.log(JSON.stringify({
+      project_id: proj.id, name: proj.name,
+      journeys: journeys.length, stories: storyCount, done_stories: doneStories,
+      tasks: taskCount, done_tasks: doneTasks,
+      task_status: taskStatus, story_status: storyStatus,
+    }, null, 2));
+    return;
   }
   const md = `# ${proj.name} — 项目总览\n
-- 旅程: ${journeys.length}\n- 故事: ${storyTotal}（完成 ${doneStories}）\n- 任务: ${taskTotal}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(statusAgg)}\n`;
+- 旅程: ${journeys.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 任务: ${taskCount}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n`;
   console.log(md);
 }
+
 
 // ---------- skill ----------
 async function cmdSkill(ctx: Ctx): Promise<void> {
@@ -782,7 +817,7 @@ async function main() {
         if (sub === 'export') {
           const id = rest[1] ?? flags.get('project') ?? flags.get('projectId');
           if (!id) throw new Error('用法: xcart context export <projectId>');
-          await cmdContextExport(id, format);
+          await cmdContextExport(id, flags.has('format') ? format : 'markdown');
         } else throw new Error(`未知子命令: context ${sub ?? ''}`);
         break;
       }
