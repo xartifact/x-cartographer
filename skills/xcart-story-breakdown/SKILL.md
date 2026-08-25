@@ -46,3 +46,14 @@ xcart story bulk-create --journey <journeyId> --file stories.json
 - `priority`: `high | medium | low`
 - `story status`: `backlog | todo | in_progress | done | cancelled`
 - `--ac` 用 `;` 分隔多条验收标准；`--tags`/`--tech-stack`/`--deps` 用 `,` 或 `;` 分隔。
+
+
+## Agent 效率提示（数据统计与解析）
+
+- 统计用 `overview --format json`（一次 API 完成，**不要**逐 story 拉 task list 凑数——树内含完整任务明细）
+- 解析 CLI 输出优先用 **jq**（1 行指令、失败面窄），不要写 python/node 内联脚本：
+  ```bash
+  xcart project list --format json | jq -r '.[] | "\(.id) \(.name)"'
+  ```
+- 复杂多步转换才用脚本，且写成文件而非内联 heredoc
+- 评测依据与数据：`tools/bench-parse.ts`（可重跑）+ 结论见 `docs/cli-agent-usage.md`
