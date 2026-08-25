@@ -24,7 +24,7 @@
  *   --version, -v           版本
  */
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const DEFAULT_SERVER = 'http://localhost:8787';
 import { readFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
