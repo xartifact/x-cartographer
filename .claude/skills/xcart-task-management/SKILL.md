@@ -45,3 +45,14 @@ xcart status history <taskId>                        # 状态变更历史（含�
 - `type`: `user_story | technical_task | bug_fix | spike`
 - `priority`: `P0(P0) | P1(P1) | P2(P2) | P3(P3)`
 - `status`: `backlog | todo | in_progress | in_review | testing | done | cancelled`
+
+
+## Agent 效率提示（数据统计与解析）
+
+- 统计用 `overview --format json`（一次 API 完成，**不要**逐 story 拉 task list 凑数——树内含完整任务明细）
+- 解析 CLI 输出优先用 **jq**（1 行指令、失败面窄），不要写 python/node 内联脚本：
+  ```bash
+  xcart project list --format json | jq -r '.[] | "\(.id) \(.name)"'
+  ```
+- 复杂多步转换才用脚本，且写成文件而非内联 heredoc
+- 评测依据与数据：`tools/bench-parse.ts`（可重跑）+ 结论见 `docs/cli-agent-usage.md`

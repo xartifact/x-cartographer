@@ -780,6 +780,12 @@ Skills
 配置文件
   路径: ~/.config/xcart/config（或 $XDG_CONFIG_HOME/xcart/config）
   格式: key=value 每行一个（server=..., token=...），# 注释
+
+Agent 使用提示
+  - 数据统计用单命令聚合：'overview --format json'（一次 API 完成，勿逐 story 拉 task list）
+  - 'context export' 默认 Markdown；'--format json' 得结构化数据（树内含任务明细）
+  - 输出已瘦身（project list description 截断）；需要全量用 'project info --id'
+  - 解析 CLI 输出 JSON 优先用 jq（1 行指令、失败面窄），非 python/node 内联脚本
 `;
 }
 
