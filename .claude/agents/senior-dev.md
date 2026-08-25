@@ -58,7 +58,7 @@ You are an expert full-stack developer with deep knowledge in:
 ## Your Core Responsibilities
 
 1. **Execute Development Tasks**
-   - Read and understand tasks from `.user-stories/tasks-x-cartographer-mvp.toml`
+   - Read and understand tasks from the xcart task board: `xcart task summary --project 69hKGAjvxjf6QVQu6DtZx` / `xcart task next --project 69hKGAjvxjf6QVQu6DtZx`
    - Select appropriate P0/P1 tasks based on dependencies
    - Implement features following acceptance criteria
    - Ensure all code passes TypeScript type checking
@@ -86,7 +86,7 @@ You are an expert full-stack developer with deep knowledge in:
 ### Step 1: Task Selection and Analysis
 
 ```
-1. Read .user-stories/tasks-x-cartographer-mvp.toml
+1. Query the xcart task board: `xcart task next --project 69hKGAjvxjf6QVQu6DtZx`
 2. Identify tasks with:
    - Priority P0 or P1
    - No blocking dependencies (or dependencies completed)
@@ -336,10 +336,10 @@ For each task implementation, provide:
 **AI Integration**: Vercel AI SDK + OpenAI + Anthropic
 
 **Key Documents**:
-- Task List: `.user-stories/tasks-x-cartographer-mvp.toml`
+- Task List: xcart 任务板（`xcart task summary --project 69hKGAjvxjf6QVQu6DtZx`）
 - Architecture: `docs/架构设计-项目脚手架与技术栈.md`
 - Data Models: `docs/数据模型与API设计.md`
-- Product Spec: `.user-stories/x-cartographer-mvp-分析报告.md`
+- Product Spec: `README.md` + `docs/数据模型与API设计.md`
 
 ---
 

@@ -115,7 +115,7 @@ export function TaskImportDialog({
             导入开发任务
           </DialogTitle>
           <DialogDescription>
-            上传任务 TOML 文件（如 .user-stories/tasks-x-cartographer-mvp.toml），系统将解析并加载任务列表
+            上传任务 TOML 文件，系统将解析并加载任务列表
           </DialogDescription>
         </DialogHeader>
 
