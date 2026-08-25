@@ -46,33 +46,34 @@ This project is indexed by GitNexus as **x-product-roadmap** (1606 symbols, 3607
 <!-- xcart:start -->
 # X-Cartographer 任务板自管理
 
-本仓库自身以 **xcart** 项目（`X-Cartographer-Dev`，id `4m-v4na1I9O2gvdpNFnDO`）管理研发任务。开发/修 bug/加功能前，先查任务板认领与跟进对应任务，完成或失败后更新状态（带 `--reason`）。
+本仓库自身以 **xcart** 项目（`X-Cartographer-Dev`，id `69hKGAjvxjf6QVQu6DtZx`）管理研发任务。开发/修 bug/加功能前，先查任务板认领与跟进对应任务，完成或失败后更新状态（带 `--reason`）。
 
 ## 前置
 
 - Gateway：`bun run --cwd apps/server dev`（默认 `http://localhost:8787`；本会话可用 my xcart-gateway hub 服务）
 - CLI：全局 `xcart`（仓库内亦可 `bun run --cwd apps/cli src/index.ts`）
 - 认证：开发模式免 token；已配置则用 `XCART_API_TOKEN` 或 `--token`
+- 服务地址：CLI 默认读 `~/.config/xcart/config`（`server=...`），未配置时 `$XCART_API_URL` → `http://localhost:8787`
 - Skills：读取 `.claude/skills/xcart-*/SKILL.md` 获取命令细节
 
 ## 常用操作
 
 ```bash
-xcart task summary --project 4m-v4na1I9O2gvdpNFnDO     # 进度总览
-xcart task next --project 4m-v4na1I9O2gvdpNFnDO       # 下一个可执行任务
+xcart task summary --project 69hKGAjvxjf6QVQu6DtZx     # 进度总览
+xcart task next --project 69hKGAjvxjf6QVQu6DtZx       # 下一个可执行任务
 xcart task info <taskId>
 xcart task status <taskId> in_progress --reason "认领"
 xcart task status <taskId> done --reason "实现完成"
 xcart status history <taskId>
-xcart overview --project 4m-v4na1I9O2gvdpNFnDO
-xcart context export 4m-v4na1I9O2gvdpNFnDO            # 全景 Markdown 供 LLM
+xcart overview --project 69hKGAjvxjf6QVQu6DtZx
+xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
 ```
 
-## 状态事实（以 `docs/任务状态审计报告.md` 为准，勿信 toml 的 status）
+## 状态事实（以任务板实时数据为准，勿信 toml 的 status）
 
-- 137 任务：done 87 / todo 19 / in_progress 3 / cancelled 28
+- 150 任务：done 100 / todo 5 / backlog 40 / cancelled 19（2026-08-25 复核）
 - `todo` 是可实现候选；`cancelled` = **架构决策废弃（内置 LLM 移除 / MCP 确认不实现）**，勿当作待办
-- `in_progress` 的 TASK-030/135/136 是半成品，接手前先读审计报告了解缺口
+- 状态以 `xcart task summary` / `task info` 实时查询为准；US-044/046/047（API Token/CLI/上下文导出）已实现为 done
 - 依赖关系已按真实任务 ID 写入；`task next` 只推荐依赖已完成且为 todo 的任务
 
 ## 更新任务板的约定
@@ -80,6 +81,5 @@ xcart context export 4m-v4na1I9O2gvdpNFnDO            # 全景 Markdown 供 LLM
 - **先查板再动手**：`task next` 或 `task list --story` 找到对应任务；没有则用 `task create` 建（默认 backlog）
 - **状态必须带 `--reason`**：写清依据（如「实现 X 模块」「架构决策移除」）
 - **完成闭环**：实现完 → `task status <id> done --reason "…"`；放弃/废弃 → `cancelled`
-- 完成任务与 toml 不一致时，更新 `docs/任务状态审计报告.md` 的明细表
 
 <!-- xcart:end -->
