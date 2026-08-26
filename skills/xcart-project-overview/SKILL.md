@@ -39,6 +39,18 @@ xcart context export <projectId>         # 导出全景 Markdown（需求/故事
 - `overview --format json` 返回结构化统计（`{ journeys, stories, tasks, task_status, ... }`），单次 API 完成，**不要**逐个 story 拉 `task list` 凑统计。
 - `context export <id>` 默认输出 Markdown（`--format json` 得结构数据）；树内已含任务明细，无需再查 `task list`。
 - `project list` 的 description 截断至 60 字；查全量描述用 `project info --id`。
+
+## 排期评估（AI-Native 研发工时）
+
+- 本项目 `estimation` / 排期统计的单位 = **AI-Native 研发工时（小时）**：按 coding agent 执行评估，**不是**人工人天/人月排期。
+- 报告排期/容量时以 agent 口径解读数字：如某版本估算 40h，指 coding agent 的工作量，交付时长远小于人工排期。
+- 参照基准（agent 实际执行经验）：
+  - 简单任务 2-3h → 10-15 分钟
+  - 中等任务 5-8h → 20-30 分钟
+  - 复杂任务 13h+ → 40-60 分钟
+  - 完整模块 → 1-2 小时
+- 向 LLM 提供评审上下文时，指出估算基于 AI-Native 工作流评估，避免误读为人力排期。
+
 ## 输出契约（--format json 片段）
 
 `project list` → `[{ "id", "name", "description"(截断), "journeys" }]`

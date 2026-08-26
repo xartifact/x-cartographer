@@ -28,6 +28,7 @@ const updateStorySchema = z.object({
   order: z.number().optional(),
   position: z.object({ x: z.number(), y: z.number() }).optional(),
   milestoneId: z.string().nullable().optional(),
+  journeyId: z.string().optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -67,10 +68,17 @@ export const storiesRoutes = new Hono()
   // PATCH /api/stories/:id
   .patch('/:id', zValidator('json', updateStorySchema), async (c) => {
     const input = c.req.valid('json');
-    const dto = {
-      ...input,
-      acceptance_criteria: input.acceptanceCriteria,
-    };
+    const dto: Record<string, unknown> = {};
+    if (input.title !== undefined) dto.title = input.title;
+    if (input.description !== undefined) dto.description = input.description;
+    if (input.priority !== undefined) dto.priority = input.priority;
+    if (input.estimation !== undefined) dto.estimation = input.estimation;
+    if (input.acceptanceCriteria !== undefined) dto.acceptance_criteria = input.acceptanceCriteria;
+    if (input.tags !== undefined) dto.tags = input.tags;
+    if (input.order !== undefined) dto.order = input.order;
+    if (input.position !== undefined) dto.position = input.position;
+    if (input.milestoneId !== undefined) dto.milestoneId = input.milestoneId;
+    if (input.journeyId !== undefined) dto.journeyId = input.journeyId;
     await storyRepo.update(c.req.param('id'), dto);
     return c.json({ success: true });
   })

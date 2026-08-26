@@ -110,4 +110,5 @@ export interface UpdateUserStoryDTO {
   order?: number;
   position?: Position;
   milestoneId?: string | null;
+  journeyId?: string;
 }

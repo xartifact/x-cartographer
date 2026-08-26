@@ -40,6 +40,17 @@ xcart status history <taskId>                        # 状态变更历史（含�
 3. **完成**：`xcart task status <taskId> done --reason "实现完成"`。
 4. **回顾**：`xcart status history <taskId>` 看变更轨迹；`xcart task summary --project <id>` 看整体进度。
 
+## 排期评估（AI-Native 研发工时）
+
+- `estimation` 单位 = **AI-Native 研发工时（小时）**：按 coding agent 执行评估，**不是**人工人天/人月排期。
+- 任务粒度 2-4h/个；征询/填写 estimation 时按 agent 执行速度评估，而非人工估算。
+- 参照基准（agent 实际执行经验）：
+  - 简单任务 2-3h → 10-15 分钟
+  - 中等任务 5-8h → 20-30 分钟
+  - 复杂任务 13h+ → 40-60 分钟
+  - 完整模块 → 1-2 小时
+- 排期容量：一个 coding agent 一天可承载的 AI-Native 工时显著高于人工排期；修订 estimation 与排期时保持该口径。
+
 ## 校验值
 
 - `type`: `user_story | technical_task | bug_fix | spike`

@@ -81,4 +81,5 @@ export interface UpdateUserStoryDTO {
     tags?: string[];
     order?: number;
     position?: Position;
+    milestoneId?: string | null;
 }

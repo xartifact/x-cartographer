@@ -326,6 +326,8 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const est = opt(f, 'estimation'); if (est !== undefined) body.estimation = Number(est);
       const ac = splitList(opt(f, 'ac', 'acceptance')); if (ac) body.acceptanceCriteria = ac;
       const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
+      const journey = opt(f, 'journey');
+      if (journey !== undefined) body.journeyId = journey === 'none' ? null : journey;
       const milestone = opt(f, 'milestone');
       if (milestone !== undefined) body.milestoneId = milestone === 'none' ? null : milestone;
       const status = opt(f, 'status');
@@ -342,6 +344,14 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const status = ctx.positional[2];
       if (!status) throw new Error('用法: xcart story status <id> <status> [--reason]');
       const res = await api(`/api/stories/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
+      console.log(render(res, ctx.format));
+      break;
+    }
+    case 'move': {
+      const id = reqId(ctx.positional.slice(1), 'story move');
+      const journeyId = ctx.positional[2];
+      if (!journeyId) throw new Error('用法: xcart story move <storyId> <journeyId>');
+      const res = await api(`/api/stories/${id}`, 'PATCH', { journeyId });
       console.log(render(res, ctx.format));
       break;
     }
@@ -732,13 +742,16 @@ function helpText(): string {
   xcart journey info <id>                        # 该旅程下的故事
   xcart journey create --project <id> --name <n> [--persona] [--description]
   xcart journey update <id> [--name] [--persona] [--description] [--order]
+
   xcart journey delete <id>
 
 用户故事
   xcart story list --journey <id>
-  xcart story info <id>
+  xcart story update <id> [--title] [--priority] [--status] [--journey <id>|none] [--milestone <id>|none] [--estimation]
+
+  xcart story move <id> <journeyId>                # 跨旅程移动故事（= update --journey）
+
   xcart story create --journey <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b]
-  xcart story update <id> [--title] [--priority] [--status] [--milestone <id>|none] [--estimation]
   xcart story status <id> <status> [--reason]
   xcart story delete <id>
   xcart story bulk-create --journey <id> --file stories.json
@@ -784,6 +797,9 @@ Skills
 Agent 使用提示
   - 数据统计用单命令聚合：'overview --format json'（一次 API 完成，勿逐 story 拉 task list）
   - 'context export' 默认 Markdown；'--format json' 得结构化数据（树内含任务明细）
+  - estimation 单位=AI-Native 研发工时（小时）：按 coding agent 执行评估，非人工人天；任务约 2-4h/个
+  - 可用参照: 简单 2-3h、中等 5-8h、复杂 13h+、完整模块 1-2 天（docs/Senior-Dev-Agent使用指南.md）
+  - skills 含排期语义：xcart skill install 后见 skills/xcart-*/SKILL.md「排期评估」节
   - 输出已瘦身（project list description 截断）；需要全量用 'project info --id'
   - 解析 CLI 输出 JSON 优先用 jq（1 行指令、失败面窄），非 python/node 内联脚本
 `;

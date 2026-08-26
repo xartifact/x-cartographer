@@ -24,6 +24,9 @@ xcart story create --journey <id> --title <t> [--priority high|medium|low] [--es
 xcart story update <storyId> [--title] [--priority] [--estimation] [--status] [--milestone <mid>|none] [--ac "a;b"]
 xcart story status <storyId> <status> [--reason]      # backlog|todo|in_progress|done|cancelled
 xcart story delete <storyId>
+xcart story update <storyId> --journey <journeyId>            # 跨旅程移动故事（order 自动追加到目标旅程末尾）
+xcart story move <storyId> <journeyId>                        # 同上，命令别名
+
 xcart story bulk-create --journey <journeyId> --file stories.json
 ```
 
@@ -40,6 +43,19 @@ xcart story bulk-create --journey <journeyId> --file stories.json
 2. **旅程 → 故事**：按"作为[角色]，我想要[功能]，以便[价值]"写 title；`story create` 支持 `--ac`（验收标准，`;` 分隔）与 `--priority`。
 3. **批量拆分**：把多条故事写成 `stories.json`（数组，每项含 `title/description/priority/estimation/acceptance_criteria/tags`），`story bulk-create --journey <id> --file stories.json`。
 4. **排期**：`story update <storyId> --milestone <milestoneId>` 挂到版本；`--milestone none` 移出排期。
+5. **跨旅程移动**：`story update <storyId> --journey <journeyId>`（或 `story move <storyId> <journeyId>`）把故事移到目标旅程，原旅程保留、目标旅程末尾接排；`--journey none` 移出旅程（一般不用于移动）。
+
+## 排期评估（AI-Native 研发工时）
+
+- `estimation` 单位 = **AI-Native 研发工时（小时）**：按 coding agent 执行评估，**不是**人工人天/人月排期。
+- 拆解粒度：单任务 2-4h；整条故事先按任务累加，再反推故事级 estimation。
+- 参照基准（来源于实际 agent 执行经验）：
+  - 简单任务 2-3h → 10-15 分钟
+  - 中等任务 5-8h → 20-30 分钟
+  - 复杂任务 13h+ → 40-60 分钟
+  - 完整模块 → 1-2 小时
+- 排期容量同理：一个 coding agent 一天可承载的 AI-Native 工时显著高于人工排期，勿按人工日估算。
+- 评估时把拆解出的任务 `estimation` 求和汇入故事，作为排期依据。
 
 ## 校验值
 

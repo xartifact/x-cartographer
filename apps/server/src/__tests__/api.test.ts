@@ -324,6 +324,26 @@ describe('stories CRUD + status flow', () => {
     expect(body.title).toBe('As a user I can login with SSO');
     expect(body.estimation).toBe(5);
 
+    // 跨旅程迁移（PATCH journeyId → journey_id 持久化）
+    const journey2 = await createJourney(projectId, 'Journey B');
+    res = await jsonRequest('PATCH', `/api/stories/${storyId}`, {
+      journeyId: journey2,
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true });
+
+    body = (await (
+      await app.request(`/api/stories/${storyId}`)
+    ).json()) as Array<Record<string, unknown>> &
+      Record<string, unknown>;
+    expect(body.journeyId).toBe(journey2);
+    res = await app.request(`/api/stories?journeyId=${journey2}`);
+    const moved = (await res.json()) as Array<Record<string, unknown>>;
+    expect(moved.some((s) => s.id === storyId)).toBe(true);
+    res = await app.request(`/api/stories?journeyId=${journeyId}`);
+    const source = (await res.json()) as Array<Record<string, unknown>>;
+    expect(source.some((s) => s.id === storyId)).toBe(false);
+
     // status 流转 → 写 status_changes
     res = await jsonRequest('POST', `/api/stories/${storyId}/status`, {
       status: 'done',
