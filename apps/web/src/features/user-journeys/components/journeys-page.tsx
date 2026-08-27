@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Users, LayoutList, Trash2 } from 'lucide-react';
+import { Plus, Search, Users, LayoutList, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button, Input, Card, CardContent } from '@x-cartographer/ui';
 import {
   JourneyCreateDialog,
@@ -40,7 +40,7 @@ export function JourneysPage({ project: initialProject }: JourneysPageProps) {
   }, [initialProject]);
 
   const journeys = useMemo(() => {
-    const list = project.user_journeys ?? [];
+    const list = [...(project.user_journeys ?? [])].sort((a, b) => a.order - b.order);
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
     return list.filter(
@@ -85,6 +85,22 @@ export function JourneysPage({ project: initialProject }: JourneysPageProps) {
     if (editing?.id === j.id) setEditing(null);
   }
 
+  /** 上移/下移调整旅程顺序（交换相邻 order 并 PATCH） */
+  async function moveJourney(index: number, dir: -1 | 1) {
+    const target = index + dir;
+    if (target < 0 || target >= journeys.length) return;
+    const list = [...journeys];
+    [list[index], list[target]] = [list[target], list[index]];
+    // 逐个更新 order 为新序号
+    const reindexed = list.map((j, idx) => ({ ...j, order: idx }));
+    setProject((prev) => ({ ...prev, user_journeys: reindexed }));
+    await Promise.all(
+      reindexed.map((j) =>
+        updateJourney.mutateAsync({ id: j.id, order: j.order })
+      )
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* 顶部操作栏 */}
@@ -118,7 +134,7 @@ export function JourneysPage({ project: initialProject }: JourneysPageProps) {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {journeys.map((j) => {
+          {journeys.map((j, index) => {
             const pl = PRIORITY_LABEL[j.priority ?? 'medium'];
             return (
               <Card
@@ -150,15 +166,37 @@ export function JourneysPage({ project: initialProject }: JourneysPageProps) {
                       <LayoutList className="h-3 w-3" />
                       {j.stories?.length ?? 0} 故事
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="ml-auto h-6 w-6 text-destructive"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(j); }}
-                      title="删除旅程"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="ml-auto flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={index === 0}
+                        onClick={(e) => { e.stopPropagation(); moveJourney(index, -1); }}
+                        title="上移"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        disabled={index === journeys.length - 1}
+                        onClick={(e) => { e.stopPropagation(); moveJourney(index, 1); }}
+                        title="下移"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(j); }}
+                        title="删除旅程"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
