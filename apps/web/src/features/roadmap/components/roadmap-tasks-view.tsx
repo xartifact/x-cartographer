@@ -83,7 +83,7 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
   function renderColumn(header: string, storyList: EnrichedStory[], emptyText: string) {
     const { total, done, est, pct } = taskStats(storyList);
     return (
-      <Card className="min-w-[300px] shrink-0">
+      <Card className="w-80 shrink-0">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">{header}</CardTitle>
           <div className="text-xs text-muted-foreground">

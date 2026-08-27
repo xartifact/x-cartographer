@@ -184,7 +184,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
       {activeTab === 'lanes' && (
         <div className="flex gap-4 overflow-x-auto pb-4">
         {/* 待规划池 */}
-        <Card className="min-w-[280px] shrink-0">
+        <Card className="w-72 shrink-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">待规划池</CardTitle>
             <div className="text-xs text-muted-foreground">
@@ -213,7 +213,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
         {milestones.map((m: MilestoneJson) => {
           const stories = storiesByMilestone.get(m.id) ?? [];
           return (
-            <Card key={m.id} className="min-w-[280px] shrink-0">
+            <Card key={m.id} className="w-72 shrink-0">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
