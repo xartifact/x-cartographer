@@ -6,10 +6,11 @@
  * 里程碑/版本模型：
  * - 版本管理：创建/编辑/归档版本（名称、目标、目标日期、状态）
  * - 泳道视图：按版本分组展示故事，待规划池置首列
+ * - 研发任务视图：按所属故事的版本聚合展示任务级交付进度
  */
 
 import { useMemo, useState } from 'react';
-import { Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, ListChecks } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
 import { useProject } from '@/lib/api/hooks';
 import {
@@ -19,6 +20,10 @@ import {
   useDeleteMilestone,
 } from '@/lib/api/hooks';
 import { MilestoneDialog } from './components/milestone-dialog';
+import { StoryCard } from './components/story-card';
+import { RoadmapTasksView } from './components/roadmap-tasks-view';
+import { StoryDetailPanel } from '@/features/story-map/components/story-detail-panel';
+import type { UserStory, Milestone } from '@/types';
 
 interface RoadmapPageProps {
   projectId: string;
@@ -50,12 +55,18 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
   const deleteMilestone = useDeleteMilestone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MilestoneJson | null>(null);
+  const [activeTab, setActiveTab] = useState<'lanes' | 'tasks'>('lanes');
+  // 选中的故事（详情面板）
+  const [selectedStory, setSelectedStory] = useState<{
+    story: UserStory;
+    journeyName: string;
+  } | null>(null);
 
-  // 待规划池：未排期的故事（milestone_id 为空）
+  // 待规划池：未排期且未取消的故事（milestone_id 为空）
   const unplannedStories = useMemo(() => {
     return (project?.user_journeys ?? []).flatMap((j) =>
       (j.stories ?? [])
-        .filter((s) => !s.milestone_id)
+        .filter((s) => !s.milestone_id && s.status !== 'cancelled')
         .map((s) => ({ ...s, journey_name: j.name }))
     );
   }, [project]);
@@ -129,7 +140,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="relative space-y-4 p-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -148,9 +159,30 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
         </div>
       </div>
 
+      {/* 视图切换 */}
+      <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
+        <Button
+          variant={activeTab === 'lanes' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('lanes')}
+          className="gap-1.5"
+        >
+          <CalendarIcon className="h-3.5 w-3.5" />
+          泳道视图
+        </Button>
+        <Button
+          variant={activeTab === 'tasks' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveTab('tasks')}
+          className="gap-1.5"
+        >
+          <ListChecks className="h-3.5 w-3.5" />
+          研发任务
+        </Button>
+      </div>
 
-      {/* 泳道视图：待规划池置首，后接各版本 */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      {activeTab === 'lanes' && (
+        <div className="flex gap-4 overflow-x-auto pb-4">
         {/* 待规划池 */}
         <Card className="min-w-[280px] shrink-0">
           <CardHeader className="pb-2">
@@ -164,17 +196,14 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
               <p className="text-sm text-muted-foreground">无未排期故事</p>
             ) : (
               unplannedStories.map((s) => (
-                <div
+                <StoryCard
                   key={s.id}
-                  className="rounded-md border p-2 text-sm"
-                >
-                  <div className="line-clamp-2 font-medium">{s.title}</div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{s.id}</span>
-                    <span>{s.journey_name}</span>
-                    <span>{s.estimation ?? 0}h</span>
-                  </div>
-                </div>
+                  story={s}
+                  journeyName={s.journey_name}
+                  onClick={(story) =>
+                    setSelectedStory({ story, journeyName: s.journey_name })
+                  }
+                />
               ))
             )}
           </CardContent>
@@ -228,14 +257,14 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
                   <p className="text-sm text-muted-foreground">暂无故事</p>
                 ) : (
                   stories.map((s) => (
-                    <div key={s.id} className="rounded-md border p-2 text-sm">
-                      <div className="line-clamp-2 font-medium">{s.title}</div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{s.id}</span>
-                        <span>{s.journey_name}</span>
-                        <span>{s.estimation ?? 0}h</span>
-                      </div>
-                    </div>
+                    <StoryCard
+                      key={s.id}
+                      story={s}
+                      journeyName={s.journey_name}
+                      onClick={(story) =>
+                        setSelectedStory({ story, journeyName: s.journey_name })
+                      }
+                    />
                   ))
                 )}
               </CardContent>
@@ -251,6 +280,29 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
           </Card>
         )}
       </div>
+      )}
+
+      {/* 研发任务视图：按版本聚合任务 */}
+      {activeTab === 'tasks' && project && (
+        <RoadmapTasksView
+          project={project}
+          milestones={milestones as Milestone[]}
+        />
+      )}
+
+      {/* 故事详情面板（浮层） */}
+      {project && selectedStory && (
+        <div className="pointer-events-none absolute bottom-4 right-4 top-4 z-10 overflow-y-auto rounded-lg shadow-lg">
+          <div className="pointer-events-auto">
+            <StoryDetailPanel
+              story={selectedStory.story}
+              journeyName={selectedStory.journeyName}
+              project={project}
+              onClose={() => setSelectedStory(null)}
+            />
+          </div>
+        </div>
+      )}
 
       <MilestoneDialog
         open={dialogOpen}
