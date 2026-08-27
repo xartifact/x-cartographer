@@ -185,7 +185,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
         <div className="flex gap-4 overflow-x-auto pb-4">
         {/* 待规划池 */}
         <Card className="w-72 shrink-0">
-          <CardHeader className="pb-2">
+          <CardHeader className="p-4 pb-2">
             <CardTitle className="text-sm font-medium">待规划池</CardTitle>
             <div className="text-xs text-muted-foreground">
               {unplannedStories.length} 故事 · {estimateSum(unplannedStories)}h
@@ -214,7 +214,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
           const stories = storiesByMilestone.get(m.id) ?? [];
           return (
             <Card key={m.id} className="w-72 shrink-0">
-              <CardHeader className="pb-2">
+              <CardHeader className="p-4 pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <CardTitle className="text-sm font-medium">{m.name}</CardTitle>

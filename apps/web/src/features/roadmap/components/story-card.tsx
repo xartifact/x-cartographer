@@ -41,7 +41,7 @@ export function StoryCard({ story, journeyName, onClick, className }: StoryCardP
     <Card
       onClick={onClick ? () => onClick(story) : undefined}
       className={cn(
-        'w-72 transition-all duration-150',
+        'w-full transition-all duration-150',
         onClick && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md',
         priorityBorder[story.priority] ?? 'border-l-4 border-l-transparent',
         className

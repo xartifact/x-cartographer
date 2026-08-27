@@ -84,7 +84,7 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
     const { total, done, est, pct } = taskStats(storyList);
     return (
       <Card className="w-80 shrink-0">
-        <CardHeader className="pb-2">
+        <CardHeader className="p-4 pb-2">
           <CardTitle className="text-sm font-medium">{header}</CardTitle>
           <div className="text-xs text-muted-foreground">
             {total} 任务 · {est}h · {done}/{total} 完成
