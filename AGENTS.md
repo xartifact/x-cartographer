@@ -98,7 +98,7 @@ xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
 
 ## UI 开发约束（web）
 
-- **详情交互统一用 `Sheet` 抽屉**（`TaskDetailSheet` 范式，`@x-cartographer/ui` 的 `Sheet`/`SheetContent`）。避免自绘 `absolute` 浮层；roadmap 故事详情当前为自绘浮层，**待迁移为 Sheet**。
+- **详情交互统一用 `Sheet` 抽屉**（`TaskDetailSheet` 范式，`@x-cartographer/ui` 的 `Sheet`/`SheetContent`）。避免自绘 `absolute` 浮层；roadmap 故事详情已统一为 Sheet（`StoryDetailPanel` 放入 `SheetContent`，经 `className` 覆盖宽度）。
 - **卡片宽度由容器约束**：泳道/列表卡片用 `w-full` 铺满列内容区，列才是宽度唯一约束；勿给卡片固定宽（会溢出列 padding）。
 - **版本/排期实体**：故事挂 `milestone_id`（版本），任务经 `story_id` 间接归属版本；任务无独立 `milestone_id`/`due_date`。研发任务排期视图按「故事→版本」聚合，非任务独立排期。
 - **统一信息密度**：故事卡片复用 `StoryCard`（优先级左色条 + 状态徽章 + 估算 + 任务进度），与故事地图 `StoryNode` 一致。

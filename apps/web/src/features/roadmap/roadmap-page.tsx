@@ -11,7 +11,7 @@
 
 import { useMemo, useState } from 'react';
 import { Plus, Calendar as CalendarIcon, ListChecks } from 'lucide-react';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Sheet, SheetContent } from '@x-cartographer/ui';
 import { useProject } from '@/lib/api/hooks';
 import {
   useMilestonesByProject,
@@ -290,19 +290,23 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
         />
       )}
 
-      {/* 故事详情面板（浮层） */}
-      {project && selectedStory && (
-        <div className="pointer-events-none absolute bottom-4 right-4 top-4 z-10 overflow-y-auto rounded-lg shadow-lg">
-          <div className="pointer-events-auto">
+      {/* 故事详情抽屉（Sheet，对齐任务管理交互） */}
+      <Sheet
+        open={!!selectedStory}
+        onOpenChange={(open) => { if (!open) setSelectedStory(null); }}
+      >
+        <SheetContent className="p-4">
+          {selectedStory && project && (
             <StoryDetailPanel
               story={selectedStory.story}
               journeyName={selectedStory.journeyName}
               project={project}
               onClose={() => setSelectedStory(null)}
+              className="w-full h-full"
             />
-          </div>
-        </div>
-      )}
+          )}
+        </SheetContent>
+      </Sheet>
 
       <MilestoneDialog
         open={dialogOpen}

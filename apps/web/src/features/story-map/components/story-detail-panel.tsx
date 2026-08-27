@@ -22,6 +22,8 @@ interface StoryDetailPanelProps {
   onClose: () => void;
   onEdit?: (story: UserStory) => void;
   onDelete?: (story: UserStory) => void;
+  /** 覆盖容器宽度/尺寸类（默认 w-80；置于 Sheet 内传 w-full h-full） */
+  className?: string;
 }
 
 const priorityLabels: Record<Priority, string> = {
@@ -40,7 +42,7 @@ const priorityColors: Record<Priority, string> = {
 };
 
 export const StoryDetailPanel = memo<StoryDetailPanelProps>(
-  ({ story, journeyName, project, onClose, onEdit, onDelete }) => {
+  ({ story, journeyName, project, onClose, onEdit, onDelete, className }) => {
     if (!story) {
       return null;
     }
@@ -48,8 +50,11 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
     const taskCount = story.tasks?.length ?? 0;
 
     return (
-      <Card className="flex h-full w-80 flex-col overflow-hidden">
-        {/* 头部 */}
+      <Card
+        className={cn(
+          'flex h-full w-80 flex-col overflow-hidden',
+        )}
+      >
         <CardHeader className="flex shrink-0 flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex min-w-0 items-center gap-2">
             <Badge variant="outline" className="shrink-0 font-mono">
