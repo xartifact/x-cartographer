@@ -82,4 +82,41 @@ xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
 - **状态必须带 `--reason`**：写清依据（如「实现 X 模块」「架构决策移除」）
 - **完成闭环**：实现完 → `task status <id> done --reason "…"`；放弃/废弃 → `cancelled`
 
+
 <!-- xcart:end -->
+
+<!-- dev-constraints:start -->
+# X-Cartographer 开发约束
+
+> 开发流程的可执行约束。既有 GitNexus（代码智能/影响分析）与 x-cart（任务板自管理）章节见上；此处补充**实操规则**。
+
+## 技术栈与运行时
+
+- **Bun 运行时 + pnpm 依赖管理**（仓库根 `bun.lock`；勿引入 npm 新增包）。
+- Monorepo：`apps/web`（React + TanStack Router + Vite）、`apps/server`（Hono + PGlite + Drizzle）、`apps/cli`（xcart CLI）、`packages/{db,shared,ui}`。
+- **禁内置 LLM/MCP 依赖**：项目定位为纯存储/协调层（`refactor: remove built-in AI`）。story/任务 AI 生成类需求按架构决策废弃，勿新建该类功能。
+
+## UI 开发约束（web）
+
+- **详情交互统一用 `Sheet` 抽屉**（`TaskDetailSheet` 范式，`@x-cartographer/ui` 的 `Sheet`/`SheetContent`）。避免自绘 `absolute` 浮层；roadmap 故事详情当前为自绘浮层，**待迁移为 Sheet**。
+- **卡片宽度由容器约束**：泳道/列表卡片用 `w-full` 铺满列内容区，列才是宽度唯一约束；勿给卡片固定宽（会溢出列 padding）。
+- **版本/排期实体**：故事挂 `milestone_id`（版本），任务经 `story_id` 间接归属版本；任务无独立 `milestone_id`/`due_date`。研发任务排期视图按「故事→版本」聚合，非任务独立排期。
+- **统一信息密度**：故事卡片复用 `StoryCard`（优先级左色条 + 状态徽章 + 估算 + 任务进度），与故事地图 `StoryNode` 一致。
+
+## API 数据流约束
+
+- **深树一次取全**：`GET /api/projects/:id` 返回 `user_journeys[].stories[].tasks[]`（含 `story.milestone_id`、`story.tasks`）。统计/排期视图直接消费该树，**勿**逐 story 拉 `task list` 凑数（有 N+1 前科）。
+- **CLI 与 web 数据一致性**：CLI 连 `~/.config/xcart/config` 的 gateway（生产 `http://100.80.110.125:8787`）；web 开发经 Vite proxy，目标由 `VITE_PROXY_TARGET`（`apps/web/.env`，已 gitignore）控制，`vite.config.ts` 用 `loadEnv` 读取。
+
+## 本地开发环境
+
+- Gateway：`bun run --cwd apps/server dev`（`:8787`）；Web：`bun run --cwd apps/web dev`（`:3001`）。
+- 看生产数据 UI：`apps/web/.env` 写 `VITE_PROXY_TARGET=http://100.80.110.125:8787`（`.env` 被 gitignore，不入库）。
+
+## 代码质量门禁
+
+- **验证链**：`tsc --noEmit`（web）→ `oxlint` → `bun run build`（web）→ `vitest run`（web）。既有测试勿破坏（`apps/web/src/lib/toml/__tests__/user-stories-import.test.ts` 有已知 `possibly undefined` 报错，为既有问题非本次引入）。
+- **UI 改动必须浏览器实测**（browser 工具），截图证明视觉效果；纯逻辑改动跑测试。
+- **提交信息**：`feat(web): …` / `fix(web): …`，中文描述，含改动要点。
+
+<!-- dev-constraints:end -->
