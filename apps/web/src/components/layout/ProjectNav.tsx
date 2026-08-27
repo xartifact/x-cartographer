@@ -8,6 +8,8 @@ import {
   CheckSquare,
   Calendar,
   Database,
+  Users,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
@@ -32,6 +34,18 @@ const defaultProjectNavItems: ProjectNavProps['items'] = [
     label: '故事地图',
     href: '/projects/[id]/story-map',
     icon: Map,
+  },
+  {
+    id: 'journeys',
+    label: '旅程管理',
+    href: '/projects/[id]/journeys',
+    icon: Users,
+  },
+  {
+    id: 'stories',
+    label: '故事管理',
+    href: '/projects/[id]/stories',
+    icon: FileText,
   },
   {
     id: 'tasks',

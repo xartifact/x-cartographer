@@ -18,7 +18,8 @@ import { StoryMapRoutePage } from './routes/projects/$projectId.story-map';
 import { TasksRoutePage } from './routes/projects/$projectId.tasks';
 import { RoadmapRoutePage } from './routes/projects/$projectId.roadmap';
 import { DataRoutePage } from './routes/projects/$projectId.data';
-
+import { JourneysRoutePage } from './routes/projects/$projectId.journeys';
+import { StoriesRoutePage } from './routes/projects/$projectId.stories';
 export interface RouterContext {
   queryClient: QueryClient;
 }
@@ -83,11 +84,22 @@ const projectRoadmapRoute = createRoute({
   path: '/roadmap',
   component: RoadmapRoutePage,
 });
-
 const projectDataRoute = createRoute({
   getParentRoute: () => projectLayoutRoute,
   path: '/data',
   component: DataRoutePage,
+});
+
+const projectJourneysRoute = createRoute({
+  getParentRoute: () => projectLayoutRoute,
+  path: '/journeys',
+  component: JourneysRoutePage,
+});
+
+const projectStoriesRoute = createRoute({
+  getParentRoute: () => projectLayoutRoute,
+  path: '/stories',
+  component: StoriesRoutePage,
 });
 
 // ─── 路由树 ──────────────────────────────────────────────
@@ -102,6 +114,8 @@ const routeTree = rootRoute.addChildren([
     projectTasksRoute,
     projectRoadmapRoute,
     projectDataRoute,
+    projectJourneysRoute,
+    projectStoriesRoute,
   ]),
 ]);
 
