@@ -9,29 +9,23 @@
  * 数据源：useProject 的深树（user_journeys[].stories[].tasks[] + story.milestone_id）。
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Calendar as CalendarIcon, Clock, GitBranch } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
+import { TaskDetailSheet } from '@/features/tasks/components/task-detail-sheet';
 import { TASK_PRIORITY_CLS } from '@/features/workbench/components/card-meta';
-import type { Project, Milestone } from '@/types';
+import { useUpdateTask } from '@/lib/api/hooks';
+import type { Project, Milestone, Task } from '@/types';
 
-/** 带旅程名的故事（用于任务聚合） */
 type EnrichedStory = {
   id: string;
   title: string;
   milestone_id?: string;
   estimation?: number;
   journey_name: string;
-  tasks: Array<{
-    id: string;
-    title: string;
-    status: string;
-    priority: string;
-    estimation: number;
-    dependencies: string[];
-  }>;
+  tasks: Task[];
 };
 
 interface RoadmapTasksViewProps {
@@ -40,6 +34,38 @@ interface RoadmapTasksViewProps {
 }
 
 export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps) {
+  // 选中的任务详情（Sheet 抽屉）
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+  const updateTask = useUpdateTask();
+
+  // 收集所有任务（用于解析依赖）
+  const allTasks = useMemo<Task[]>(() => {
+    const tasks: Task[] = [];
+    (project.user_journeys ?? []).forEach((j) => {
+      (j.stories ?? []).forEach((s) => {
+        if (s.tasks) tasks.push(...s.tasks);
+      });
+    });
+    return tasks;
+  }, [project]);
+
+  // 故事/旅程上下文 map
+  const storyContextMap = useMemo(() => {
+    const map: Record<string, { storyTitle: string; journeyName: string }> = {};
+    (project.user_journeys ?? []).forEach((j) => {
+      (j.stories ?? []).forEach((s) => {
+        map[s.id] = { storyTitle: s.title, journeyName: j.name };
+      });
+    });
+    return map;
+  }, [project]);
+
+  const openTaskDetail = (task: Task) => {
+    setDetailTask(task);
+    setDetailSheetOpen(true);
+  };
+
   // 扁平化带旅程名+任务的未排期/已排期故事（排除已取消故事）
   const stories = useMemo<EnrichedStory[]>(() => {
     return (project.user_journeys ?? []).flatMap((j) =>
@@ -118,7 +144,11 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
                     {s.tasks.map((t) => (
                       <div
                         key={t.id}
-                        className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openTaskDetail(t)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') openTaskDetail(t); }}
+                        className="flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors hover:bg-accent/40"
                       >
                         <StatusBadge
                           status={t.status as never}
@@ -178,6 +208,19 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
           renderColumn(m.name, storiesByMilestone.get(m.id) ?? [], '暂无任务')
         )}
       </div>
+
+      {/* 任务详情抽屉（对齐任务管理 TaskDetailSheet） */}
+      <TaskDetailSheet
+        task={detailTask}
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+        allTasks={allTasks}
+        storyContextMap={storyContextMap}
+        onTaskNavigate={(navTask) => setDetailTask(navTask)}
+        onUpdateDependencies={async (taskId, dependencies) => {
+          await updateTask.mutateAsync({ id: taskId, dependencies });
+        }}
+      />
     </div>
   );
 }
