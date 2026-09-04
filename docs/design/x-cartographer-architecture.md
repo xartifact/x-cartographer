@@ -34,7 +34,7 @@
 │  apps/server (Hono Gateway)                  │
 │  Bun.serve, /api/*, apiTokenAuth, /metrics   │
 │  路由: projects/journeys/stories/tasks/      │
-│        milestones/status-changes/llm/settings│
+│        milestones/status-changes/settings    │
 └──────────┬───────────────────────────────────┘
            │
            ▼
@@ -51,7 +51,7 @@
          └──────────────────┘
 ```
 
-**关键决策：使用独立 Hono Gateway（`apps/server`，@x-cartographer/gateway）承载全部后端逻辑**，以 REST `/api/*` 暴露；Web 前端与 CLI 通过同一网关读写数据（写操作需 Bearer Token，未配置 token 时本地放行）。MCP Server（`apps/server/src/mcp`）让 AI 代理也能通过 stdio 直连。原"tRPC 嵌入 Next.js"方案已被 Vite+Hono 迁移取代。
+**关键决策：使用独立 Hono Gateway（`apps/server`，@x-cartographer/gateway）承载全部后端逻辑**，以 REST `/api/*` 暴露；Web 前端与 CLI 通过同一网关读写数据（写操作需 Bearer Token，未配置 token 时本地放行）。AI 代理通过 `xcart` CLI + Agent Skills 集成；MCP Server 已评估并否决，不实现。原"tRPC 嵌入 Next.js"方案已被 Vite+Hono 迁移取代。
 
 ## 3. Monorepo 结构
 
@@ -71,7 +71,6 @@ x-cartographer/
 │   │   ├── src/
 │   │   │   ├── app.ts        # Hono 装配（basePath /api + auth + metrics）
 │   │   │   ├── routes/       # projects/journeys/stories/tasks/milestones/...
-│   │   │   ├── mcp/          # MCP Server（stdio，供 AI 代理直连）
 │   │   │   └── index.ts      # Bun.serve 入口
 │   │   ├── package.json
 │   │   └── tsconfig.json
@@ -110,8 +109,7 @@ CLI 通过 Gateway REST API 交互（`apps/server/src/routes/`，basePath `/api`
 | task | tasks.ts | `GET /?storyId=` `GET /next?projectId=` `GET /:id` `POST /` `PATCH /:id` `POST /:id/status` `DELETE /:id` |
 | milestone | milestones.ts | `GET /?projectId=` `POST /` `PATCH /:id` `DELETE /:id` |
 | status-changes | status-changes.ts | `GET /[?entityId=]` `POST /` |
-| llm | llm.ts | `POST /analyze-requirements` `POST /generate-journey-suggestions` `POST /decompose-story` `POST /scheduling-suggestions` |
-| settings | settings.ts | `PUT/DELETE /llm/:provider` `GET /llm/status` `POST /llm/:provider/test` `GET/POST/DELETE /token` |
+| settings | settings.ts | `GET /token` `POST /token` `DELETE /token` |
 
 ## 5. CLI 命令设计 (xcart)
 

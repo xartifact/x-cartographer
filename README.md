@@ -10,7 +10,7 @@
 - **故事地图规划**：用户旅程 → 用户故事可视化画布（@xyflow/react），支持拖拽/筛选/版本关联
 - **任务拆解与排期**：LLM 将故事拆解为任务，按里程碑（版本）智能排期
 - **研发任务管理**：任务状态流（backlog→todo→in_progress→in_review→testing→done）、依赖拓扑、`next` 可执行任务推荐、状态历史
-- **面向 AI 集成**：REST API + API Token 认证、`xcart` CLI、**Agent Skills**、项目全景上下文导出（MCP Server 为规划中需求，尚未实现）
+- **面向 AI 集成**：REST API + API Token 认证、`xcart` CLI、**Agent Skills**、项目全景上下文导出
 
 ## 技术栈与架构
 

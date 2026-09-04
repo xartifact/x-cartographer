@@ -72,7 +72,7 @@ xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
 ## 状态事实（以任务板实时数据为准，勿信 toml 的 status）
 
 - 150 任务：done 100 / todo 5 / backlog 40 / cancelled 19（2026-08-25 复核）
-- `todo` 是可实现候选；`cancelled` = **架构决策废弃（内置 LLM 移除 / MCP 确认不实现）**，勿当作待办
+- `todo` 是可实现候选；`cancelled` = **架构决策废弃（内置 LLM 移除；MCP Server 已评估并否决，不实现）**，勿当作待办
 - 状态以 `xcart task summary` / `task info` 实时查询为准；US-044/046/047（API Token/CLI/上下文导出）已实现为 done
 - 依赖关系已按真实任务 ID 写入；`task next` 只推荐依赖已完成且为 todo 的任务
 
@@ -94,7 +94,7 @@ xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
 
 - **Bun 运行时 + pnpm 依赖管理**（仓库根 `bun.lock`；勿引入 npm 新增包）。
 - Monorepo：`apps/web`（React + TanStack Router + Vite）、`apps/server`（Hono + PGlite + Drizzle）、`apps/cli`（xcart CLI）、`packages/{db,shared,ui}`。
-- **禁内置 LLM/MCP 依赖**：项目定位为纯存储/协调层（`refactor: remove built-in AI`）。story/任务 AI 生成类需求按架构决策废弃，勿新建该类功能。
+- **禁内置 LLM 依赖**：项目定位为纯存储/协调层（`refactor: remove built-in AI`）。story/任务 AI 生成类需求按架构决策废弃，勿新建该类功能。**MCP Server 已评估并否决，不实现**——Agent 集成只走 `xcart` CLI + Agent Skills，勿为 MCP 预留设计。
 
 ## UI 开发约束（web）
 
