@@ -18,12 +18,9 @@ test.describe('项目管理', () => {
     await expect(
       page.getByRole('heading', { name: '项目管理' }),
     ).toBeVisible();
-    // 页面始终提供「新建项目」与「导入 TOML」入口
+    // 页面始终提供「新建项目」入口
     await expect(
       page.getByRole('button', { name: '新建项目' }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: '导入 TOML' }),
     ).toBeVisible();
   });
 

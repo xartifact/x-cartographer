@@ -69,7 +69,7 @@ xcart overview --project 69hKGAjvxjf6QVQu6DtZx
 xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
 ```
 
-## 状态事实（以任务板实时数据为准，勿信 toml 的 status）
+## 状态事实（以任务板实时数据为准）
 
 - 150 任务：done 100 / todo 5 / backlog 40 / cancelled 19（2026-08-25 复核）
 - `todo` 是可实现候选；`cancelled` = **架构决策废弃（内置 LLM 移除；MCP Server 已评估并否决，不实现）**，勿当作待办
@@ -115,7 +115,7 @@ xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
 
 ## 代码质量门禁
 
-- **验证链**：`tsc --noEmit`（web）→ `oxlint` → `bun run build`（web）→ `vitest run`（web）。既有测试勿破坏（`apps/web/src/lib/toml/__tests__/user-stories-import.test.ts` 有已知 `possibly undefined` 报错，为既有问题非本次引入）。
+- **验证链**：`tsc --noEmit`（web）→ `oxlint` → `bun run build`（web）→ `vitest run`（web）。既有测试勿破坏。
 - **UI 改动必须浏览器实测**（browser 工具），截图证明视觉效果；纯逻辑改动跑测试。
 - **提交信息**：`feat(web): …` / `fix(web): …`，中文描述，含改动要点。
 

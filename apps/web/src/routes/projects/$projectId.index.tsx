@@ -1,146 +1,9 @@
 import { useParams } from '@tanstack/react-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Upload, Download, FileText } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
+import { FileText } from 'lucide-react';
 import { Button } from '@x-cartographer/ui';
-import { useProject, useSaveFullProject } from '@/lib/api/hooks';
-import { ImportDialog } from '@/features/projects/components/import-dialog';
-import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
-import type { TomlParsedProject, TomlParsedUserJourney } from '@/features/projects/types';
-import { Priority, TaskStatus, type Project, type UserJourney } from '@/types';
-
-
-
-/**
- * 项目级别导入的数据形状：
- * ImportDialog 在 parseTomlStoryMap 结果上追加 _projectId / _mode 两个标记字段。
- */
-type ProjectImportData = Omit<TomlParsedProject, 'id' | 'updated_at'> & {
-  _projectId?: string;
-  _mode?: 'merge' | 'replace';
-};
-
-/**
- * 将 DB Project 模型转换为 TOML 导出所需的简化 Project 格式
- */
-function toTomlProject(project: Project): TomlParsedProject {
-  return {
-    id: project.id,
-    name: project.name,
-    description: project.description ?? '',
-    version: project.metadata?.version || '1.0.0',
-    tech_stack: project.metadata?.tech_stack?.length
-      ? project.metadata.tech_stack
-      : ['未指定'],
-    created_at: project.created_at,
-    updated_at: project.updated_at,
-    // 序列化时 serializeUserStory 接受 string 与 { description, completed } 两种验收标准，
-    // 因此 app 的 string[] 可直接映射为 TomlParsed 形状（completed 省略表示未完成）。
-    user_journeys: (project.user_journeys ?? []).map((journey) => ({
-      id: journey.id,
-      name: journey.name,
-      description: journey.description,
-      persona: journey.persona,
-      order: journey.order,
-      stories: (journey.stories ?? []).map((story) => ({
-        id: story.id,
-        title: story.title,
-        description: story.description,
-        priority: story.priority,
-        estimation: story.estimation,
-        acceptance_criteria: (story.acceptance_criteria ?? []).map(
-          (c) => ({ description: c })
-        ),
-        tags: story.tags ?? [],
-        status: story.status ?? 'backlog',
-      })),
-    })),
-  };
-}
-
-/**
- * 将 TOML 解析出的旅程转换为 app UserJourney 结构（补齐时间戳与关联字段）
- */
-function tomlJourneyToUserJourney(
-  tomlJourney: TomlParsedUserJourney,
-  projectId: string,
-  journeyIndex: number,
-  now: string
-): UserJourney {
-  return {
-    id: tomlJourney.id,
-    name: tomlJourney.name,
-    description: tomlJourney.description,
-    persona: tomlJourney.persona,
-    project_id: projectId,
-    order: tomlJourney.order ?? journeyIndex,
-    created_at: now,
-    updated_at: now,
-    stories: (tomlJourney.stories ?? []).map((tomlStory, storyIndex) => ({
-      id: tomlStory.id,
-      journey_id: tomlJourney.id,
-      title: tomlStory.title,
-      description: tomlStory.description,
-      // TOML 优先级与 Priority 枚举值一致（high/medium/low），结构相同
-      priority: tomlStory.priority as Priority,
-      estimation: tomlStory.estimation ?? 0,
-      acceptance_criteria: (tomlStory.acceptance_criteria ?? []).map(
-        (c) => c.description
-      ),
-      tags: tomlStory.tags ?? [],
-      tasks: [],
-      order: storyIndex,
-      status: tomlStory.status ?? 'backlog',
-      created_at: now,
-      updated_at: now,
-    })),
-  };
-}
-
-/**
- * 合并 / 替换旅程列表（迁移自原 project-storage.ts 的 mergeTomlToProject）
- */
-function mergeJourneys(
-  existing: UserJourney[],
-  incoming: UserJourney[],
-  mode: 'replace' | 'merge'
-): UserJourney[] {
-  if (mode === 'replace') {
-    return incoming;
-  }
-
-  const existingMap = new Map(existing.map((j) => [j.id, j]));
-  const merged = existing.map((existingJourney) => {
-    const incomingJourney = incoming.find((j) => j.id === existingJourney.id);
-    if (!incomingJourney) return existingJourney;
-
-    const existingStoryMap = new Map(
-      (existingJourney.stories ?? []).map((s) => [s.id, s])
-    );
-    const mergedStories = (incomingJourney.stories ?? []).map(
-      (incomingStory) => {
-        const existingStory = existingStoryMap.get(incomingStory.id);
-        return existingStory
-          ? { ...existingStory, ...incomingStory }
-          : incomingStory;
-      }
-    );
-    // 保留现有但 TOML 中未包含的故事
-    for (const existingStory of existingJourney.stories ?? []) {
-      if (!incomingJourney.stories?.some((s) => s.id === existingStory.id)) {
-        mergedStories.push(existingStory);
-      }
-    }
-    return { ...existingJourney, ...incomingJourney, stories: mergedStories };
-  });
-
-  // 追加 TOML 中的新旅程
-  for (const incomingJourney of incoming) {
-    if (!existingMap.has(incomingJourney.id)) {
-      merged.push(incomingJourney);
-    }
-  }
-  return merged;
-}
+import { useProject } from '@/lib/api/hooks';
+import { TaskStatus } from '@/types';
 
 /**
  * 项目概览页（/projects/:id）
@@ -148,9 +11,6 @@ function mergeJourneys(
 export function ProjectOverviewPage() {
   const { projectId } = useParams({ strict: false });
   const { data: project, isLoading } = useProject(projectId);
-  const { mutateAsync: saveFullProject } = useSaveFullProject();
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
 
   // 从 user_journeys 计算统计信息
   const stats = useMemo(() => {
@@ -179,27 +39,6 @@ export function ProjectOverviewPage() {
       completionRate:
         taskCount > 0 ? Math.round((doneTaskCount / taskCount) * 100) : 0,
     };
-  }, [project]);
-
-  const handleExportToml = useCallback(async () => {
-    if (!project) return;
-    try {
-      const tomlData = serializeProjectToToml(toTomlProject(project));
-      const tomlText = await serializeToTomlText(tomlData);
-      const blob = new Blob([tomlText], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      const safeName = project.name.replace(/[/\\:*?"<>|]/g, '_');
-      anchor.download = `${safeName}.toml`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('TOML 导出失败:', error);
-      alert(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
   }, [project]);
 
   // 导出项目全景 AI 上下文（Markdown，可直接粘贴给 LLM）
@@ -255,34 +94,6 @@ export function ProjectOverviewPage() {
       alert(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }, [project]);
-  const handleImport = useCallback(
-    async (projectData: ProjectImportData) => {
-      if (!project) return;
-      try {
-        // 项目级别导入：合并或替换用户旅程
-        const pid = projectData._projectId ?? project.id;
-        const mode = projectData._mode ?? 'merge';
-        const now = new Date().toISOString();
-        const incomingJourneys = projectData.user_journeys.map((tj, index) =>
-          tomlJourneyToUserJourney(tj, pid, index, now)
-        );
-
-        const mergedJourneys = mergeJourneys(
-          project.user_journeys ?? [],
-          incomingJourneys,
-          mode
-        );
-
-        await saveFullProject({
-          project: { ...project, user_journeys: mergedJourneys },
-        });
-      } catch (error) {
-        console.error('TOML 导入失败:', error);
-        alert(`导入失败: ${error instanceof Error ? error.message : '未知错误'}`);
-      }
-    },
-    [project, saveFullProject]
-  );
 
   if (isLoading) {
     return (
@@ -313,24 +124,9 @@ export function ProjectOverviewPage() {
           <p className="mt-1 text-muted-foreground">{project.description}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportToml}>
-            <Download className="mr-2 h-4 w-4" />
-            导出 TOML
-          </Button>
           <Button variant="outline" size="sm" onClick={handleExportContext}>
             <FileText className="mr-2 h-4 w-4" />
             导出 AI 上下文
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setImportMode('merge');
-              setShowImportDialog(true);
-            }}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            导入 TOML
           </Button>
         </div>
       </div>
@@ -393,15 +189,6 @@ export function ProjectOverviewPage() {
           </div>
         </div>
       </div>
-
-      {/* 导入对话框 */}
-      <ImportDialog
-        open={showImportDialog}
-        onOpenChange={setShowImportDialog}
-        onImport={handleImport}
-        projectId={projectId}
-        mode={importMode}
-      />
     </div>
   );
 }

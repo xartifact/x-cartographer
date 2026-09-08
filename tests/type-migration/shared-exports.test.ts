@@ -38,10 +38,6 @@ describe('@x-cartographer/shared index — export declarations', () => {
   test('exports from types/project', () => {
     expect(indexContent).toContain("export * from './types/project'");
   });
-
-  test('exports from types/toml', () => {
-    expect(indexContent).toContain("export * from './types/toml'");
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -77,24 +73,6 @@ describe('@x-cartographer/shared types — file existence and key exports', () =
     expect(content).toContain('export interface DisplayPreferences');
     expect(content).toContain('export interface CreateProjectDTO');
     expect(content).toContain('export interface UpdateProjectDTO');
-  });
-
-  test('toml.ts exports TomlParsed* and Toml* types', () => {
-    const content = readFileSync(resolve(typesDir, 'toml.ts'), 'utf-8');
-    // TomlParsed* types (parsed/normalized format)
-    expect(content).toContain('export interface TomlParsedAcceptanceCriterion');
-    expect(content).toContain('export type TomlPriority');
-    expect(content).toContain('export interface TomlParsedUserStory');
-    expect(content).toContain('export interface TomlParsedUserJourney');
-    expect(content).toContain('export interface TomlParsedProject');
-    expect(content).toContain('export type Tag');
-    expect(content).toContain('export interface ProjectFormData');
-    // Toml* types (original TOML format)
-    expect(content).toContain('export type TomlAcceptanceCriterion');
-    expect(content).toContain('export interface TomlUserStory');
-    expect(content).toContain('export interface TomlUserJourney');
-    expect(content).toContain('export interface TomlProjectMetadata');
-    expect(content).toContain('export interface TomlStoryMap');
   });
 
   test('user-story.ts exports UserStory interface', () => {
@@ -133,21 +111,6 @@ describe('@x-cartographer/shared — runtime import accessibility', () => {
   test('can import Project interface shape', async () => {
     const shared = await import(sharedIndexPath);
     expect(shared).toBeDefined();
-  });
-
-  test('can import TomlParsedProject type', async () => {
-    const shared = await import(sharedIndexPath);
-    // TomlParsedProject is a type (erased at runtime), but module load confirms accessibility
-    expect(shared.TomlParsedUserStory).toBeUndefined(); // type, not value
-    expect(shared).toBeDefined();
-  });
-
-  test('can import TomlParsedProject via named type export', async () => {
-    // Verify the module doesn't throw when accessing the exports object
-    const shared = await import(sharedIndexPath);
-    const keys = Object.keys(shared);
-    // Should have enums and constants (runtime values), not types
-    expect(keys.length).toBeGreaterThan(0);
   });
 });
 

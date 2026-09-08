@@ -15,8 +15,6 @@ import {
   MoreHorizontal,
   Trash2,
   Edit2,
-  Upload,
-  Download,
 } from 'lucide-react';
 import {
   Badge,
@@ -36,42 +34,11 @@ import { useProjectStore, selectSearchQuery } from '@/features/projects/stores';
 import { useProjectActions } from '../hooks';
 import { formatRelativeTime } from '@/utils/format';
 import { cn } from '@/lib/utils';
-import { serializeProjectToToml, serializeToTomlText } from '@/lib/toml/parser';
-import type { TomlParsedProject } from '@/features/projects/types';
-import { useProjects, useSaveFullProject } from '@/lib/api/hooks';
+import { useProjects } from '@/lib/api/hooks';
 import { useNavigate } from '@tanstack/react-router';
-import { nanoid } from 'nanoid';
 import { ProjectCreateDialog } from './project-create-dialog';
 import { ProjectEditDialog } from './project-edit-dialog';
-import { type Priority, type Project } from '@x-cartographer/shared';
-
-
-/**
- * 将 DB Project 模型转换为 TOML 导出所需的简化 Project 格式
- */
-function toTomlProject(project: {
-  id: string;
-  name: string;
-  description?: string | null;
-  created_at: string;
-  updated_at: string;
-  metadata?: { version?: string; tech_stack?: string[] } | null;
-  user_journeys?: unknown[];
-}): TomlParsedProject {
-  return {
-    id: project.id,
-    name: project.name,
-    description: project.description ?? '',
-    version: project.metadata?.version || '1.0.0',
-    tech_stack: project.metadata?.tech_stack?.length
-      ? project.metadata.tech_stack
-      : ['未指定'],
-    created_at: project.created_at,
-    updated_at: project.updated_at,
-    user_journeys: (project.user_journeys ?? []) as TomlParsedProject['user_journeys'],
-  };
-}
-import { ImportDialog } from './import-dialog';
+import { type Project } from '@x-cartographer/shared';
 
 /**
  * 格式化项目统计信息。
@@ -110,7 +77,6 @@ function ProjectCard({
   onSelect,
   onDelete,
   onEdit,
-  onExport,
 }: {
   project: {
     id: string;
@@ -129,7 +95,6 @@ function ProjectCard({
   onSelect: () => void;
   onDelete: () => void;
   onEdit: () => void;
-  onExport: () => void;
 }) {
   const stats = formatProjectStats(project);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -186,16 +151,6 @@ function ProjectCard({
                 >
                   <Edit2 className="mr-2 h-4 w-4" />
                   编辑
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onExport();
-                  }}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  导出 TOML
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -330,26 +285,6 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
       : true
   );
 
-  const handleExportToml = async (project: Project) => {
-    try {
-      const tomlData = serializeProjectToToml(toTomlProject(project));
-      const tomlText = await serializeToTomlText(tomlData);
-      const blob = new Blob([tomlText], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      const safeName = project.name.replace(/[/\\:*?"<>|]/g, '_');
-      anchor.download = `${safeName}.toml`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('TOML 导出失败:', error);
-      alert(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-  };
-
   if (isLoading) {
     return <LoadingState />;
   }
@@ -399,7 +334,6 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
             onSelect={() => setActiveProjectId(project.id)}
             onDelete={() => deleteProject(project.id)}
             onEdit={() => setEditingProject(project)}
-            onExport={() => handleExportToml(project)}
           />
         ))}
       </div>
@@ -432,95 +366,14 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
 export default function ProjectListPage() {
   const navigate = useNavigate();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const { createProject } = useProjectActions();
-  const { mutateAsync: saveFullProject } = useSaveFullProject();
 
   const handleCreateClick = () => {
     setShowCreateDialog(true);
   };
 
-  const handleImportClick = () => {
-    setShowImportDialog(true);
-  };
-
   const handleCreateSuccess = (projectId: string) => {
     setShowCreateDialog(false);
     navigate({ to: `/projects/$projectId`, params: { projectId } });
-  };
-  const handleImportSuccess = async (
-    projectData: Omit<TomlParsedProject, 'id' | 'updated_at'>
-  ) => {
-    // 1) 先创建项目骨架（只写 name/description/tech_stack）
-    const created = await createProject({
-      name: projectData.name ?? '导入项目',
-      description: projectData.description || undefined,
-      tech_stack: projectData.tech_stack ?? [],
-    });
-
-    // 2) 构造完整项目树（含旅程、故事）并写入。
-    //    TOML 中的 UJ-001/US-001 等 ID 是文档语义编号，非全局唯一：
-    //    直接入库会与其它已导入项目的 ID 冲突（主键重复）。
-    //    因此为每个旅程/故事生成全局唯一 ID（保留语义前缀便于识别）。
-    const now = new Date().toISOString();
-    const fullProject: Project = {
-      id: created.id,
-      name: projectData.name ?? '导入项目',
-      description: projectData.description,
-      created_at: now,
-      updated_at: now,
-      user_journeys: (projectData.user_journeys ?? []).map(
-        (journey, journeyIndex) => {
-          const newJourneyId = `UJ-${nanoid(8)}`;
-          return {
-            id: newJourneyId,
-            name: journey.name,
-            description: journey.description,
-            persona: journey.persona,
-            project_id: created.id,
-            order: journey.order ?? journeyIndex,
-            created_at: now,
-            updated_at: now,
-            stories: (journey.stories ?? []).map((story, storyIndex) => ({
-              id: `US-${nanoid(8)}`,
-              journey_id: newJourneyId,
-              title: story.title,
-              description: story.description,
-              priority: story.priority as Priority,
-              estimation: story.estimation,
-              acceptance_criteria: story.acceptance_criteria.map(
-                (criterion) => criterion.description
-              ),
-              tags: story.tags ?? [],
-              tasks: [],
-              order: storyIndex,
-              status: story.status ?? 'backlog',
-              created_at: now,
-              updated_at: now,
-            })),
-          };
-        }
-      ),
-      metadata: {
-        tech_stack: projectData.tech_stack ?? [],
-        version: projectData.version ?? '1.0.0',
-        tags: [],
-      },
-      settings: {
-        auto_save: true,
-        display_preferences: {
-          show_priority_colors: true,
-          show_estimation: true,
-          default_view: 'map',
-        },
-      },
-    };
-
-    if (fullProject.user_journeys.length > 0) {
-      await saveFullProject({ project: fullProject });
-    }
-    setShowImportDialog(false);
-    navigate({ to: `/projects/$projectId`, params: { projectId: created.id } });
   };
 
   return (
@@ -533,10 +386,6 @@ export default function ProjectListPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleImportClick}>
-            <Upload className="mr-2 h-4 w-4" />
-            导入 TOML
-          </Button>
           <Button onClick={handleCreateClick}>
             <Plus className="mr-2 h-4 w-4" />
             新建项目
@@ -554,13 +403,6 @@ export default function ProjectListPage() {
           onSuccess={handleCreateSuccess}
         />
       )}
-
-      {/* 导入 TOML 对话框 */}
-      <ImportDialog
-        open={showImportDialog}
-        onOpenChange={setShowImportDialog}
-        onImport={handleImportSuccess}
-      />
     </div>
   );
 }

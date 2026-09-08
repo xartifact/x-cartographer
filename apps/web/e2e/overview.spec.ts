@@ -55,15 +55,9 @@ test.describe('项目概览', () => {
     const statCard = page.locator('div.rounded-lg.border', { hasText: '统计信息' });
     await expect(statCard.getByText(/0%/)).toBeVisible();
 
-    // 三个操作按钮
-    await expect(
-      page.getByRole('button', { name: '导出 TOML' }),
-    ).toBeVisible();
+    // 操作按钮
     await expect(
       page.getByRole('button', { name: '导出 AI 上下文' }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: '导入 TOML' }),
     ).toBeVisible();
 
     // 清理

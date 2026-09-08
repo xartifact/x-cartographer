@@ -7,7 +7,7 @@
 'use client';
 
 import * as React from 'react';
-import { Plus, Download, Upload, FileText } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import {
   Button,
   Input,
@@ -28,19 +28,16 @@ import {
   PresetManager,
 } from '@/features/tasks/components';
 import type { ViewType, FilterConditions } from '@/features/tasks/components';
-import { TaskImportDialog } from './task-import-dialog';
 import { TaskCreateDialog } from './task-create-dialog';
 import { TaskDetailSheet } from './task-detail-sheet';
 import {
   useUpdateTaskStatus,
   useCreateTask,
   useUpdateTask,
-  type CreateTaskVariables,
 } from '@/lib/api/hooks';
 import type { Task, TaskStatus, StoryStatus, Project } from '@/types';
 import { serializeKanbanMarkdown } from '@/lib/markdown';
 import { useHotkeys } from '@/lib/hooks/use-hotkeys';
-import type { AppTask } from '@/lib/toml/task-parser';
 
 interface TasksPageProps {
   /** 当前项目 */
@@ -64,14 +61,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   >(null);
   const [bulkReason, setBulkReason] = React.useState('');
   const [project, setProject] = React.useState(initialProject);
-  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
-  const [importedTasks, setImportedTasks] = React.useState<AppTask[]>([]);
-  const [importMeta, setImportMeta] = React.useState<{
-    projectName: string;
-    createdAt: string;
-    importSummary?: string;
-  } | null>(null);
   /** 任务详情抽屉 */
   const [detailTask, setDetailTask] = React.useState<Task | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = React.useState(false);
@@ -117,27 +107,6 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
     return tasks;
   }, [project]);
 
-  // 所有任务（包括导入的任务）
-  const displayTasks = React.useMemo(() => {
-    // 将导入的任务转换为统一格式
-    const imported: Task[] = importedTasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      type: t.type as Task['type'],
-      priority: t.priority as Task['priority'],
-      estimation: t.estimation,
-      status: t.status as Task['status'],
-      dependencies: t.dependencies,
-      story_id: null,
-      project_id: project.id,
-      tags: t.tags,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
-    return [...allTasks, ...imported];
-  }, [allTasks, importedTasks]);
-
   // 故事/旅程上下文 map，用于任务卡片显示归属
   const storyContextMap = React.useMemo(() => {
     const map: Record<string, { storyTitle: string; journeyName: string }> = {};
@@ -151,7 +120,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
 
   // 过滤任务
   const filteredTasks = React.useMemo(() => {
-    let result = displayTasks;
+    let result = allTasks;
     if (statusFilter.length > 0) {
       result = result.filter((task) =>
         statusFilter.includes(task.status as TaskStatus | StoryStatus)
@@ -168,7 +137,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       );
     }
     return result;
-  }, [displayTasks, statusFilter, searchQuery]);
+  }, [allTasks, statusFilter, searchQuery]);
 
   // 按状态分组统计
   const statusStats = React.useMemo(() => {
@@ -180,13 +149,13 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       testing: 0,
       done: 0,
     };
-    displayTasks.forEach((task) => {
+    allTasks.forEach((task) => {
       if (stats[task.status] !== undefined) {
         stats[task.status]++;
       }
     });
     return stats;
-  }, [displayTasks]);
+  }, [allTasks]);
 
   // 按状态统计用户故事
   const storyStats = React.useMemo(() => {
@@ -301,7 +270,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
 
   // 进度统计
   const completedCount = statusStats.done || 0;
-  const totalCount = displayTasks.length;
+  const totalCount = allTasks.length;
   const progress =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   // 处理新建任务（绑定到指定故事）
@@ -333,68 +302,6 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       console.error('create task failed', err);
     }
   };
-  const handleImport = async (
-    tasks: AppTask[],
-    metadata: { project_name: string; created_at: string }
-  ) => {
-    // 建立 story 引用映射：related_story (US-XXX) → story.id
-    const storyByRef: Record<string, string> = {};
-    project.user_journeys?.forEach((journey) => {
-      journey.stories?.forEach((story) => {
-        storyByRef[story.id] = story.id;
-        // 兼容标题中 [US-XXX] 前缀或 id 形式
-        const ref = story.title.match(/\[(US-[^\]]+)\]/)?.[1];
-        if (ref) storyByRef[ref] = story.id;
-      });
-    });
-
-    // 逐条写入数据库：匹配故事 → 关联故事；未匹配 → 项目级任务池
-    let matched = 0;
-    let pooled = 0;
-    for (const task of tasks) {
-      const storyId = task.relatedStory
-        ? (storyByRef[task.relatedStory] ?? null)
-        : null;
-      try {
-        await createTask.mutateAsync({
-          storyId: storyId ?? undefined,
-          projectId: storyId ? undefined : project.id,
-          title: task.title,
-          description: task.description,
-          type: task.type as CreateTaskVariables['type'],
-          priority: task.priority as CreateTaskVariables['priority'],
-          estimation: task.estimation,
-          dependencies: task.dependencies,
-          tags: task.tags,
-        });
-        if (storyId) matched++;
-        else pooled++;
-      } catch (err) {
-        console.error(`import task ${task.id} failed`, err);
-      }
-    }
-
-    setImportedTasks(tasks);
-    setImportMeta({
-      projectName: metadata.project_name,
-      createdAt: metadata.created_at,
-      importSummary: `已写入 ${matched} 个任务到故事，${pooled} 个进入项目任务池`,
-    });
-  };
-
-
-  // 处理导入任务的状态变更
-  const _handleImportedTaskStatusChange = (
-    taskId: string,
-    newStatus: TaskStatus
-  ) => {
-    setImportedTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* 顶部操作栏 */}
@@ -425,14 +332,6 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setImportDialogOpen(true)}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            导入
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={handleExportKanban}
           >
             <Download className="mr-2 h-4 w-4" />
@@ -444,18 +343,6 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
           </Button>
         </div>
       </div>
-
-      {/* 导入提示 */}
-      {importMeta && (
-        <div className="flex items-center gap-2 rounded-lg bg-blue-500/10 p-3 text-sm text-blue-600">
-          <FileText className="h-4 w-4" />
-          <span>
-            已导入 &ldquo;{importMeta.projectName}&rdquo; (
-            {importMeta.createdAt}) 的 {importedTasks.length} 个任务
-            {importMeta.importSummary ? ` — ${importMeta.importSummary}` : ''}
-          </span>
-        </div>
-      )}
 
       {/* 统计信息 */}
       <Card>
@@ -643,13 +530,6 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         onReasonChange={setBulkReason}
       />
 
-      {/* 任务 TOML 导入对话框 */}
-      <TaskImportDialog
-        open={importDialogOpen}
-        onOpenChange={setImportDialogOpen}
-        onImport={handleImport}
-      />
-
       {/* 新建任务对话框 */}
       <TaskCreateDialog
         open={createDialogOpen}
@@ -663,7 +543,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         task={detailTask}
         open={detailSheetOpen}
         onOpenChange={setDetailSheetOpen}
-        allTasks={displayTasks}
+        allTasks={allTasks}
         storyContextMap={storyContextMap}
         onTaskNavigate={(navTask) => {
           setDetailTask(navTask);

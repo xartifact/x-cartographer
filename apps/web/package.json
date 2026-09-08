@@ -61,8 +61,6 @@
     "tailwind-merge": "^3.2.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.1",
-    "@iarna/toml": "^2.2.5",
-    "toml": "^5.0.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {

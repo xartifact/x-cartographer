@@ -3,7 +3,6 @@
  *
  * After migrating types to @x-cartographer/shared, the old import paths should still work:
  * - `@/types` → re-exports from @x-cartographer/shared
- * - `@/features/projects/types` → named re-exports of TOML types from @x-cartographer/shared
  *
  * This ensures existing code using old import paths doesn't break.
  */
@@ -17,9 +16,6 @@ import { resolve } from 'path';
 
 const typesIndexPath = resolve(__dirname, '../../apps/web/src/types/index.ts');
 const typesIndexContent = readFileSync(typesIndexPath, 'utf-8');
-
-const projectsTypesPath = resolve(__dirname, '../../apps/web/src/features/projects/types/index.ts');
-const projectsTypesContent = readFileSync(projectsTypesPath, 'utf-8');
 
 const projectReexportPath = resolve(__dirname, '../../apps/web/src/types/project.ts');
 const projectReexportContent = readFileSync(projectReexportPath, 'utf-8');
@@ -39,48 +35,11 @@ describe('Backward compatibility — @/types re-export', () => {
   });
 });
 
-describe('Backward compatibility — @/features/projects/types re-export', () => {
-  test('features/projects/types/index.ts exists', () => {
-    expect(projectsTypesContent.length).toBeGreaterThan(0);
-  });
-
-  test('re-exports all TomlParsed* types', () => {
-    expect(projectsTypesContent).toContain('TomlParsedAcceptanceCriterion');
-    expect(projectsTypesContent).toContain('TomlParsedUserStory');
-    expect(projectsTypesContent).toContain('TomlParsedUserJourney');
-    expect(projectsTypesContent).toContain('TomlParsedProject');
-  });
-
-  test('re-exports all Toml* types (non-parsed)', () => {
-    expect(projectsTypesContent).toContain('TomlAcceptanceCriterion');
-    expect(projectsTypesContent).toContain('TomlUserStory');
-    expect(projectsTypesContent).toContain('TomlUserJourney');
-    expect(projectsTypesContent).toContain('TomlProjectMetadata');
-    expect(projectsTypesContent).toContain('TomlStoryMap');
-  });
-
-  test('re-exports utility types', () => {
-    expect(projectsTypesContent).toContain('Tag');
-    expect(projectsTypesContent).toContain('TomlPriority');
-    expect(projectsTypesContent).toContain('ProjectFormData');
-  });
-
-  test('all re-exports source from @x-cartographer/shared', () => {
-    expect(projectsTypesContent).toContain("from '@x-cartographer/shared'");
-  });
-
-  test('has migration comment explaining the proxy pattern', () => {
-    expect(projectsTypesContent).toContain('@x-cartographer/shared');
-    expect(projectsTypesContent).toContain('向后兼容');
-  });
-});
-
 // ---------------------------------------------------------------------------
 // Runtime import verification — old paths should resolve correctly
 // ---------------------------------------------------------------------------
 
 const typesPath = resolve(__dirname, '../../apps/web/src/types/index.ts');
-const projectsTypesPath_ = resolve(__dirname, '../../apps/web/src/features/projects/types/index.ts');
 const sharedPath = resolve(__dirname, '../../packages/shared/src/index.ts');
 
 describe('Backward compatibility — runtime module resolution', () => {
@@ -93,17 +52,6 @@ describe('Backward compatibility — runtime module resolution', () => {
     expect(types.TaskStatus).toBeDefined();
     expect(types.TaskType).toBeDefined();
     expect(types.Priority).toBeDefined();
-  });
-
-  test('@/features/projects/types resolves Toml types', async () => {
-    // Verify the feature-scoped re-export path works
-    const projTypes = await import(projectsTypesPath_);
-    expect(projTypes).toBeDefined();
-    // These are all types (erased at runtime), so the module should exist
-    // but individual type exports are undefined at runtime
-    const keys = Object.keys(projTypes);
-    // The module is a type-only re-export, so keys may be empty
-    expect(Array.isArray(keys)).toBe(true);
   });
 
   test('@/types/project.ts re-export does not cause duplicate exports', async () => {
@@ -145,16 +93,6 @@ describe('Property: Re-export parity — @/types exposes same as @x-cartographer
 // ---------------------------------------------------------------------------
 
 describe('Adversarial — import pattern coverage', () => {
-  test('project-list.tsx uses correct import path for TomlParsedProject', () => {
-    const projectListPath = resolve(
-      __dirname,
-      '../../apps/web/src/features/projects/components/project-list.tsx'
-    );
-    const content = readFileSync(projectListPath, 'utf-8');
-    // Should import from @/features/projects/types (the backward compat proxy)
-    expect(content).toContain("import type { TomlParsedProject } from '@/features/projects/types'");
-  });
-
   test('task-detail-sheet.tsx uses @/types for Task import', () => {
     const sheetPath = resolve(
       __dirname,
@@ -162,14 +100,5 @@ describe('Adversarial — import pattern coverage', () => {
     );
     const content = readFileSync(sheetPath, 'utf-8');
     expect(content).toContain("import type { Task, TaskStatus } from '@/types'");
-  });
-
-  test('TOML parser uses @/types for type imports', () => {
-    const parserPath = resolve(
-      __dirname,
-      '../../apps/web/src/lib/toml/parser.ts'
-    );
-    const content = readFileSync(parserPath, 'utf-8');
-    expect(content).toContain("from '@/types'");
   });
 });

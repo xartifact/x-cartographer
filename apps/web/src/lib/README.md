@@ -7,7 +7,6 @@
 - **llm/**: LLM 集成相关
   - `providers/`: LLM 提供商实现 (OpenAI, Anthropic)
   - `prompts/`: Prompt 模板
-- **toml/**: TOML 解析和序列化
 - **storage/**: 数据持久化 (localStorage, 加密)
 - **markdown/**: Markdown 处理
 - **validation/**: 数据验证 (Zod schemas)
