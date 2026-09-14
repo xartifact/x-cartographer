@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { devTasks } from '../db/schema/dev-tasks';
 import type { CreateDevTaskDTO, UpdateDevTaskDTO } from '@x-cartographer/shared';
@@ -52,6 +52,24 @@ export class DevTaskRepository {
     if (dto.product_id !== undefined) updateData.productId = dto.product_id;
 
     await db.update(devTasks).set(updateData).where(eq(devTasks.id, id));
+  }
+
+  /**
+   * 乐观锁状态流转（compare-and-set）：expectedStatus 存在时条件下推至 WHERE，
+   * 保证「读-判-写」原子性（并发认领场景，docs/design/task-claim-concurrency.md §2）。
+   * @returns 是否确实发生了流转（受影响行数 > 0）
+   */
+  async compareAndSetStatus(id: string, newStatus: string, expectedStatus?: string): Promise<boolean> {
+    const db = await ensureDb();
+    const condition = expectedStatus !== undefined
+      ? and(eq(devTasks.id, id), eq(devTasks.status, expectedStatus))
+      : eq(devTasks.id, id);
+    const moved = await db
+      .update(devTasks)
+      .set({ status: newStatus, updatedAt: new Date() })
+      .where(condition)
+      .returning({ id: devTasks.id });
+    return moved.length > 0;
   }
 
   /** 查询产品中所有任务（含产品级任务池） */

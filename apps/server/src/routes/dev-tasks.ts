@@ -42,6 +42,8 @@ const updateDevTaskSchema = z.object({
 
 const updateStatusSchema = z.object({
   status: z.nativeEnum(TaskStatus),
+  /** 乐观锁：期望的当前状态；提供时以 CAS 原子流转，冲突返回 409 */
+  expected_status: z.nativeEnum(TaskStatus).optional(),
   reason: z.string().optional(),
 });
 
@@ -186,6 +188,19 @@ export const devTasksRoutes = new Hono()
       return c.json({ error: `DevTask ${id} not found` }, 404);
     }
 
+    // 乐观锁 CAS：条件下推 WHERE，冲突（expected_status 不匹配）返回 409
+    const moved = await taskRepo.compareAndSetStatus(id, input.status, input.expected_status);
+    if (!moved) {
+      return c.json(
+        {
+          error: 'status conflict',
+          detail: `expected_status=${input.expected_status} 与当前状态不一致，任务已被并发修改`,
+          current_status: (await taskRepo.findById(id))?.status,
+        },
+        409
+      );
+    }
+
     await statusChangeRepo.create({
       id: nanoid(),
       entity_id: id,
@@ -195,8 +210,6 @@ export const devTasksRoutes = new Hono()
       reason: input.reason,
       changed_at: new Date().toISOString(),
     });
-
-    await taskRepo.update(id, { status: input.status });
 
     return c.json({ success: true });
   });
