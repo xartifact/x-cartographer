@@ -1,13 +1,15 @@
 /**
- * 任务相关类型定义
+ * 研发任务（DevTask）类型定义 —— 原 Task 正名。
+ * 执行域实体：AI/人执行的研发工作。原 type 字段已废除（实体切割，见
+ * docs/design/story-map-redesign.md §3.3），交付性质由 tags 承载。
  */
 
-import { TaskType, TaskPriority, TaskStatus, Timestamp } from './common';
+import { TaskPriority, TaskStatus, Timestamp } from './common';
 
 /**
- * 任务接口
+ * 研发任务接口
  */
-export interface Task {
+export interface DevTask {
   /** 唯一标识符，格式: TASK-XXX */
   id: string;
 
@@ -16,9 +18,6 @@ export interface Task {
 
   /** 任务描述 */
   description: string;
-
-  /** 任务类型 */
-  type: TaskType;
 
   /** 任务优先级 */
   priority: TaskPriority;
@@ -31,13 +30,13 @@ export interface Task {
 
   /** 依赖的任务 ID 列表 */
   dependencies: string[];
-  /** 所属用户故事 ID（项目级任务池任务可为空） */
+  /** 所属用户故事 ID（产品级任务池任务可为空） */
   story_id: string | null;
 
-  /** 所属项目 ID */
-  project_id: string;
+  /** 所属产品 ID */
+  product_id: string;
 
-  /** 标签 */
+  /** 标签（承载交付性质：implementation / refactor / bug / infra 等） */
   tags: string[];
 
   /** 创建时间 */
@@ -54,38 +53,38 @@ export interface Task {
 
   /** 负责人 */
   assignee?: string;
+
+  /** 受影响模块（引用 SystemModule.id）；不填 = 继承所属 Story 的并集，填了 = 收窄（§3.7/§4） */
+  affected_modules?: string[];
 }
 
 /**
- * 任务创建 DTO
+ * 研发任务创建 DTO
  */
-export interface CreateTaskDTO {
+export interface CreateDevTaskDTO {
   title: string;
   description: string;
-  type: TaskType;
   priority: TaskPriority;
   estimation: number;
   dependencies?: string[];
-  /** 所属用户故事（项目级任务池任务可省略） */
+  /** 所属用户故事（产品级任务池任务可省略） */
   story_id?: string;
-  /** 所属项目 ID（未关联故事的必需） */
-  project_id?: string;
+  /** 所属产品 ID（未关联故事的必需） */
+  product_id?: string;
   tags?: string[];
 }
 
 /**
- * 任务更新 DTO
+ * 研发任务更新 DTO
  */
-export interface UpdateTaskDTO {
+export interface UpdateDevTaskDTO {
   title?: string;
   description?: string;
-  type?: TaskType;
   priority?: TaskPriority;
   estimation?: number;
   status?: TaskStatus;
   dependencies?: string[];
   tags?: string[];
   assignee?: string;
-  project_id?: string;
+  product_id?: string;
 }
-

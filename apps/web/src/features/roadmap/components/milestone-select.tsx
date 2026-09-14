@@ -6,7 +6,7 @@
  */
 
 import { Calendar } from 'lucide-react';
-import { useMilestonesByProject, useUpdateStory } from '@/lib/api/hooks';
+import { useMilestonesByProduct, useUpdateStory } from '@/lib/api/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface MilestoneSelectProps {
@@ -18,7 +18,7 @@ interface MilestoneSelectProps {
 }
 
 export function MilestoneSelect({ projectId, value, onChange, storyId }: MilestoneSelectProps) {
-  const { data: milestones = [] } = useMilestonesByProject(projectId);
+  const { data: milestones = [] } = useMilestonesByProduct(projectId);
   const updateStory = useUpdateStory();
   const queryClient = useQueryClient();
 
@@ -26,8 +26,8 @@ export function MilestoneSelect({ projectId, value, onChange, storyId }: Milesto
     if (!storyId) return;
     const id = milestoneId || null;
     await updateStory.mutateAsync({ id: storyId, milestoneId: id });
-    // 更新后失效项目缓存，让 Roadmap/故事地图重新拉取
-    queryClient.invalidateQueries({ queryKey: ['projects'] });
+    // 更新后失效产品缓存，让 Roadmap/故事地图重新拉取
+    queryClient.invalidateQueries({ queryKey: ['products'] });
     onChange?.(storyId, id);
   }
   return (

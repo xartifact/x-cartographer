@@ -2,7 +2,7 @@
  * 用户故事相关类型定义
  */
 import { Priority, Timestamp, Position, StoryStatus } from './common';
-import { Task } from './task';
+import { DevTask } from './dev-task';
 /**
  * 用户故事接口
  */
@@ -22,9 +22,9 @@ export interface UserStory {
     /** 标签 */
     tags: string[];
     /** 所属用户旅程 ID */
-    journey_id: string;
+    activity_id: string;
     /** 拆解的任务列表 */
-    tasks?: Task[];
+    dev_tasks?: DevTask[];
     /** 排序顺序 */
     order: number;
     /** 状态 */
@@ -35,6 +35,11 @@ export interface UserStory {
     updated_at: Timestamp;
     /** 可视化位置（用于故事地图） */
     position?: Position;
+    /** 所属里程碑（版本）ID，未排期时为 undefined */
+    milestone_id?: string;
+
+    /** 受影响模块（引用 SystemModule.id，§3.7） */
+    affected_modules?: string[];
 }
 /**
  * 用户故事表单
@@ -67,7 +72,7 @@ export interface CreateUserStoryDTO {
     estimation: number;
     acceptance_criteria: string[];
     tags: string[];
-    journey_id: string;
+    activity_id: string;
 }
 /**
  * 用户故事更新 DTO
@@ -82,4 +87,5 @@ export interface UpdateUserStoryDTO {
     order?: number;
     position?: Position;
     milestoneId?: string | null;
+    activityId?: string;
 }

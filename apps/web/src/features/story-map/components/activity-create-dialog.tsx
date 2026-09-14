@@ -1,9 +1,10 @@
 'use client';
 
 /**
- * 用户旅程创建对话框
+ * 用户活动创建对话框
  *
- * 支持在故事地图中创建新的用户旅程（名称、描述、目标角色）。
+ * 支持在故事地图中创建新的用户活动（backbone 列：名称、描述、叙事序）。
+ * docs/design/story-map-redesign.md §3.2：字段 name/description/order，去 persona/priority。
  */
 
 import { useState, useEffect } from 'react';
@@ -19,35 +20,25 @@ import { Button } from '@x-cartographer/ui';
 import { Input } from '@x-cartographer/ui';
 import { Label } from '@x-cartographer/ui';
 import { Textarea } from '@x-cartographer/ui';
-type JourneyPriority = 'high' | 'medium' | 'low';
 
-interface JourneyCreateDialogProps {
+interface ActivityCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** 回调：返回新建旅程所需的字段（不含 id/order 等，由调用方生成） */
+  /** ��调：返回新建活动所需的字段（不含 id/order 等，由调用方生成） */
   onSave: (data: {
     name: string;
     description: string;
-    persona: string;
-    priority: JourneyPriority;
+    order?: number;
   }) => Promise<void>;
 }
 
-const PRIORITY_OPTIONS: { value: JourneyPriority; label: string }[] = [
-  { value: 'high', label: '高优先级' },
-  { value: 'medium', label: '中优先级' },
-  { value: 'low', label: '低优先级' },
-];
-
-export function JourneyCreateDialog({
+export function ActivityCreateDialog({
   open,
   onOpenChange,
   onSave,
-}: JourneyCreateDialogProps) {
+}: ActivityCreateDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [persona, setPersona] = useState('');
-  const [priority, setPriority] = useState<JourneyPriority>('medium');
   const [saving, setSaving] = useState(false);
 
   // 打开时重置表单
@@ -55,8 +46,6 @@ export function JourneyCreateDialog({
     if (open) {
       setName('');
       setDescription('');
-      setPersona('');
-      setPriority('medium');
     }
   }, [open]);
 
@@ -72,8 +61,6 @@ export function JourneyCreateDialog({
       await onSave({
         name: name.trim(),
         description: description.trim(),
-        persona: persona.trim(),
-        priority,
       });
       handleClose();
     } finally {
@@ -85,20 +72,20 @@ export function JourneyCreateDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>新建用户旅程</DialogTitle>
+          <DialogTitle>新建用户活动</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* 旅程名称 */}
+          {/* 活动名称 */}
           <div className="space-y-1.5">
-            <Label htmlFor="journey-name">
-              旅程名称 <span className="text-destructive">*</span>
+            <Label htmlFor="activity-name">
+              活动名称 <span className="text-destructive">*</span>
             </Label>
             <Input
-              id="journey-name"
+              id="activity-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：新用户注册流程"
+              placeholder="动词短语，例如：组织故事地图"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && name.trim()) {
                   handleSave();
@@ -107,42 +94,14 @@ export function JourneyCreateDialog({
             />
           </div>
 
-          {/* 目标角色 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="journey-persona">目标用户角色</Label>
-            <Input
-              id="journey-persona"
-              value={persona}
-              onChange={(e) => setPersona(e.target.value)}
-              placeholder="例如：新注册用户、管理员、开发者"
-            />
-          </div>
-
-          {/* 优先级 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="journey-priority">优先级</Label>
-            <select
-              id="journey-priority"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as JourneyPriority)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-            >
-              {PRIORITY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* 描述 */}
           <div className="space-y-1.5">
-            <Label htmlFor="journey-description">描述</Label>
+            <Label htmlFor="activity-description">描述</Label>
             <Textarea
-              id="journey-description"
+              id="activity-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="描述这个旅程的目标和范围..."
+              placeholder="描述这个活动覆盖的用户目标与范围..."
               className="min-h-[80px] resize-none"
             />
           </div>

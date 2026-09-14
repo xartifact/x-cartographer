@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * 用户旅程编辑对话框
+ * 用户活动编辑对话框
  *
- * 支持编辑旅程的名称、描述和目标角色。
+ * 支持编辑活动的名称和描述（backbone 列语义：动词短语 + 用户目标范围）。
  */
 
 import { useState, useEffect } from 'react';
@@ -19,47 +19,44 @@ import { Button } from '@x-cartographer/ui';
 import { Input } from '@x-cartographer/ui';
 import { Label } from '@x-cartographer/ui';
 import { Textarea } from '@x-cartographer/ui';
-import type { UserJourney } from '@/types/user-journey';
+import type { UserActivity } from '@/types';
 
-interface JourneyEditDialogProps {
+interface ActivityEditDialogProps {
   open: boolean;
-  journey: UserJourney | null;
+  activity: UserActivity | null;
   onOpenChange: (open: boolean) => void;
-  onSave: (updated: UserJourney) => Promise<void>;
+  onSave: (updated: UserActivity) => Promise<void>;
 }
 
-export function JourneyEditDialog({
+export function ActivityEditDialog({
   open,
-  journey,
+  activity,
   onOpenChange,
   onSave,
-}: JourneyEditDialogProps) {
+}: ActivityEditDialogProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [persona, setPersona] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // 当 journey 变化时重置表单
+  // 当 activity 变化时重置表单
   useEffect(() => {
-    if (journey) {
-      setName(journey.name);
-      setDescription(journey.description ?? '');
-      setPersona(journey.persona ?? '');
+    if (activity) {
+      setName(activity.name);
+      setDescription(activity.description ?? '');
     }
-  }, [journey]);
+  }, [activity]);
 
   function handleClose() {
     onOpenChange(false);
   }
 
   async function handleSave() {
-    if (!journey || !name.trim()) return;
+    if (!activity || !name.trim()) return;
 
-    const updated: UserJourney = {
-      ...journey,
+    const updated: UserActivity = {
+      ...activity,
       name: name.trim(),
       description: description.trim(),
-      persona: persona.trim(),
       updated_at: new Date().toISOString(),
     };
 
@@ -77,48 +74,37 @@ export function JourneyEditDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            编辑旅程
-            {journey && (
+            编辑活动
+            {activity && (
               <span className="ml-2 font-mono text-sm text-muted-foreground">
-                {journey.id}
+                {activity.id}
               </span>
             )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* 旅程名称 */}
+          {/* 活动名称 */}
           <div className="space-y-1.5">
-            <Label htmlFor="edit-journey-name">
-              旅程名称 <span className="text-destructive">*</span>
+            <Label htmlFor="edit-activity-name">
+              活动名称 <span className="text-destructive">*</span>
             </Label>
             <Input
-              id="edit-journey-name"
+              id="edit-activity-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：新用户注册流程"
-            />
-          </div>
-
-          {/* 目标角色 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-journey-persona">目标用户角色</Label>
-            <Input
-              id="edit-journey-persona"
-              value={persona}
-              onChange={(e) => setPersona(e.target.value)}
-              placeholder="例如：新注册用户、管理员、开发者"
+              placeholder="动词短语，例如：组织故事地图"
             />
           </div>
 
           {/* 描述 */}
           <div className="space-y-1.5">
-            <Label htmlFor="edit-journey-description">描述</Label>
+            <Label htmlFor="edit-activity-description">描述</Label>
             <Textarea
-              id="edit-journey-description"
+              id="edit-activity-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="描述这个旅程的目标和范围..."
+              placeholder="描述这个活动覆盖的用户目标与范围..."
               className="min-h-[80px] resize-none"
             />
           </div>

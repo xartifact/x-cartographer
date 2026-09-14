@@ -185,7 +185,7 @@ export function ViewSwitcherWithPresets({
               {!activePreset && <Check className="h-4 w-4" />}
               <span className="font-medium">全部</span>
             </div>
-            <span className="ml-auto text-xs text-muted-foreground">显示所有项目</span>
+            <span className="ml-auto text-xs text-muted-foreground">显示所有产品</span>
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
@@ -363,7 +363,7 @@ export const DEFAULT_PRESET_VIEWS: PresetView[] = [
   {
     id: 'all',
     name: '全部',
-    description: '显示所有项目',
+    description: '显示所有产品',
     filters: {
       statuses: [],
     },
@@ -371,7 +371,7 @@ export const DEFAULT_PRESET_VIEWS: PresetView[] = [
   {
     id: 'in-progress',
     name: '进行中',
-    description: '只显示进行中的项目',
+    description: '只显示进行中的产品',
     filters: {
       statuses: ['in_progress', 'in_review', 'testing'],
       inProgressOnly: true,
@@ -388,7 +388,7 @@ export const DEFAULT_PRESET_VIEWS: PresetView[] = [
   {
     id: 'completed',
     name: '已完成',
-    description: '只显示已完成的项目',
+    description: '只显示已完成的产品',
     filters: {
       statuses: ['done'],
       completedOnly: true,

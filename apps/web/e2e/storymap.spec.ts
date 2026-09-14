@@ -5,7 +5,7 @@ import { DIALOG_BUG_FIXED } from './known-bugs';
 /**
  * 故事地图：空态 → 创建旅程 → 旅程出现
  *
- * - 空态验证：新项目通过 gateway REST API 直接创建（绕开 Dialog 定位 bug），
+ * - 空态验证：新产品通过 gateway REST API 直接创建（绕开 Dialog 定位 bug），
  *   独立验证故事地图页空态。
  * - 创建旅程：依赖 Dialog 交互，当前被应用 bug 阻塞（Tailwind v4 未扫描
  *   packages/ui，Dialog 定位类缺失、渲染在视口外），修复后把
@@ -13,9 +13,9 @@ import { DIALOG_BUG_FIXED } from './known-bugs';
  */
 test.describe('故事地图', () => {
   test('空态展示', async ({ page }) => {
-    // 通过 API 创建项目（不依赖 Dialog UI）
+    // 通过 API 创建产品（不依赖 Dialog UI）
     const projectName = uniqueProjectName('e2e-storymap');
-    const createRes = await page.request.post('/api/projects', {
+    const createRes = await page.request.post('/api/products', {
       data: { name: projectName },
     });
     expect(createRes.ok()).toBeTruthy();
@@ -32,15 +32,15 @@ test.describe('故事地图', () => {
     await expect(page.getByRole('button', { name: '添加旅程' })).toBeVisible();
 
     // 清理
-    await page.request.delete(`/api/projects/${projectId}`);
+    await page.request.delete(`/api/products/${projectId}`);
   });
 
   test('创建旅程后旅程出现', async ({ page }) => {
     test.skip(!DIALOG_BUG_FIXED, '阻塞于 Dialog 定位 bug（Tailwind 未扫描 packages/ui），见 known-bugs.ts');
 
-    // 通过 API 创建项目
+    // 通过 API 创建产品
     const projectName = uniqueProjectName('e2e-storymap');
-    const createRes = await page.request.post('/api/projects', {
+    const createRes = await page.request.post('/api/products', {
       data: { name: projectName },
     });
     expect(createRes.ok()).toBeTruthy();
@@ -69,6 +69,6 @@ test.describe('故事地图', () => {
     await expect(page.getByText('1 个旅程')).toBeVisible();
 
     // 清理
-    await page.request.delete(`/api/projects/${projectId}`);
+    await page.request.delete(`/api/products/${projectId}`);
   });
 });

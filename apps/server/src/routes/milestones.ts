@@ -10,7 +10,7 @@ import { MilestoneRepository } from '@x-cartographer/db';
 const milestoneStatusSchema = z.enum(['planned', 'active', 'completed']);
 
 const createMilestoneSchema = z.object({
-  project_id: z.string(),
+  product_id: z.string(),
   name: z.string().min(1, '版本名称不能为空'),
   goal: z.string().optional(),
   target_date: z.string().optional(),
@@ -38,7 +38,7 @@ function toJson(m: {
 }) {
   return {
     id: m.id,
-    project_id: m.projectId,
+    product_id: m.projectId,
     name: m.name,
     goal: m.goal,
     target_date: m.targetDate?.toISOString(),
@@ -49,11 +49,11 @@ function toJson(m: {
 }
 
 export const milestonesRoutes = new Hono()
-  // GET /api/milestones?projectId=
+  // GET /api/milestones?productId=
   .get('/', async (c) => {
-    const projectId = c.req.query('projectId');
-    if (!projectId) return c.json({ error: 'projectId required' }, 400);
-    const milestones = await milestoneRepo.findByProjectId(projectId);
+    const productId = c.req.query('productId');
+    if (!productId) return c.json({ error: 'productId required' }, 400);
+    const milestones = await milestoneRepo.findByProductId(productId);
     return c.json(milestones.map(toJson));
   })
   // POST /api/milestones

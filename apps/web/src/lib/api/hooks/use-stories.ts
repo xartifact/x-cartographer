@@ -10,7 +10,7 @@ import type { Priority, StoryStatus } from '@x-cartographer/shared';
  */
 
 export interface CreateStoryVariables {
-  journeyId: string;
+  activityId: string;
   title: string;
   description: string;
   priority: Priority;
@@ -30,7 +30,10 @@ export interface UpdateStoryVariables {
   order?: number;
   position?: { x: number; y: number };
   milestoneId?: string | null;
+  activityId?: string;
+  userTaskId?: string | null;
 }
+
 
 export interface UpdateStoryStatusVariables {
   id: string;
@@ -51,14 +54,14 @@ export function useStory(id: string) {
   });
 }
 
-export function useStoriesByJourney(journeyId: string) {
+export function useStoriesByActivity(activityId: string) {
   return useQuery({
-    queryKey: ['stories', 'journey', journeyId],
+    queryKey: ['stories', 'activity', activityId],
     queryFn: async () => {
-      const res = await api.api.stories.$get({ query: { journeyId } });
+      const res = await api.api.stories.$get({ query: { activityId } });
       return res.json();
     },
-    enabled: !!journeyId,
+    enabled: !!activityId,
   });
 }
 
@@ -73,8 +76,8 @@ export function useCreateStory() {
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['stories', 'journey', variables.journeyId] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['stories', 'activity', variables.activityId] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     },
   });
 }
@@ -89,7 +92,7 @@ export function useUpdateStory() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     },
   });
 }
@@ -103,7 +106,7 @@ export function useDeleteStory() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     },
   });
 }
@@ -121,7 +124,7 @@ export function useUpdateStoryStatus() {
       // Invalidate the specific story
       queryClient.invalidateQueries({ queryKey: ['stories', variables.id] });
       // Invalidate the parent project (contains all nested data)
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       // Invalidate status history
       queryClient.invalidateQueries({ queryKey: ['status-changes', variables.id] });
     },

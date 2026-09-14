@@ -30,17 +30,16 @@ import {
 import { StatusFilterBar } from './status-filter';
 import { StatusBadge, TASK_STATUS_OPTIONS } from './status-badge';
 import { PriorityBadge } from '@/components/common/priority-badge';
-import type { Task, TaskStatus, StoryStatus } from '@/types';
+import type { DevTask, TaskStatus, StoryStatus } from '@/types';
 
 interface TaskListProps {
   /** 任务列表 */
-  tasks: Task[];
+  tasks: DevTask[];
 
   /** 任务状态变更回调 */
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
 
-  /** 任务点击回调 */
-  onTaskClick?: (task: Task) => void;
+  onTaskClick?: (task: DevTask) => void;
 
   /** 任务选择变更回调 */
   onSelectionChange?: (selectedIds: string[]) => void;
@@ -54,11 +53,10 @@ interface TaskListProps {
   /** 是否可编辑状态 */
   editableStatus?: boolean;
 
-  /** 故事/旅程上下文映射 */
-  storyContextMap?: Record<string, { storyTitle: string; journeyName: string }>;
+  /** 故事/活动上下文映射 */
+  storyContextMap?: Record<string, { storyTitle: string; activityName: string }>;
 
-  /** 触发 AI 执行回调 */
-  onExecute?: (task: Task) => void;
+  onExecute?: (task: DevTask) => void;
 
   /** 正在执行中的任务 ID 列表 */
   isExecutingIds?: string[];
@@ -67,12 +65,7 @@ interface TaskListProps {
   className?: string;
 }
 
-const typeConfig: Record<string, { label: string; icon: string }> = {
-  user_story: { label: '用户故事', icon: '📖' },
-  technical_task: { label: '技术任务', icon: '⚙️' },
-  bug_fix: { label: 'Bug 修复', icon: '🐛' },
-  spike: { label: 'Spike', icon: '🔍' },
-};
+
 
 /**
  * 任务列表组件
@@ -121,7 +114,7 @@ export function TaskList({
   };
 
   // 状态循环切换
-  const handleStatusCycle = (task: Task) => {
+  const handleStatusCycle = (task: DevTask) => {
     if (!onStatusChange || !editableStatus) return;
     const statuses = TASK_STATUS_OPTIONS.map((s) => s.value);
     const currentIndex = statuses.indexOf(task.status);
@@ -211,15 +204,15 @@ export function TaskList({
  * 任务卡片组件
  */
 interface TaskCardProps {
-  task: Task;
+  task: DevTask;
   isSelected: boolean;
   onSelect: (checked: boolean) => void;
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
-  onClick?: (task: Task) => void;
+  onClick?: (task: DevTask) => void;
   editableStatus?: boolean;
-  onStatusCycle?: (task: Task) => void;
-  storyContext?: { storyTitle: string; journeyName: string };
-  onExecute?: (task: Task) => void;
+  onStatusCycle?: (task: DevTask) => void;
+  storyContext?: { storyTitle: string; activityName: string };
+  onExecute?: (task: DevTask) => void;
   isExecuting?: boolean;
 }
 
@@ -235,7 +228,6 @@ function TaskCard({
   onExecute,
   isExecuting = false,
 }: TaskCardProps) {
-  const typeInfo = typeConfig[task.type] || typeConfig.technical_task;
 
   return (
     <Card
@@ -273,11 +265,8 @@ function TaskCard({
                   AI 执行中
                 </Badge>
               )}
-              <span className="text-xs" title={typeInfo.label}>
-                {typeInfo.icon}
-              </span>
               <span className="truncate text-xs text-muted-foreground">
-                {task.type === 'user_story' ? '用户故事' : task.type}
+                研发任务
               </span>
             </div>
 
@@ -337,9 +326,9 @@ function TaskCard({
               {storyContext ? (
                 <span
                   className="ml-auto max-w-[140px] truncate text-xs text-muted-foreground"
-                  title={`${storyContext.journeyName} › ${storyContext.storyTitle}`}
+                  title={`${storyContext.activityName} › ${storyContext.storyTitle}`}
                 >
-                  {storyContext.journeyName} › {storyContext.storyTitle}
+                  {storyContext.activityName} › {storyContext.storyTitle}
                 </span>
               ) : task.story_id ? (
                 <span className="ml-auto text-xs text-muted-foreground">

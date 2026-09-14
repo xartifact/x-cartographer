@@ -1,34 +1,28 @@
 'use client';
 
 /**
- * 故事任务拆解面板
+ * 故事研发任务拆解面板
  *
  * 支持手动新增任务、删除任务、切换任务状态（任务拆解由外部 Agent 通过 xcart CLI 完成）。
+ * DevTask 无 type 字段（重设计 §3.3：交付性质由 tags 承载）。
  */
 
 import { useState, useRef } from 'react';
 import { Plus, Trash2, Loader2, Clock } from 'lucide-react';
 import { Button, Input, Badge, Separator } from '@x-cartographer/ui';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
-import { useCreateTask, useUpdateTaskStatus, useDeleteTask } from '@/lib/api/hooks';
+import { useCreateDevTask, useUpdateDevTaskStatus, useDeleteDevTask } from '@/lib/api/hooks';
 import { useVirtualList } from '@/lib/hooks/use-virtual-list';
-import type { Task, TaskType, TaskPriority, UserStory } from '@/types';
-import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
+import type { DevTask, TaskPriority, UserStory } from '@/types';
+import { TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
-/** 虚拟滚动行高（TaskRow 高度 + 间距） */
+/** 虚拟滚动行高（DevTaskRow 高度 + 间距） */
 const TASK_ROW_HEIGHT = 64;
 
 interface StoryTaskPanelProps {
   story: UserStory;
 }
-/** 任务类型选项 */
-const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
-  { value: TaskTypeEnum.TECHNICAL_TASK, label: '技术任务' },
-  { value: TaskTypeEnum.USER_STORY, label: '功能实现' },
-  { value: TaskTypeEnum.BUG_FIX, label: 'Bug 修复' },
-  { value: TaskTypeEnum.SPIKE, label: '技术探索' },
-];
 
 /** 任务优先级选项 */
 const TASK_PRIORITY_OPTIONS: { value: TaskPriority; label: string; cls: string }[] = [
@@ -41,7 +35,6 @@ const TASK_PRIORITY_OPTIONS: { value: TaskPriority; label: string; cls: string }
 /** 空白新增任务表单初始值 */
 const EMPTY_FORM = {
   title: '',
-  type: TaskTypeEnum.TECHNICAL_TASK as TaskType,
   priority: TaskPriorityEnum.P1 as TaskPriority,
   estimation: 2,
 };
@@ -50,16 +43,12 @@ function priorityCls(p: TaskPriority) {
   return TASK_PRIORITY_OPTIONS.find((o) => o.value === p)?.cls ?? '';
 }
 
-function typeLabelOf(t: TaskType) {
-  return TASK_TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t;
-}
-
 
 export function StoryTaskPanel({ story }: StoryTaskPanelProps) {
-  const createTask = useCreateTask();
-  const updateTaskStatus = useUpdateTaskStatus();
-  const deleteTask = useDeleteTask();
-  const tasks = story.tasks ?? [];
+  const createTask = useCreateDevTask();
+  const updateTaskStatus = useUpdateDevTaskStatus();
+  const deleteTask = useDeleteDevTask();
+  const tasks = story.dev_tasks ?? [];
 
   // TASK-089：虚拟滚动容器与窗口
   const taskListRef = useRef<HTMLDivElement>(null);
@@ -83,7 +72,6 @@ export function StoryTaskPanel({ story }: StoryTaskPanelProps) {
         storyId: story.id,
         title: form.title.trim(),
         description: '',
-        type: form.type,
         priority: form.priority,
         estimation: form.estimation,
         dependencies: [],
@@ -147,20 +135,6 @@ export function StoryTaskPanel({ story }: StoryTaskPanelProps) {
             className="text-sm h-8"
           />
           <div className="flex gap-2">
-            {/* 类型 */}
-            <select
-              value={form.type}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, type: e.target.value as TaskType }))
-              }
-              className="flex-1 text-xs h-7 rounded border bg-background px-2"
-            >
-              {TASK_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
             {/* 优先级 */}
             <select
               value={form.priority}
@@ -170,7 +144,7 @@ export function StoryTaskPanel({ story }: StoryTaskPanelProps) {
                   priority: e.target.value as TaskPriority,
                 }))
               }
-              className="w-16 text-xs h-7 rounded border bg-background px-2"
+              className="w-20 text-xs h-7 rounded border bg-background px-2"
             >
               {TASK_PRIORITY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -238,7 +212,7 @@ export function StoryTaskPanel({ story }: StoryTaskPanelProps) {
               >
                 {tasks.slice(start, end).map((task) => (
                   <div key={task.id} style={{ height: TASK_ROW_HEIGHT }}>
-                    <TaskRow
+                    <DevTaskRow
                       task={task}
                       onDelete={handleDeleteTask}
                       onStatusChange={handleStatusChange}
@@ -267,13 +241,13 @@ const STATUS_CYCLE: TaskStatus[] = [
 ];
 
 /** 单条任务行 */
-function TaskRow({
+function DevTaskRow({
   task,
   onDelete,
   onStatusChange,
   disabled,
 }: {
-  task: Task;
+  task: DevTask;
   onDelete: (id: string) => void;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
   disabled?: boolean;
@@ -304,9 +278,11 @@ function TaskRow({
           >
             {task.priority}
           </span>
-          <Badge variant="outline" className="text-[10px] px-1 py-0">
-            {typeLabelOf(task.type)}
-          </Badge>
+          {task.tags.length > 0 && (
+            <Badge variant="outline" className="text-[10px] px-1 py-0">
+              {task.tags[0]}
+            </Badge>
+          )}
           {task.estimation > 0 && (
             <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
               <Clock className="h-2.5 w-2.5" />

@@ -1,21 +1,23 @@
 /**
- * 项目相关类型定义
+ * 产品（Product）类型定义 —— 原 Project 正名。
+ * 产品是持续演进的需求载体，承载用户故事地图与发布线。
+ * 见 docs/design/story-map-redesign.md §3.1。
  */
 
 import { Timestamp } from './common';
-import { UserJourney } from './user-journey';
+import { UserActivity } from './user-activity';
 
 /**
- * 项目接口
+ * 产品接口
  */
-export interface Project {
+export interface Product {
   /** 唯一标识符 */
   id: string;
 
-  /** 项目名称 */
+  /** 产品名称 */
   name: string;
 
-  /** 项目描述 */
+  /** 产品描述 */
   description?: string;
 
   /** 创建时间 */
@@ -24,20 +26,20 @@ export interface Project {
   /** 更新时间 */
   updated_at: Timestamp;
 
-  /** 用户旅程列表 */
-  user_journeys: UserJourney[];
+  /** 用户活动列表（故事地图 backbone） */
+  user_activities: UserActivity[];
 
-  /** 项目元数据 */
-  metadata: ProjectMetadata;
+  /** 产品元数据 */
+  metadata: ProductMetadata;
 
-  /** 项目设置 */
-  settings: ProjectSettings;
+  /** 产品设置 */
+  settings: ProductSettings;
 }
 
 /**
- * 项目元数据
+ * 产品元数据
  */
-export interface ProjectMetadata {
+export interface ProductMetadata {
   /** 技术栈 */
   tech_stack: string[];
 
@@ -50,7 +52,7 @@ export interface ProjectMetadata {
   /** 总用户故事数 */
   total_stories?: number;
 
-  /** 总任务数 */
+  /** 总研发任务数 */
   total_tasks?: number;
 
   /** 总估算工时 */
@@ -58,10 +60,9 @@ export interface ProjectMetadata {
 }
 
 /**
- * 项目设置
+ * 产品设置
  */
-export interface ProjectSettings {
-
+export interface ProductSettings {
   /** 自动保存 */
   auto_save: boolean;
 
@@ -87,9 +88,9 @@ export interface DisplayPreferences {
 }
 
 /**
- * 项目创建 DTO
+ * 产品创建 DTO
  */
-export interface CreateProjectDTO {
+export interface CreateProductDTO {
   name: string;
   description?: string;
   tech_stack?: string[];
@@ -97,12 +98,12 @@ export interface CreateProjectDTO {
 }
 
 /**
- * 项目更新 DTO
+ * 产品更新 DTO
  */
-export interface UpdateProjectDTO {
+export interface UpdateProductDTO {
   name?: string;
   description?: string;
-  settings?: Partial<ProjectSettings>;
-  metadata?: Partial<ProjectMetadata>;
-  user_journeys?: UserJourney[];
+  settings?: Partial<ProductSettings>;
+  metadata?: Partial<ProductMetadata>;
+  user_activities?: UserActivity[];
 }

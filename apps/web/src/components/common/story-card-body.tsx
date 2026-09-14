@@ -1,5 +1,5 @@
 /**
- * 故事卡片内容体（ID+优先级+状态 / 标题 / 旅程名 / 工时+标签+任务进度）
+ * 故事卡片内容体（ID+优先级+状态 / 标题 / 活动名 / 工时+标签+任务进度）
  *
  * 原本在 story-map 的 StoryNode（xyflow 节点）与 roadmap 的 StoryCard（纯展示卡片）里
  * 各自维护一份几乎相同的渲染 JSX——StoryNode 因为深度耦合 xyflow 的 Handle/NodeProps
@@ -12,8 +12,19 @@ import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { PriorityText } from '@/components/common/priority-badge';
 import type { UserStory } from '@/types';
 
-export function StoryCardBody({ story, journeyName }: { story: UserStory; journeyName?: string }) {
-  const tasks = story.tasks ?? [];
+export function StoryCardBody({
+  story,
+  activityName,
+  userTaskName,
+  /** 标题截断（line-clamp-2）。PatronCanvas 变高卡片传 false：高度由文本测量预算，标题完整渲染 */
+  clampTitle = true,
+}: {
+  story: UserStory;
+  activityName?: string;
+  userTaskName?: string;
+  clampTitle?: boolean;
+}) {
+  const tasks = story.dev_tasks ?? [];
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t) => t.status === 'done').length;
   const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : null;
@@ -35,12 +46,14 @@ export function StoryCardBody({ story, journeyName }: { story: UserStory; journe
           />
         )}
       </div>
+      {/* 行 2：标题（clampTitle=false 时完整渲染——高度已由文本测量预算） */}
+      <p className={clampTitle ? 'line-clamp-2 text-sm font-medium leading-snug' : 'text-sm font-medium leading-snug'}>{story.title}</p>
 
-      {/* 行 2：标题 */}
-      <p className="line-clamp-2 text-sm font-medium leading-snug">{story.title}</p>
-
-      {/* 行 3：旅程名 */}
-      {journeyName && <p className="truncate text-[11px] text-muted-foreground">{journeyName}</p>}
+      {/* 行 3：用户任务 › 活动归属链 */}
+      <p className="truncate text-[11px] text-muted-foreground">
+        {userTaskName ? `${userTaskName} › ` : ''}
+        {activityName}
+      </p>
 
       <div className="border-t border-border/60" />
 

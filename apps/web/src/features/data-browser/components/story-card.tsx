@@ -15,7 +15,7 @@ import { StoryStatus } from '@/types';
 
 interface StoryCardProps {
   story: UserStory;
-  journeyName?: string;
+  activityName?: string;
 
   /** 是否显示状态标签 */
   showStatus?: boolean;
@@ -29,7 +29,7 @@ interface StoryCardProps {
 
 export function StoryCard({
   story,
-  journeyName,
+  activityName,
   showStatus = true,
   onStatusChange,
   editableStatus = false,
@@ -64,8 +64,8 @@ export function StoryCard({
             )}
             <div className="min-w-0">
               <CardTitle className="text-sm font-medium truncate">{story.title}</CardTitle>
-              {journeyName && (
-                <p className="text-xs text-muted-foreground truncate">{journeyName}</p>
+              {activityName && (
+                <p className="text-xs text-muted-foreground truncate">{activityName}</p>
               )}
             </div>
           </div>

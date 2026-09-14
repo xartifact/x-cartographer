@@ -5,7 +5,7 @@
 ## 模块列表
 
 - **requirements**: 需求分析功能
-- **user-journeys**: 用户旅程管理
+- **user-journeys**: 用户活动（Activity）管理
 - **user-stories**: 用户故事 CRUD
 - **story-map**: 可视化故事地图
 - **tasks**: 任务拆解和管理

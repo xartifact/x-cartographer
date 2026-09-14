@@ -9,7 +9,7 @@ import { SidebarProps, NavItem } from './types';
 import { projectNavItems } from './navigation';
 
 
-/** 生成项目作用域导航项（[id] 占位 → 实际项目 id） */
+/** 生成产品作用域导航项（[id] 占位 → 实际产品 id） */
 function projectScopedItems(projectId: string): NavItem[] {
   return projectNavItems.map((item) => ({
     ...item,
@@ -150,11 +150,11 @@ export function Sidebar({
             />
           ))}
 
-          {/* 当前项目分组：有活动项目时显示其功能入口 */}
+          {/* 当前产品分组：有活动产品时显示其功能入口 */}
           {currentProject && !collapsed && (
             <div className="pt-4 mt-4 border-t">
               <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                当前项目
+                当前产品
               </div>
               <div className="px-3 pb-2 text-sm font-semibold truncate">
                 {currentProject.name}

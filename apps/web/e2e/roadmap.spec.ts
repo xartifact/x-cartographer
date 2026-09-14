@@ -5,14 +5,14 @@ import { uniqueProjectName } from './helpers';
  * 排期规划（Roadmap）：版本创建、故事排期、AI 建议入口
  *
  * - 版本创建依赖 Dialog（DIALOG_BUG_FIXED=true 已启用）
- * - 项目/版本数据通过 gateway REST API 直接创建，聚焦 Roadmap 页自身行为
+ * - 产品/版本数据通过 gateway REST API 直接创建，聚焦 Roadmap 页自身行为
  * - 内置 AI（排期建议）已移除，智能由外部 Agent 驱动
  */
 
 test.describe('排期规划', () => {
   test('Roadmap 页渲染:版本体系入口与待规划池', async ({ page }) => {
     const projectName = uniqueProjectName('e2e-roadmap');
-    const createRes = await page.request.post('/api/projects', {
+    const createRes = await page.request.post('/api/products', {
       data: { name: projectName },
     });
     expect(createRes.ok()).toBeTruthy();
@@ -37,12 +37,12 @@ test.describe('排期规划', () => {
     await expect(page.getByText('待规划池', { exact: true })).toBeVisible();
 
     // 清理
-    await page.request.delete(`/api/projects/${projectId}`);
+    await page.request.delete(`/api/products/${projectId}`);
   });
 
   test('创建版本后泳道出现', async ({ page }) => {
     const projectName = uniqueProjectName('e2e-roadmap');
-    const createRes = await page.request.post('/api/projects', {
+    const createRes = await page.request.post('/api/products', {
       data: { name: projectName },
     });
     expect(createRes.ok()).toBeTruthy();
@@ -64,19 +64,19 @@ test.describe('排期规划', () => {
     await expect(page.getByText(versionName)).toBeVisible();
 
     // 清理
-    await page.request.delete(`/api/projects/${projectId}`);
+    await page.request.delete(`/api/products/${projectId}`);
   });
 
   test('未排期故事进入待规划池且可排入版本', async ({ page }) => {
     const projectName = uniqueProjectName('e2e-roadmap');
-    const createRes = await page.request.post('/api/projects', {
+    const createRes = await page.request.post('/api/products', {
       data: { name: projectName },
     });
     expect(createRes.ok()).toBeTruthy();
     const { id: projectId } = await createRes.json();
 
     // 通过 API 创建:旅程 + 故事 + 版本
-    const journeyRes = await page.request.post('/api/journeys', {
+    const journeyRes = await page.request.post('/api/user-activities', {
       data: { projectId, name: 'E2E 旅程', description: '', persona: 'PM' },
     });
     const { id: journeyId } = await journeyRes.json();
@@ -99,9 +99,9 @@ test.describe('排期规划', () => {
     await expect(page.getByText('E2E 待排期故事')).toBeVisible();
 
     // 通过 API 把故事排入版本
-    const projectRes = await page.request.get(`/api/projects/${projectId}`);
+    const projectRes = await page.request.get(`/api/products/${projectId}`);
     const project = await projectRes.json();
-    const storyId = project.user_journeys[0].stories[0].id;
+    const storyId = project.user_activities[0].stories[0].id;
     const patchRes = await page.request.patch(`/api/stories/${storyId}`, {
       data: { milestoneId },
     });
@@ -113,6 +113,6 @@ test.describe('排期规划', () => {
     await expect(page.getByText('E2E 待排期故事')).toBeVisible();
 
     // 清理
-    await page.request.delete(`/api/projects/${projectId}`);
+    await page.request.delete(`/api/products/${projectId}`);
   });
 });

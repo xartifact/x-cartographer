@@ -2,7 +2,7 @@
  * 故事地图类型定义
  */
 
-import { Priority, Position, StoryStatus, UserJourney, UserStory } from '@/types';
+import { Priority, Position, StoryStatus, UserActivity, UserStory } from '@/types';
 
 /**
  * 故事地图筛选条件
@@ -10,21 +10,21 @@ import { Priority, Position, StoryStatus, UserJourney, UserStory } from '@/types
 export interface StoryMapFilter {
   /** 按优先级筛选 */
   priorities: Priority[];
-  /** 按旅程筛选 */
-  journeyIds: string[];
+  /** 按活动筛选 */
+  activityIds: string[];
   /** 按状态筛选 */
   statuses: StoryStatus[];
-  /** 按版本（里程碑）筛选 */
+  /** 按发布（里程碑）筛选 */
   milestoneIds: string[];
   /** 搜索关键词 */
   searchQuery: string;
 }
 
 /**
- * 旅程列数据
+ * 活动列数据
  */
-export interface JourneyColumnData {
-  journey: UserJourney;
+export interface ActivityColumnData {
+  activity: UserActivity;
   stories: UserStory[];
   storyCount: number;
 }
@@ -34,16 +34,20 @@ export interface JourneyColumnData {
  */
 export interface StoryNodeData {
   story: UserStory;
-  journeyName: string;
+  activityName: string;
+  /** 所归属用户任务名（空 = 未挂任务） */
+  userTaskName?: string;
+  /** Patton 纵向重要性层级：head=走查线大步故事，body=主要实现，tail=渐进细化 */
+  tier: 'head' | 'body' | 'tail';
   isSelected: boolean;
   onSelect?: (story: UserStory) => void;
 }
 
 /**
- * 旅程头节点数据
+ * 活动头节点数据
  */
-export interface JourneyHeaderNodeData {
-  journey: UserJourney;
+export interface ActivityHeaderNodeData {
+  activity: UserActivity;
   storyCount: number;
 }
 
@@ -76,8 +80,8 @@ export interface StoryMapConfig {
   nodePadding: number;
   /** 是否显示网格 */
   showGrid: boolean;
-  /** 是否显示旅程头 */
-  showJourneyHeader: boolean;
+  /** 是否显示活动头 */
+  showActivityHeader: boolean;
 }
 
 /**

@@ -4,10 +4,10 @@ import { milestones } from '../db/schema/milestones';
 import type { CreateMilestoneDTO, UpdateMilestoneDTO } from '@x-cartographer/shared';
 
 export class MilestoneRepository {
-  async findByProjectId(projectId: string) {
+  async findByProductId(productId: string) {
     const db = await ensureDb();
     return db.query.milestones.findMany({
-      where: eq(milestones.projectId, projectId),
+      where: eq(milestones.projectId, productId),
       orderBy: [milestones.createdAt],
     });
   }
@@ -24,7 +24,7 @@ export class MilestoneRepository {
     const now = new Date();
     await db.insert(milestones).values({
       id,
-      projectId: dto.project_id,
+      projectId: dto.product_id,
       name: dto.name,
       goal: dto.goal ?? '',
       targetDate: dto.target_date ? new Date(dto.target_date) : null,

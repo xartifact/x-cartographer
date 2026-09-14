@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * 并行工作台：跨项目查看全部任务
+ * 并行工作台：跨产品查看全部研发任务
  *
- * 数据源：GET /api/tasks/all（跨项目任务聚合）。
- * 交互：任务列表 + 项目/状态/优先级筛选 + 多选批量状态更新。
+ * 数据源：GET /api/dev-tasks/all（跨产品任务聚合）。
+ * 交互：任务列表 + 产品/状态/优先级筛选 + 多选批量状态更新。
  */
 
 import { useMemo, useState } from 'react';
@@ -12,11 +12,11 @@ import { Link } from '@tanstack/react-router';
 import { ListTodo, Search, Layers, FolderKanban } from 'lucide-react';
 import { Button, Input, Checkbox, Badge } from '@x-cartographer/ui';
 import {
-  useAllTasks,
-  useProjects,
-  useUpdateTaskStatus,
+  useAllDevTasks,
+  useProducts,
+  useUpdateDevTaskStatus,
 } from '@/lib/api/hooks';
-import type { Task, TaskStatus, TaskPriority } from '@x-cartographer/shared';
+import type { DevTask, TaskStatus, TaskPriority } from '@x-cartographer/shared';
 import {
   TaskStatus as TaskStatusEnum,
   TaskPriority as TaskPriorityEnum,
@@ -27,8 +27,8 @@ import {
 } from '@/features/tasks/components';
 import { TASK_STATUS_LABEL, TASK_PRIORITY_CLS } from './components/card-meta';
 
-interface AllTask extends Task {
-  project: { id: string; name: string };
+interface AllTask extends DevTask {
+  product: { id: string; name: string };
   story: { id: string; title: string };
 }
 
@@ -50,14 +50,14 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
 ];
 
 export function WorkbenchPage() {
-  const { data: tasksData, isLoading: tasksLoading } = useAllTasks({});
-  const { data: projects } = useProjects();
-  const updateTaskStatus = useUpdateTaskStatus();
+  const { data: tasksData, isLoading: tasksLoading } = useAllDevTasks({});
+  const { data: products } = useProducts();
+  const updateTaskStatus = useUpdateDevTaskStatus();
 
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('');
-  const [projectFilter, setProjectFilter] = useState<string | ''>('');
+  const [productFilter, setProductFilter] = useState<string | ''>('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<TaskStatus | null>(
@@ -67,10 +67,10 @@ export function WorkbenchPage() {
 
   const allTasks = (tasksData ?? []) as AllTask[];
 
-  const projectOptions = useMemo(() => {
+  const productOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const task of allTasks) {
-      map.set(task.project.id, task.project.name);
+      map.set(task.product.id, task.product.name);
     }
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [allTasks]);
@@ -80,18 +80,18 @@ export function WorkbenchPage() {
     return allTasks.filter((task) => {
       if (statusFilter && task.status !== statusFilter) return false;
       if (priorityFilter && task.priority !== priorityFilter) return false;
-      if (projectFilter && task.project.id !== projectFilter) return false;
+      if (productFilter && task.product.id !== productFilter) return false;
       if (q) {
         return (
           task.title.toLowerCase().includes(q) ||
           task.id.toLowerCase().includes(q) ||
-          task.project.name.toLowerCase().includes(q) ||
+          task.product.name.toLowerCase().includes(q) ||
           (task.story?.title.toLowerCase().includes(q) ?? false)
         );
       }
       return true;
     });
-  }, [allTasks, statusFilter, priorityFilter, projectFilter, query]);
+  }, [allTasks, statusFilter, priorityFilter, productFilter, query]);
 
   const visibleIds = useMemo(
     () => new Set(filteredTasks.map((t) => t.id)),
@@ -139,7 +139,7 @@ export function WorkbenchPage() {
   };
 
   const openTask = (task: AllTask) => {
-    window.location.href = `/projects/${task.project.id}/tasks`;
+    window.location.href = `/products/${task.product.id}/tasks`;
   };
 
   if (tasksLoading) {
@@ -160,13 +160,13 @@ export function WorkbenchPage() {
             并行工作台
           </h2>
           <p className="text-sm text-muted-foreground">
-            跨项目查看全部任务，批量更新状态
+            跨产品查看全部研发任务，批量更新状态
           </p>
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
             <FolderKanban className="h-4 w-4" />
-            {projectOptions.length} 个项目
+            {productOptions.length} 个产品
           </span>
           <span className="flex items-center gap-1">
             <ListTodo className="h-4 w-4" />
@@ -182,17 +182,17 @@ export function WorkbenchPage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索标题、ID、项目、故事…"
+            placeholder="搜索标题、ID、产品、故事…"
             className="h-9 w-64 pl-8"
           />
         </div>
         <select
-          value={projectFilter}
-          onChange={(e) => setProjectFilter(e.target.value)}
+          value={productFilter}
+          onChange={(e) => setProductFilter(e.target.value)}
           className="h-9 rounded-md border bg-background px-2 text-sm"
         >
-          <option value="">全部项目</option>
-          {projectOptions.map(([id, name]) => (
+          <option value="">全部产品</option>
+          {productOptions.map(([id, name]) => (
             <option key={id} value={id}>
               {name}
             </option>
@@ -224,14 +224,14 @@ export function WorkbenchPage() {
             </option>
           ))}
         </select>
-        {(statusFilter || priorityFilter || projectFilter || query) && (
+        {(statusFilter || priorityFilter || productFilter || query) && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setStatusFilter('');
               setPriorityFilter('');
-              setProjectFilter('');
+              setProductFilter('');
               setQuery('');
             }}
           >
@@ -350,17 +350,17 @@ function TaskRow({ task, selected, onSelect, onOpen }: TaskRowProps) {
               )}
             </div>
             <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">
-              所属故事：{task.story?.title ?? '项目任务池'}
+              所属故事：{task.story?.title ?? '产品任务池'}
             </p>
           </div>
           <Link
-            to="/projects/$projectId"
-            params={{ projectId: task.project.id }}
+            to="/products/$productId"
+            params={{ productId: task.product.id }}
             className="shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
             <Badge variant="outline" className="text-xs">
-              {task.project.name}
+              {task.product.name}
             </Badge>
           </Link>
         </div>

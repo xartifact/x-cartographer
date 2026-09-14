@@ -2,7 +2,7 @@
  * 项目数据验证器
  */
 
-import type { Project } from '@/types';
+import type { Product } from '@/types';
 
 /**
  * 验证结果
@@ -15,7 +15,7 @@ export interface ValidationResult {
 /**
  * 验证项目
  */
-export function validateProject(project: Project): ValidationResult {
+export function validateProject(project: Product): ValidationResult {
   const errors: string[] = [];
 
   // 验证必填字段
@@ -44,14 +44,14 @@ export function validateProject(project: Project): ValidationResult {
     }
   }
 
-  // 验证用户旅程
-  if (project.user_journeys) {
-    project.user_journeys.forEach((journey, index) => {
-      if (!journey.id) {
-        errors.push(`Journey at index ${index}: ID is required`);
+  // 验证用户活动
+  if (project.user_activities) {
+    project.user_activities.forEach((activity, index) => {
+      if (!activity.id) {
+        errors.push(`Activity at index ${index}: ID is required`);
       }
-      if (!journey.name || journey.name.trim().length === 0) {
-        errors.push(`Journey at index ${index}: Name is required`);
+      if (!activity.name || activity.name.trim().length === 0) {
+        errors.push(`Activity at index ${index}: Name is required`);
       }
     });
   }

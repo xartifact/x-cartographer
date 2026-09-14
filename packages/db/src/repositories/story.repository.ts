@@ -9,13 +9,13 @@ export class StoryRepository {
     return db.query.userStories.findFirst({ where: eq(userStories.id, id) });
   }
 
-  async findByJourneyId(journeyId: string) {
+  async findByActivityId(activityId: string) {
     const db = await ensureDb();
     return db.query.userStories.findMany({
-      where: eq(userStories.journeyId, journeyId),
+      where: eq(userStories.activityId, activityId),
       orderBy: [userStories.order],
       with: {
-        tasks: true,
+        devTasks: true,
       },
     });
   }
@@ -25,7 +25,7 @@ export class StoryRepository {
     const now = new Date();
     await db.insert(userStories).values({
       id,
-      journeyId: dto.journey_id,
+      activityId: dto.activity_id,
       title: dto.title,
       description: dto.description,
       priority: dto.priority,
@@ -51,7 +51,8 @@ export class StoryRepository {
     if (dto.order !== undefined) updateData.order = dto.order;
     if (dto.position !== undefined) updateData.position = dto.position;
     if (dto.milestoneId !== undefined) updateData.milestoneId = dto.milestoneId;
-    if (dto.journeyId !== undefined) updateData.journeyId = dto.journeyId;
+    if (dto.activityId !== undefined) updateData.activityId = dto.activityId;
+    if (dto.userTaskId !== undefined) updateData.userTaskId = dto.userTaskId;
 
     await db.update(userStories).set(updateData).where(eq(userStories.id, id));
   }

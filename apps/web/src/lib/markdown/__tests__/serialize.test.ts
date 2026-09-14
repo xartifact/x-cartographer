@@ -4,43 +4,40 @@ import {
   serializeKanbanMarkdown,
   groupTasksByStatus,
 } from '../serialize';
-import type { Project, Task } from '@x-cartographer/shared';
+import type { Product, DevTask } from '@x-cartographer/shared';
 import {
   TaskStatus,
   TaskPriority,
-  TaskType,
   Priority,
 } from '@x-cartographer/shared';
 
-/** 构造一个带任务的项目夹具 */
-function makeProject(): Project {
+/** 构造一个带任务的产品夹具 */
+function makeProject(): Product {
   const now = new Date().toISOString();
-  const taskA: Task = {
+  const taskA: DevTask = {
     id: 'TASK-001',
     title: '实现故事地图',
     description: 'ReactFlow 画布',
-    type: TaskType.TECHNICAL_TASK,
     priority: TaskPriority.P0,
     estimation: 5,
     status: TaskStatus.IN_PROGRESS,
     dependencies: [],
     story_id: 'US-001',
-    project_id: 'P1',
+    product_id: 'P1',
     tags: ['ui'],
     created_at: now,
     updated_at: now,
   };
-  const taskB: Task = {
+  const taskB: DevTask = {
     id: 'TASK-002',
     title: '实现任务列表',
     description: '',
-    type: TaskType.USER_STORY,
     priority: TaskPriority.P1,
     estimation: 3,
     status: TaskStatus.TODO,
     dependencies: ['TASK-001'],
     story_id: 'US-002',
-    project_id: 'P1',
+    product_id: 'P1',
     tags: ['ui', 'data'],
     created_at: now,
     updated_at: now,
@@ -60,14 +57,12 @@ function makeProject(): Project {
     },
     created_at: now,
     updated_at: now,
-    user_journeys: [
+    user_activities: [
       {
-        id: 'UJ-1',
+        id: 'UA-1',
         name: '规划',
         description: '',
-        persona: '',
-        project_id: 'P1',
-        priority: 'high',
+        product_id: 'P1',
         order: 0,
         created_at: now,
         updated_at: now,
@@ -80,12 +75,12 @@ function makeProject(): Project {
             estimation: 8,
             acceptance_criteria: [],
             tags: [],
-            journey_id: 'UJ-1',
+            activity_id: 'UA-1',
             order: 0,
             status: 'in_progress',
             created_at: now,
             updated_at: now,
-            tasks: [taskA],
+            dev_tasks: [taskA],
           },
           {
             id: 'US-002',
@@ -95,12 +90,12 @@ function makeProject(): Project {
             estimation: 4,
             acceptance_criteria: [],
             tags: [],
-            journey_id: 'UJ-1',
+            activity_id: 'UA-1',
             order: 1,
             status: 'backlog',
             created_at: now,
             updated_at: now,
-            tasks: [taskB],
+            dev_tasks: [taskB],
           },
         ],
       },
@@ -115,7 +110,7 @@ describe('serializeTaskListToMarkdown', () => {
 
   it('序列化任务为「- id: title」列表', () => {
     const project = makeProject();
-    const tasks = project.user_journeys[0].stories[0].tasks ?? [];
+    const tasks = project.user_activities[0].stories[0].dev_tasks ?? [];
     const md = serializeTaskListToMarkdown(tasks);
     expect(md).toContain('- TASK-001: 实现故事地图');
   });
@@ -125,13 +120,12 @@ describe('groupTasksByStatus', () => {
   it('按状态分组任务', () => {
     const project = makeProject();
     const tasks = [
-      ...(project.user_journeys[0].stories[0].tasks ?? []),
-      ...(project.user_journeys[0].stories[1].tasks ?? []),
+      ...(project.user_activities[0].stories[0].dev_tasks ?? []),
+      ...(project.user_activities[0].stories[1].dev_tasks ?? []),
     ];
     const groups = groupTasksByStatus(tasks);
     expect(groups[TaskStatus.IN_PROGRESS]).toHaveLength(1);
     expect(groups[TaskStatus.TODO]).toHaveLength(1);
-    expect(groups[TaskStatus.DONE] ?? []).toHaveLength(0);
   });
 });
 

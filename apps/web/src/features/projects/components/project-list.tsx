@@ -1,5 +1,5 @@
 /**
- * 项目列表组件
+ * 产品列表组件
  */
 
 'use client';
@@ -34,34 +34,34 @@ import { useProjectStore, selectSearchQuery } from '@/features/projects/stores';
 import { useProjectActions } from '../hooks';
 import { formatRelativeTime } from '@/utils/format';
 import { cn } from '@/lib/utils';
-import { useProjects } from '@/lib/api/hooks';
+import { useProducts } from '@/lib/api/hooks';
 import { useNavigate } from '@tanstack/react-router';
 import { ProjectCreateDialog } from './project-create-dialog';
 import { ProjectEditDialog } from './project-edit-dialog';
-import { type Project } from '@x-cartographer/shared';
+import { type Product } from '@x-cartographer/shared';
 
 /**
- * 格式化项目统计信息。
+ * 格式化产品统计信息。
  *
- * 故事/任务数从旅程树实时统计（API 返回的 Project.user_journeys.stories / .tasks 已展开），
+ * 故事/任务数从产品树实时统计（API 返回的 Product.user_activities.stories / .dev_tasks 已展开），
  * 不依赖 metadata.total_stories/total_tasks —— 该字段服务端从未写入，恒为 undefined，
  * 读它会得到错误的 0。
  */
 export function formatProjectStats(project: {
-  user_journeys?: Array<{
+  user_activities?: Array<{
     id: string;
-    stories?: Array<{ id: string; tasks?: Array<{ id: string }> }>;
+    stories?: Array<{ id: string; dev_tasks?: Array<{ id: string }> }>;
   }>;
   metadata?: { total_stories?: number; total_tasks?: number };
-}): { journeyCount: number; storyCount: number; taskCount: number } {
-  const journeys = project.user_journeys ?? [];
-  const storyCount = journeys.reduce((acc, j) => acc + (j.stories?.length ?? 0), 0);
-  const taskCount = journeys.reduce(
-    (acc, j) => acc + (j.stories ?? []).reduce((a, s) => a + (s.tasks?.length ?? 0), 0),
+}): { activityCount: number; storyCount: number; taskCount: number } {
+  const activities = project.user_activities ?? [];
+  const storyCount = activities.reduce((acc, a) => acc + (a.stories?.length ?? 0), 0);
+  const taskCount = activities.reduce(
+    (acc, a) => acc + (a.stories ?? []).reduce((s, st) => s + (st.dev_tasks?.length ?? 0), 0),
     0,
   );
   return {
-    journeyCount: journeys.length,
+    activityCount: activities.length,
     // metadata 兜底（历史数据可能带快照计数，但不应优先于实时树）
     storyCount: storyCount || project.metadata?.total_stories || 0,
     taskCount: taskCount || project.metadata?.total_tasks || 0,
@@ -69,7 +69,7 @@ export function formatProjectStats(project: {
 }
 
 /**
- * 项目卡片组件
+ * 产品卡片组件
  */
 function ProjectCard({
   project,
@@ -84,7 +84,7 @@ function ProjectCard({
     description?: string;
     created_at: string;
     updated_at: string;
-    user_journeys?: Array<{ id: string }>;
+    user_activities?: Array<{ id: string }>;
     metadata?: {
       total_stories?: number;
       total_tasks?: number;
@@ -104,7 +104,7 @@ function ProjectCard({
     e.stopPropagation();
 
     if (
-      window.confirm(`确定要删除项目 "${project.name}" 吗？此操作不可撤销。`)
+      window.confirm(`确定要删除产品 "${project.name}" 吗？此操作不可撤销。`)
     ) {
       setIsDeleting(true);
       try {
@@ -116,7 +116,7 @@ function ProjectCard({
   };
 
   return (
-    <Link to={`/projects/$projectId`} params={{ projectId: project.id }} onClick={onSelect}>
+    <Link to={`/products/$productId`} params={{ productId: project.id }} onClick={onSelect}>
       <Card
         className={cn(
           'group h-full cursor-pointer transition-all duration-200 hover:shadow-md',
@@ -175,7 +175,7 @@ function ProjectCard({
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <MapPin className="h-4 w-4" />
-              <span>{stats.journeyCount} 旅程</span>
+              <span>{stats.activityCount} 活动</span>
             </div>
             <div className="flex items-center gap-1">
               <span>{stats.storyCount} 故事</span>
@@ -210,7 +210,7 @@ function ProjectCard({
 }
 
 /**
- * 项目搜索组件
+ * 产品搜索组件
  */
 function ProjectSearch() {
   const { searchQuery, setSearchQuery } = useProjectStore();
@@ -219,7 +219,7 @@ function ProjectSearch() {
     <div className="relative">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
-        placeholder="搜索项目..."
+        placeholder="搜索产品..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="pl-9"
@@ -235,13 +235,13 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <Card className="flex flex-col items-center justify-center py-12">
       <FolderOpen className="mb-4 h-12 w-12 text-muted-foreground" />
-      <h3 className="mb-2 text-lg font-semibold">还没有项目</h3>
+      <h3 className="mb-2 text-lg font-semibold">还没有产品</h3>
       <p className="mb-4 max-w-sm text-center text-sm text-muted-foreground">
-        创建您的第一个项目，开始管理产品路线图和用户故事地图
+        创建您的第一个产品，开始管理产品路线图和用户故事地图
       </p>
       <Button onClick={onCreate}>
         <Plus className="mr-2 h-4 w-4" />
-        创建项目
+        创建产品
       </Button>
     </Card>
   );
@@ -271,17 +271,17 @@ function LoadingState() {
   );
 }
 export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
-  const { data: projects = [], isLoading, error, refetch } = useProjects();
+  const { data: products = [], isLoading, error, refetch } = useProducts();
   const searchQuery = useProjectStore(selectSearchQuery);
   const { setActiveProjectId } = useProjectStore();
   const { deleteProject } = useProjectActions();
   const [_viewMode, _setViewMode] = useState<'grid' | 'list'>('grid');
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  // 客户端过滤（项目数量级较小，无需服务端搜索）
-  const filteredProjects = projects.filter((project) =>
+  // 客户端过滤（产品数量级较小，无需服务端搜索）
+  const filteredProducts = products.filter((product) =>
     searchQuery.trim()
-      ? project.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+      ? product.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
       : true
   );
 
@@ -299,15 +299,15 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
       </Card>
     );
   }
-  if (projects.length === 0) {
+  if (products.length === 0) {
     return <EmptyState onCreate={onCreateClick} />;
   }
 
-  if (filteredProjects.length === 0) {
+  if (filteredProducts.length === 0) {
     return (
       <Card className="flex flex-col items-center justify-center py-12">
         <Search className="mb-4 h-12 w-12 text-muted-foreground" />
-        <h3 className="mb-2 text-lg font-semibold">未找到项目</h3>
+        <h3 className="mb-2 text-lg font-semibold">未找到产品</h3>
         <p className="text-sm text-muted-foreground">尝试不同的搜索关键词</p>
       </Card>
     );
@@ -324,35 +324,35 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
         </div>
       </div>
 
-      {/* 项目列表 */}
+      {/* 产品列表 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredProjects.map((project) => (
+        {filteredProducts.map((product) => (
           <ProjectCard
-            key={project.id}
-            project={project}
+            key={product.id}
+            project={product}
             isActive={false}
-            onSelect={() => setActiveProjectId(project.id)}
-            onDelete={() => deleteProject(project.id)}
-            onEdit={() => setEditingProject(project)}
+            onSelect={() => setActiveProjectId(product.id)}
+            onEdit={() => setEditingProduct(product)}
+            onDelete={() => deleteProject(product.id)}
           />
         ))}
       </div>
 
-      {/* 项目数量统计 */}
+      {/* 产品数量统计 */}
       <div className="text-center text-sm text-muted-foreground">
-        共 {filteredProjects.length} 个项目
-        {filteredProjects.length !== projects.length && (
-          <span>（已筛选 {projects.length - filteredProjects.length} 个）</span>
+        共 {filteredProducts.length} 个产品
+        {filteredProducts.length !== products.length && (
+          <span>（已筛选 {products.length - filteredProducts.length} 个）</span>
         )}
       </div>
 
-      {/* 项目编辑对话框 */}
-      {editingProject && (
+      {/* 产品编辑对话框 */}
+      {editingProduct && (
         <ProjectEditDialog
-          project={editingProject}
-          open={!!editingProject}
+          project={editingProduct}
+          open={!!editingProduct}
           onOpenChange={(open) => {
-            if (!open) setEditingProject(null);
+            if (!open) setEditingProduct(null);
           }}
         />
       )}
@@ -361,7 +361,7 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
 }
 
 /**
- * 项目列表页面组件
+ * 产品列表页面组件
  */
 export default function ProjectListPage() {
   const navigate = useNavigate();
@@ -371,16 +371,16 @@ export default function ProjectListPage() {
     setShowCreateDialog(true);
   };
 
-  const handleCreateSuccess = (projectId: string) => {
+  const handleCreateSuccess = (productId: string) => {
     setShowCreateDialog(false);
-    navigate({ to: `/projects/$projectId`, params: { projectId } });
+    navigate({ to: `/products/$productId`, params: { productId } });
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">项目管理</h1>
+          <h1 className="text-3xl font-bold">产品管理</h1>
           <p className="mt-1 text-muted-foreground">
             管理您的产品路线图和用户故事
           </p>
@@ -388,14 +388,14 @@ export default function ProjectListPage() {
         <div className="flex gap-2">
           <Button onClick={handleCreateClick}>
             <Plus className="mr-2 h-4 w-4" />
-            新建项目
+            新建产品
           </Button>
         </div>
       </div>
 
       <ProjectList onCreateClick={handleCreateClick} />
 
-      {/* 创建项目对话框 */}
+      {/* 创建产品对话框 */}
       {showCreateDialog && (
         <ProjectCreateDialog
           open={showCreateDialog}

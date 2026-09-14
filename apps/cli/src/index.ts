@@ -6,11 +6,12 @@
  * 用户故事地图与任务管理数据。
  *
  * 用法（嵌套子命令 + GNU flag 风格）:
- *   xcart project list | info | create | update | delete
- *   xcart journey list | info | create | update | delete
+ *   xcart product list | info | create | update | delete       (project 为 deprecated alias)
+ *   xcart activity list | info | create | update | delete      (journey 为 deprecated alias)
  *   xcart story  list | info | create | update | status | delete | bulk-create
- *   xcart task   list | info | create | update | status | delete | next | summary | bulk-create
+ *   xcart dev-task list | info | create | update | status | delete | next | summary | bulk-create  (task 为 deprecated alias)
  *   xcart milestone list | create | update | delete
+ *   xcart adr create | list | show | status | current | as-of-milestone
  *   xcart status history <entityId> | all
  *   xcart context export <projectId>      (兼容别名: xcart export-context <id>)
  *   xcart overview --project <id>
@@ -176,19 +177,19 @@ function isObj(v: unknown): v is Record<string, any> {
 type Ctx = { flags: Map<string, string>; format: Format; positional: string[] };
 
 // ---------- project ----------
-async function cmdProject(ctx: Ctx): Promise<void> {
+async function cmdProduct(ctx: Ctx): Promise<void> {
   const sub = ctx.positional[0];
   const f = ctx.flags;
   switch (sub) {
     case 'list': {
-      const data = await api('/api/projects');
+      const data = await api('/api/products');
       const trim = (s: unknown, n: number) =>
         typeof s === 'string' && s.length > n ? s.slice(0, n) + '…' : (typeof s === 'string' ? s : '');
       const rows = (Array.isArray(data) ? data : []).map((p) => ({
         id: (p && typeof p === 'object' && 'id' in p && typeof p.id === 'string') ? p.id : '?',
         name: trim(p && typeof p === 'object' && 'name' in p ? p.name : '', 40),
         description: trim(p && typeof p === 'object' && 'description' in p ? p.description : '', 60),
-        journeys: p && typeof p === 'object' && 'user_journeys' in p && Array.isArray(p.user_journeys) ? p.user_journeys.length : 0,
+        activities: p && typeof p === 'object' && 'user_activities' in p && Array.isArray(p.user_activities) ? p.user_activities.length : 0,
       }));
       console.log(render(rows, ctx.format));
       break;
@@ -196,7 +197,7 @@ async function cmdProject(ctx: Ctx): Promise<void> {
     case 'info': {
       const id = opt(f, 'id', 'project') ?? ctx.positional[1];
       if (!id) throw new Error('用法: xcart project info --id <id>');
-      const data = await api(`/api/projects/${id}`);
+      const data = await api(`/api/products/${id}`);
       console.log(render(data, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
@@ -205,7 +206,7 @@ async function cmdProject(ctx: Ctx): Promise<void> {
       const desc = opt(f, 'description'); if (desc !== undefined) body.description = desc;
       const tech = splitList(opt(f, 'tech-stack', 'techStack')); if (tech) body.tech_stack = tech;
       const wd = opt(f, 'workspace-dir', 'workspaceDir'); if (wd !== undefined) body.workspace_dir = wd;
-      const data = await api('/api/projects', 'POST', body);
+      const data = await api('/api/products', 'POST', body);
       console.log(render(data, ctx.format));
       break;
     }
@@ -214,13 +215,13 @@ async function cmdProject(ctx: Ctx): Promise<void> {
       const body: Record<string, unknown> = {};
       const name = opt(f, 'name'); if (name !== undefined) body.name = name;
       const desc = opt(f, 'description'); if (desc !== undefined) body.description = desc;
-      const data = await api(`/api/projects/${id}`, 'PATCH', body);
+      const data = await api(`/api/products/${id}`, 'PATCH', body);
       console.log(render(data, ctx.format));
       break;
     }
     case 'delete': {
       const id = reqId(ctx.positional.slice(1), 'project delete');
-      const res = await api(`/api/projects/${id}`, 'DELETE');
+      const res = await api(`/api/products/${id}`, 'DELETE');
       console.log(render(res, ctx.format));
       break;
     }
@@ -228,55 +229,53 @@ async function cmdProject(ctx: Ctx): Promise<void> {
   }
 }
 
-// ---------- journey ----------
-async function cmdJourney(ctx: Ctx): Promise<void> {
+// ---------- activity（用户活动 / backbone）----------
+async function cmdUserActivity(ctx: Ctx): Promise<void> {
   const sub = ctx.positional[0];
   const f = ctx.flags;
   switch (sub) {
     case 'list': {
-      const projectId = req(f, 'project', 'projectId');
-      const data = await api(`/api/journeys?projectId=${encodeURIComponent(projectId)}`);
+      const productId = req(f, 'product', 'project');
+      const data = await api(`/api/user-activities?productId=${encodeURIComponent(productId)}`);
       const rows = (Array.isArray(data) ? data : []).map((j) => ({
-        id: j.id, name: j.name, persona: j.persona, description: j.description ?? '', stories: j.stories?.length ?? 0,
+        id: j.id, name: j.name, description: j.description ?? '', stories: j.stories?.length ?? 0,
       }));
       console.log(render(rows, ctx.format));
       break;
     }
     case 'info': {
-      const id = reqId(ctx.positional.slice(1), 'journey info');
-      const data = await api(`/api/stories?journeyId=${encodeURIComponent(id)}`);
-      console.log(render({ journey_id: id, stories: Array.isArray(data) ? data : [] }, ctx.format === 'table' ? 'json' : ctx.format));
+      const id = reqId(ctx.positional.slice(1), 'activity info');
+      const data = await api(`/api/stories?activityId=${encodeURIComponent(id)}`);
+      console.log(render({ activity_id: id, stories: Array.isArray(data) ? data : [] }, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
     case 'create': {
       const body = {
-        projectId: req(f, 'project', 'projectId'),
+        productId: req(f, 'product', 'project'),
         name: req(f, 'name'),
         description: opt(f, 'description') ?? '',
-        persona: opt(f, 'persona') ?? '',
       };
-      const data = await api('/api/journeys', 'POST', body);
+      const data = await api('/api/user-activities', 'POST', body);
       console.log(render(data, ctx.format));
       break;
     }
     case 'update': {
-      const id = reqId(ctx.positional.slice(1), 'journey update');
+      const id = reqId(ctx.positional.slice(1), 'activity update');
       const body: Record<string, unknown> = {};
       const name = opt(f, 'name'); if (name !== undefined) body.name = name;
       const desc = opt(f, 'description'); if (desc !== undefined) body.description = desc;
-      const persona = opt(f, 'persona'); if (persona !== undefined) body.persona = persona;
       const order = opt(f, 'order'); if (order !== undefined) body.order = Number(order);
-      const data = await api(`/api/journeys/${id}`, 'PATCH', body);
+      const data = await api(`/api/user-activities/${id}`, 'PATCH', body);
       console.log(render(data, ctx.format));
       break;
     }
     case 'delete': {
-      const id = reqId(ctx.positional.slice(1), 'journey delete');
-      const res = await api(`/api/journeys/${id}`, 'DELETE');
+      const id = reqId(ctx.positional.slice(1), 'activity delete');
+      const res = await api(`/api/user-activities/${id}`, 'DELETE');
       console.log(render(res, ctx.format));
       break;
     }
-    default: throw new Error(`未知子命令: journey ${sub ?? ''}\n\n${helpText()}`);
+    default: throw new Error(`未知子命令: activity ${sub ?? ''}\n\n${helpText()}`);
   }
 }
 
@@ -286,9 +285,9 @@ async function cmdStory(ctx: Ctx): Promise<void> {
   const f = ctx.flags;
   switch (sub) {
     case 'list': {
-      const journeyId = opt(f, 'journey', 'journeyId');
-      if (!journeyId) throw new Error('用法: xcart story list --journey <id>');
-      const data = await api(`/api/stories?journeyId=${encodeURIComponent(journeyId)}`);
+      const activityId = opt(f, 'activity', 'journey');
+      if (!activityId) throw new Error('用法: xcart story list --activity <id>');
+      const data = await api(`/api/stories?activityId=${encodeURIComponent(activityId)}`);
       const rows = (Array.isArray(data) ? data : []).map((s) => ({
         id: s.id, title: s.title, priority: s.priority, status: s.status ?? '', estimation: s.estimation, milestone: s.milestone_id ?? '',
       }));
@@ -298,14 +297,14 @@ async function cmdStory(ctx: Ctx): Promise<void> {
     case 'info': {
       const id = reqId(ctx.positional.slice(1), 'story info');
       const data = await api(`/api/stories/${id}`);
-      const tasks = await api(`/api/tasks?storyId=${encodeURIComponent(id)}`).catch(() => []);
+      const tasks = await api(`/api/dev-tasks?storyId=${encodeURIComponent(id)}`).catch(() => []);
       const out = { ...data, tasks: Array.isArray(tasks) ? tasks : [] };
       console.log(render(out, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
     case 'create': {
       const body: Record<string, unknown> = {
-        journeyId: req(f, 'journey', 'journeyId'),
+        activityId: req(f, 'activity', 'journey'),
         title: req(f, 'title'),
       };
       const desc = opt(f, 'description'); if (desc !== undefined) body.description = desc;
@@ -326,8 +325,8 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const est = opt(f, 'estimation'); if (est !== undefined) body.estimation = Number(est);
       const ac = splitList(opt(f, 'ac', 'acceptance')); if (ac) body.acceptanceCriteria = ac;
       const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
-      const journey = opt(f, 'journey');
-      if (journey !== undefined) body.journeyId = journey === 'none' ? null : journey;
+      const activity = opt(f, 'journey');
+      if (activity !== undefined) body.activityId = activity === 'none' ? null : activity;
       const milestone = opt(f, 'milestone');
       if (milestone !== undefined) body.milestoneId = milestone === 'none' ? null : milestone;
       const status = opt(f, 'status');
@@ -349,9 +348,9 @@ async function cmdStory(ctx: Ctx): Promise<void> {
     }
     case 'move': {
       const id = reqId(ctx.positional.slice(1), 'story move');
-      const journeyId = ctx.positional[2];
-      if (!journeyId) throw new Error('用法: xcart story move <storyId> <journeyId>');
-      const res = await api(`/api/stories/${id}`, 'PATCH', { journeyId });
+      const activityId = ctx.positional[2];
+      if (!activityId) throw new Error('用法: xcart story move <storyId> <activityId>');
+      const res = await api(`/api/stories/${id}`, 'PATCH', { activityId });
       console.log(render(res, ctx.format));
       break;
     }
@@ -362,14 +361,14 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       break;
     }
     case 'bulk-create': {
-      const journeyId = req(f, 'journey', 'journeyId');
+      const activityId = req(f, 'activity', 'journey');
       const file = req(f, 'file');
       const items: unknown[] = JSON.parse((await import('node:fs')).readFileSync(file, 'utf-8'));
       const created: unknown[] = [];
       for (const it of items) {
         if (!isObj(it) || typeof it.title !== 'string') throw new Error(`bulk-create 文件条目需含 title: ${JSON.stringify(it)}`);
         const res = await api('/api/stories', 'POST', {
-          journeyId,
+          activityId,
           title: it.title,
           description: it.description ?? '',
           priority: it.priority ?? 'medium',
@@ -387,14 +386,14 @@ async function cmdStory(ctx: Ctx): Promise<void> {
 }
 
 // ---------- task ----------
-async function cmdTask(ctx: Ctx): Promise<void> {
+async function cmdDevTask(ctx: Ctx): Promise<void> {
   const sub = ctx.positional[0];
   const f = ctx.flags;
   switch (sub) {
     case 'list': {
       const storyId = opt(f, 'story', 'storyId');
-      if (!storyId) throw new Error('用法: xcart task list --story <id>');
-      const data = await api(`/api/tasks?storyId=${encodeURIComponent(storyId)}`);
+      if (!storyId) throw new Error('用法: xcart dev-task list --story <id>');
+      const data = await api(`/api/dev-tasks?storyId=${encodeURIComponent(storyId)}`);
       const rows = (Array.isArray(data) ? data : []).map((t) => ({
         id: t.id, title: t.title, type: t.type, priority: t.priority, status: t.status, estimation: t.estimation, assignee: t.assignee ?? '',
       }));
@@ -403,7 +402,7 @@ async function cmdTask(ctx: Ctx): Promise<void> {
     }
     case 'info': {
       const id = reqId(ctx.positional.slice(1), 'task info');
-      const data = await api(`/api/tasks/${id}`);
+      const data = await api(`/api/dev-tasks/${id}`);
       console.log(render(data, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
@@ -418,7 +417,7 @@ async function cmdTask(ctx: Ctx): Promise<void> {
       };
       const deps = splitList(opt(f, 'deps', 'dependencies')); if (deps) body.dependencies = deps;
       const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
-      const data = await api('/api/tasks', 'POST', body);
+      const data = await api('/api/dev-tasks', 'POST', body);
       console.log(render(data, ctx.format));
       break;
     }
@@ -435,10 +434,10 @@ async function cmdTask(ctx: Ctx): Promise<void> {
       const assignee = opt(f, 'assignee'); if (assignee !== undefined) body.assignee = assignee;
       const status = opt(f, 'status');
       if (status !== undefined) {
-        const res = await api(`/api/tasks/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
+        const res = await api(`/api/dev-tasks/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
         if (Object.keys(body).length === 0) { console.log(render(res, ctx.format)); return; }
       }
-      const data = await api(`/api/tasks/${id}`, 'PATCH', body);
+      const data = await api(`/api/dev-tasks/${id}`, 'PATCH', body);
       console.log(render(data, ctx.format));
       break;
     }
@@ -446,40 +445,40 @@ async function cmdTask(ctx: Ctx): Promise<void> {
       const id = reqId(ctx.positional.slice(1), 'task status <id> <status>');
       const status = ctx.positional[2];
       if (!status) throw new Error('用法: xcart task status <id> <status> [--reason]');
-      const res = await api(`/api/tasks/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
+      const res = await api(`/api/dev-tasks/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
       console.log(render(res, ctx.format));
       break;
     }
     case 'delete': {
       const id = reqId(ctx.positional.slice(1), 'task delete');
-      const res = await api(`/api/tasks/${id}`, 'DELETE');
+      const res = await api(`/api/dev-tasks/${id}`, 'DELETE');
       console.log(render(res, ctx.format));
       break;
     }
     case 'next': {
-      const projectId = req(f, 'project', 'projectId');
-      const params = new URLSearchParams({ projectId });
+      const productId = req(f, 'product', 'project');
+      const params = new URLSearchParams({ productId });
       const assignee = opt(f, 'assignee');
       if (assignee !== undefined) params.set('assignee', assignee);
-      const data = await api(`/api/tasks/next?${params}`);
+      const data = await api(`/api/dev-tasks/next?${params}`);
       console.log(render(data, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
     case 'summary': {
-      const projectId = req(f, 'project', 'projectId');
-      const proj = await api(`/api/projects/${projectId}`);
-      const journeys: unknown[] = Array.isArray(proj.user_journeys) ? proj.user_journeys : [];
+      const productId = req(f, 'product', 'project');
+      const proj = await api(`/api/products/${productId}`);
+      const activities: unknown[] = Array.isArray(proj.user_activities) ? proj.user_activities : [];
       let tasks: any[] = [];
-      for (const j of journeys) {
-        const stories = await api(`/api/stories?journeyId=${encodeURIComponent((j as any).id)}`).catch(() => []);
+      for (const j of activities) {
+        const stories = await api(`/api/stories?activityId=${encodeURIComponent((j as any).id)}`).catch(() => []);
         for (const s of Array.isArray(stories) ? stories : []) {
-          const ts = await api(`/api/tasks?storyId=${encodeURIComponent((s as any).id)}`).catch(() => []);
+          const ts = await api(`/api/dev-tasks?storyId=${encodeURIComponent((s as any).id)}`).catch(() => []);
           if (Array.isArray(ts)) tasks = tasks.concat(ts);
         }
       }
       const count = (s: string) => tasks.filter((t) => t.status === s).length;
       const summary = {
-        project_id: projectId,
+        product_id: productId,
         total: tasks.length,
         by_status: {
           backlog: count('backlog'), todo: count('todo'), in_progress: count('in_progress'),
@@ -497,7 +496,7 @@ async function cmdTask(ctx: Ctx): Promise<void> {
       const created: unknown[] = [];
       for (const it of items) {
         if (!isObj(it) || typeof it.title !== 'string') throw new Error(`bulk-create 文件条目需含 title: ${JSON.stringify(it)}`);
-        const res = await api('/api/tasks', 'POST', {
+        const res = await api('/api/dev-tasks', 'POST', {
           storyId,
           title: it.title,
           description: it.description ?? '',
@@ -522,8 +521,8 @@ async function cmdMilestone(ctx: Ctx): Promise<void> {
   const f = ctx.flags;
   switch (sub) {
     case 'list': {
-      const projectId = req(f, 'project', 'projectId');
-      const data = await api(`/api/milestones?projectId=${encodeURIComponent(projectId)}`);
+      const productId = req(f, 'product', 'project');
+      const data = await api(`/api/milestones?productId=${encodeURIComponent(productId)}`);
       const rows = (Array.isArray(data) ? data : []).map((m) => ({
         id: m.id, name: m.name, status: m.status, goal: m.goal ?? '', target_date: m.target_date ?? '',
       }));
@@ -532,7 +531,7 @@ async function cmdMilestone(ctx: Ctx): Promise<void> {
     }
     case 'create': {
       const body: Record<string, unknown> = {
-        project_id: req(f, 'project', 'projectId'),
+        product_id: req(f, 'product', 'project'),
         name: req(f, 'name'),
       };
       const goal = opt(f, 'goal'); if (goal !== undefined) body.goal = goal;
@@ -563,6 +562,95 @@ async function cmdMilestone(ctx: Ctx): Promise<void> {
   }
 }
 
+// ---------- adr（技术宪法 / ADR）----------
+/** 渲染折叠后的当前态（§3.3 投影）：tech_stack / architecture_principles / modules 三节 */
+function renderConstitution(data: unknown, fmt: Format): void {
+  if (fmt === 'json' || !isObj(data)) {
+    console.log(render(data, 'json'));
+    return;
+  }
+  const arr = (v: unknown): Record<string, any>[] => (Array.isArray(v) ? (v as Record<string, any>[]) : []);
+  const sections: Array<[string, Record<string, unknown>[]]> = [
+    ['技术栈 (tech_stack)', arr(data.tech_stack).map((t) => ({
+      id: t.id, layer: t.layer, choice: t.choice, version: t.version ?? '', rationale: t.rationale ?? '',
+    }))],
+    ['架构原则 (architecture_principles)', arr(data.architecture_principles).map((p) => ({
+      id: p.id, strength: p.strength, statement: p.statement, modules: (p.module_ids ?? []).join(','), rationale: p.rationale ?? '',
+    }))],
+    ['模块目录 (modules)', arr(data.modules).map((m) => ({
+      id: m.id, name: m.name, path: m.path, responsibility: m.responsibility ?? '', depends_on: (m.depends_on ?? []).join(','),
+    }))],
+  ];
+  for (const [title, rows] of sections) {
+    console.log(fmt === 'markdown' ? `### ${title}` : title);
+    console.log(render(rows, fmt));
+    console.log('');
+  }
+}
+
+async function cmdAdr(ctx: Ctx): Promise<void> {
+  const sub = ctx.positional[0];
+  const f = ctx.flags;
+  switch (sub) {
+    case 'create': {
+      const body: Record<string, unknown> = {
+        product_id: req(f, 'product', 'project'),
+        title: req(f, 'title'),
+        context: req(f, 'context'),
+        decision: req(f, 'decision'),
+      };
+      const consequences = opt(f, 'consequences'); if (consequences !== undefined) body.consequences = consequences;
+      const alternatives = opt(f, 'alternatives'); if (alternatives !== undefined) body.alternatives_considered = alternatives;
+      const supersedes = opt(f, 'supersedes'); if (supersedes !== undefined) body.supersedes = supersedes;
+      const milestone = opt(f, 'milestone'); if (milestone !== undefined) body.milestone_id = milestone;
+      const modules = splitList(opt(f, 'modules')); if (modules) body.module_ids = modules;
+      const status = opt(f, 'status'); if (status !== undefined) body.status = status;
+      const file = opt(f, 'file');
+      if (file !== undefined) body.changes = JSON.parse(readFileSync(file, 'utf-8'));
+      const data = await api('/api/adr-records', 'POST', body);
+      console.log(render(data, ctx.format));
+      break;
+    }
+    case 'list': {
+      const productId = req(f, 'product', 'project');
+      const data = await api(`/api/adr-records?productId=${encodeURIComponent(productId)}`);
+      const rows = (Array.isArray(data) ? data : []).map((r) => ({
+        id: r.id, seq: r.seq, status: r.status, title: r.title,
+      }));
+      console.log(render(rows, ctx.format));
+      break;
+    }
+    case 'show': {
+      const id = reqId(ctx.positional.slice(1), 'adr show');
+      const data = await api(`/api/adr-records/${id}`);
+      console.log(render(data, ctx.format === 'table' ? 'json' : ctx.format));
+      break;
+    }
+    case 'status': {
+      const id = reqId(ctx.positional.slice(1), 'adr status <id> <status>');
+      const status = ctx.positional[2];
+      if (!status) throw new Error('用法: xcart adr status <id> <status> [--reason]');
+      const res = await api(`/api/adr-records/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
+      console.log(render(res, ctx.format));
+      break;
+    }
+    case 'current': {
+      const productId = req(f, 'product', 'project');
+      const data = await api(`/api/adr-records/current?productId=${encodeURIComponent(productId)}`);
+      renderConstitution(data, ctx.format);
+      break;
+    }
+    case 'as-of-milestone': {
+      const milestoneId = ctx.positional[1];
+      if (!milestoneId) throw new Error('用法: xcart adr as-of-milestone <milestoneId>');
+      const data = await api(`/api/adr-records/as-of-milestone?milestoneId=${encodeURIComponent(milestoneId)}`);
+      renderConstitution(data, ctx.format);
+      break;
+    }
+    default: throw new Error(`未知子命令: adr ${sub ?? ''}\n\n${helpText()}`);
+  }
+}
+
 // ---------- status ----------
 async function cmdStatus(ctx: Ctx): Promise<void> {
   const sub = ctx.positional[0] ?? 'all';
@@ -584,28 +672,28 @@ async function cmdStatus(ctx: Ctx): Promise<void> {
 }
 
 // ---------- context / overview ----------
-// 树直读：project API 返回的 user_journeys[].stories[].tasks 已含全字段，
+// 树直读：project API 返回的 user_activities[].stories[].tasks 已含全字段，
 // 不再逐 story 发起 N+1 请求（原实现对 41 故事的项目 = 42 次 HTTP）。
 
 type TreeJourney = {
-  id?: string; name?: string; persona?: string;
+  id?: string; name?: string;
   stories?: Array<{ id?: string; title?: string; description?: string; status?: string;
     priority?: string; estimation?: number; tasks?: Array<{ status?: string }> }>;
 };
 
 /** 从项目树汇总统计（journeys/stories/tasks 计数与状态分布） */
 function summarizeTree(proj: Record<string, unknown>): {
-  journeys: TreeJourney[];
+  activities: TreeJourney[];
   storyCount: number; doneStories: number;
   taskCount: number; doneTasks: number;
   taskStatus: Record<string, number>;
   storyStatus: Record<string, number>;
 } {
-  const journeys: TreeJourney[] = (Array.isArray(proj.user_journeys) ? proj.user_journeys : []) as TreeJourney[];
+  const activities: TreeJourney[] = (Array.isArray(proj.user_activities) ? proj.user_activities : []) as TreeJourney[];
   let storyCount = 0, doneStories = 0, taskCount = 0, doneTasks = 0;
   const taskStatus: Record<string, number> = {};
   const storyStatus: Record<string, number> = {};
-  for (const j of journeys) {
+  for (const j of activities) {
     const stories = Array.isArray(j.stories) ? j.stories : [];
     for (const s of stories) {
       storyCount++;
@@ -620,51 +708,53 @@ function summarizeTree(proj: Record<string, unknown>): {
       }
     }
   }
-  return { journeys, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus };
+  return { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus };
 }
 
 async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
-  const proj = await api(`/api/projects/${projectId}`);
+  const proj = await api(`/api/products/${projectId}`);
   if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${projectId}`);
-  const milestones = await api(`/api/milestones?projectId=${encodeURIComponent(projectId)}`).catch(() => []);
-  const { journeys, storyCount, taskCount, doneTasks } = summarizeTree(proj);
-  const journeyBlocks: string[] = [];
-  for (const j of journeys) {
+  const milestones = await api(`/api/milestones?productId=${encodeURIComponent(projectId)}`).catch(() => []);
+  const { activities: treeActivities, storyCount, taskCount, doneTasks } = summarizeTree(proj);
+  const activityBlocks: string[] = [];
+  for (const j of treeActivities) {
     const stories = Array.isArray(j.stories) ? j.stories : [];
-    const storyBlocks = stories.map((s) =>
-      `- [${s.status ?? 'backlog'}] **${s.title}** (${s.id}, priority=${s.priority}, ${s.estimation}h)`
-      + (Array.isArray(s.tasks) && s.tasks.length ? ` — ${s.tasks.length} 任务` : '')
-      + `\n  ${(s.description ?? '').split('\n')[0] || ''}`);
-    journeyBlocks.push(`### 旅程 ${j.name} (${j.id}) — 角色: ${j.persona}\n${storyBlocks.join('\n')}`);
+    const storyBlocks = stories.map((s: Record<string, unknown>) => {
+      const devTasks = Array.isArray(s.dev_tasks) ? s.dev_tasks : [];
+      return `- [${s.status ?? 'backlog'}] **${s.title}** (${s.id}, priority=${s.priority}, ${s.estimation}h)`
+      + (devTasks.length ? ` — ${devTasks.length} 研发任务` : '')
+      + `\n  ${(String(s.description ?? '')).split('\n')[0] || ''}`;
+    });
+    activityBlocks.push(`### ${j.name} (${j.id})\n${storyBlocks.join('\n')}`);
   }
   const md = `# ${proj.name} — 全景上下文\n
-> 项目: ${proj.id} | 描述: ${proj.description ?? '-'}\n
+> 产品: ${proj.id} | 描述: ${proj.description ?? '-'}\n
 ## 统计\n
-- 旅程: ${journeys.length} | 故事: ${storyCount} | 任务: ${taskCount}（完成 ${doneTasks}）\n
-- 版本: ${(Array.isArray(milestones) ? milestones : []).map((m) => `${m.name}(${m.status})`).join(', ') || '-'}\n
-## 用户旅程与故事\n
-${journeyBlocks.join('\n\n')}\n`;
+- 用户活动: ${treeActivities.length} | 故事: ${storyCount} | 研发任务: ${taskCount}（完成 ${doneTasks}）\n
+- 发布: ${(Array.isArray(milestones) ? milestones : []).map((m) => `${m.name}(${m.status})`).join(', ') || '-'}\n
+## 故事地图（用户活动 × 用户故事）\n
+${activityBlocks.join('\n\n')}\n`;
   if (fmt === 'markdown') console.log(md);
-  else if (fmt === 'json') console.log(JSON.stringify({ project: { id: proj.id, name: proj.name, description: proj.description }, milestones, journeys }, null, 2));
+  else if (fmt === 'json') console.log(JSON.stringify({ product: { id: proj.id, name: proj.name, description: proj.description }, milestones, activities: treeActivities }, null, 2));
   else console.log(JSON.stringify(md, null, 2));
 }
 
 async function cmdOverview(ctx: Ctx): Promise<void> {
   const projectId = req(ctx.flags, 'project', 'projectId');
-  const proj = await api(`/api/projects/${projectId}`);
+  const proj = await api(`/api/products/${projectId}`);
   if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${projectId}`);
-  const { journeys, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus } = summarizeTree(proj);
+  const { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus } = summarizeTree(proj);
   if (ctx.format === 'json') {
     console.log(JSON.stringify({
       project_id: proj.id, name: proj.name,
-      journeys: journeys.length, stories: storyCount, done_stories: doneStories,
+      activities: activities.length, stories: storyCount, done_stories: doneStories,
       tasks: taskCount, done_tasks: doneTasks,
       task_status: taskStatus, story_status: storyStatus,
     }, null, 2));
     return;
   }
-  const md = `# ${proj.name} — 项目总览\n
-- 旅程: ${journeys.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 任务: ${taskCount}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n`;
+  const md = `# ${proj.name} — 产品总览\n
+- 用户活动: ${activities.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 研发任务: ${taskCount}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n`;
   console.log(md);
 }
 
@@ -710,12 +800,12 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
 
 // ─── 旧命令别名（向后兼容）──────────────────────────────────
 const LEGACY: Record<string, string[]> = {
-  projects: ['project', 'list'],
+  products: ['product', 'list'],
   milestones: ['milestone', 'list'],
 };
 async function cmdLegacy(ctx: Ctx, where: string): Promise<void> {
   switch (where) {
-    case 'projects': return cmdProject({ ...ctx, positional: ['list'] });
+    case 'products': return cmdProduct({ ...ctx, positional: ['list'] });
     case 'milestones': {
       const id = ctx.positional[0];
       if (!id) throw new Error('用法: xcart milestones <projectId>');
@@ -731,16 +821,16 @@ function helpText(): string {
 用法: xcart <command> [subcommand] [options]
 
 项目管理
-  xcart project list
+  xcart product list
   xcart project info --id <id>
   xcart project create --name <name> [--description] [--tech-stack a,b]
   xcart project update <id> [--name] [--description]
   xcart project delete <id>
 
 用户旅程
-  xcart journey list --project <id>
+  xcart activity list --project <id>
   xcart journey info <id>                        # 该旅程下的故事
-  xcart journey create --project <id> --name <n> [--persona] [--description]
+  xcart activity create --product <id> --name <n> [--description] [--order]
   xcart journey update <id> [--name] [--persona] [--description] [--order]
 
   xcart journey delete <id>
@@ -757,7 +847,7 @@ function helpText(): string {
   xcart story bulk-create --journey <id> --file stories.json
 
 任务
-  xcart task list --story <id>
+  xcart dev-task list --story <id>
   xcart task info <id>
   xcart task create --story <id> --title <t> [--type] [--priority] [--estimation] [--deps a,b] [--tags a,b]
   xcart task update <id> [--title] [--status] [--assignee] [--priority] [--type] [--estimation]
@@ -772,6 +862,14 @@ function helpText(): string {
   xcart milestone create --project <id> --name <n> [--goal] [--date] [--status]
   xcart milestone update <id> [--name] [--goal] [--date] [--status]
   xcart milestone delete <id>
+
+技术宪法 (ADR)
+  xcart adr create --project <id> --title <t> --context <c> --decision <d> [--consequences] [--alternatives] [--supersedes <adrId>] [--milestone <id>] [--modules a,b] [--status proposed|accepted] [--file changes.json]
+  xcart adr list --project <id>                 # 决策记录账本（仅追加）
+  xcart adr show <adrId>
+  xcart adr status <adrId> <status> --reason <r>
+  xcart adr current --project <id>              # 当前态（按 seq 折叠 accepted ADR 的 changes）
+  xcart adr as-of-milestone <milestoneId>       # 截至里程碑锚点的架构态
 
 状态历史
   xcart status history <entityId>
@@ -827,11 +925,18 @@ async function main() {
 
   try {
     switch (cmd) {
-      case 'project': await cmdProject(ctx); break;
-      case 'journey': await cmdJourney(ctx); break;
+      case 'product':
+      case 'project': // deprecated alias
+        await cmdProduct(ctx); break;
+      case 'activity':
+      case 'journey': // deprecated alias
+        await cmdUserActivity(ctx); break;
       case 'story': await cmdStory(ctx); break;
-      case 'task': await cmdTask(ctx); break;
+      case 'dev-task':
+      case 'task': // deprecated alias
+        await cmdDevTask(ctx); break;
       case 'milestone': await cmdMilestone(ctx); break;
+      case 'adr': await cmdAdr(ctx); break;
       case 'status': await cmdStatus(ctx); break;
       case 'overview': await cmdOverview(ctx); break;
       case 'context': {
@@ -868,10 +973,9 @@ async function main() {
       case 'task-status': {
         const [id, status] = rest;
         if (!id || !status) throw new Error('用法: xcart task-status <taskId> <status> [--reason]');
-        await cmdTask({ ...ctx, positional: ['status', id, status] });
+        await cmdDevTask({ ...ctx, positional: ['status', id, status] });
         break;
       }
-      case 'project': break;
       case undefined:
       case 'help': console.log(helpText()); break;
       default: throw new Error(`未知命令: ${cmd}\n\n${helpText()}`);

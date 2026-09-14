@@ -2,8 +2,10 @@
 
 // Core types
 export * from './types/common';
-export * from './types/task';
+export * from './types/product';
+export * from './types/user-activity';
+export * from './types/user-task';
 export * from './types/user-story';
-export * from './types/user-journey';
 export * from './types/milestone';
-export * from './types/project';
+export * from './types/dev-task';
+export * from './types/constitution';

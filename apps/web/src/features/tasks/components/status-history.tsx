@@ -27,7 +27,7 @@ export interface StatusHistoryProps {
   entityId: string;
 
   /** 实体类型 */
-  entityType: 'task' | 'story';
+  entityType: 'task' | 'story' | 'adr';
 
   /** 最大显示数量 */
   maxItems?: number;
@@ -52,7 +52,7 @@ function HistoryItem({
   onUndo,
 }: {
   record: StatusChangeRecord;
-  entityType: 'task' | 'story';
+  entityType: 'task' | 'story' | 'adr';
   showActions?: boolean;
   onUndo?: (id: string) => void;
 }) {
@@ -261,7 +261,7 @@ export function StatusHistoryPanel({
   className,
 }: {
   entityId: string;
-  entityType: 'task' | 'story';
+  entityType: 'task' | 'story' | 'adr';
   className?: string;
 }) {
   const { data: historyData = [], isLoading } = useStatusHistory(entityId);

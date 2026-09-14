@@ -126,7 +126,7 @@ export const DEFAULT_PRESETS: FilterPreset[] = [
   {
     id: 'all',
     name: '全部',
-    description: '显示所有项目',
+    description: '显示所有产品',
     isDefault: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -135,7 +135,7 @@ export const DEFAULT_PRESETS: FilterPreset[] = [
   {
     id: 'in-progress',
     name: '进行中',
-    description: '只显示进行中的项目',
+    description: '只显示进行中的产品',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     conditions: {
@@ -161,7 +161,7 @@ export const DEFAULT_PRESETS: FilterPreset[] = [
   {
     id: 'completed',
     name: '已完成',
-    description: '只显示已完成的项目',
+    description: '只显示已完成的产品',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     conditions: {
@@ -172,7 +172,7 @@ export const DEFAULT_PRESETS: FilterPreset[] = [
   {
     id: 'high-priority',
     name: '高优先级',
-    description: '只显示高优先级的项目',
+    description: '只显示高优先级的产品',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     conditions: {

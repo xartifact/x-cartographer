@@ -12,9 +12,9 @@
 import { useMemo, useState } from 'react';
 import { Plus, Calendar as CalendarIcon, ListChecks } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Sheet, SheetContent } from '@x-cartographer/ui';
-import { useProject } from '@/lib/api/hooks';
+import { useProduct } from '@/lib/api/hooks';
 import {
-  useMilestonesByProject,
+  useMilestonesByProduct,
   useCreateMilestone,
   useUpdateMilestone,
   useDeleteMilestone,
@@ -33,7 +33,7 @@ interface RoadmapPageProps {
 
 interface MilestoneJson {
   id: string;
-  project_id: string;
+  product_id: string;
   name: string;
   goal: string;
   target_date?: string;
@@ -49,9 +49,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function RoadmapPage({ projectId }: RoadmapPageProps) {
-  const { data: project, isLoading: projectLoading } = useProject(projectId);
+  const { data: project, isLoading: projectLoading } = useProduct(projectId);
   const { data: milestones = [], isLoading: milestonesLoading } =
-    useMilestonesByProject(projectId);
+    useMilestonesByProduct(projectId);
   const createMilestone = useCreateMilestone();
   const updateMilestone = useUpdateMilestone();
   const deleteMilestone = useDeleteMilestone();
@@ -63,17 +63,17 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
   // 选中的故事（详情面板）
   const [selectedStory, setSelectedStory] = useState<{
     story: UserStory;
-    journeyName: string;
+    activityName: string;
   } | null>(null);
   // 编辑中的故事
   const [editingStory, setEditingStory] = useState<UserStory | null>(null);
 
   // 待规划池：未排期且未取消的故事（milestone_id 为空）
   const unplannedStories = useMemo(() => {
-    return (project?.user_journeys ?? []).flatMap((j) =>
+    return (project?.user_activities ?? []).flatMap((j: { id: string; name: string; stories?: UserStory[] }) =>
       (j.stories ?? [])
         .filter((s) => !s.milestone_id && s.status !== 'cancelled')
-        .map((s) => ({ ...s, journey_name: j.name }))
+        .map((s) => ({ ...s, activity_name: j.name }))
     );
   }, [project]);
 
@@ -81,10 +81,10 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
   const storiesByMilestone = useMemo(() => {
     const map = new Map<string, typeof unplannedStories>();
     for (const m of milestones) map.set(m.id, []);
-    for (const j of project?.user_journeys ?? []) {
+    for (const j of project?.user_activities ?? []) {
       for (const s of j.stories ?? []) {
         if (s.milestone_id && map.has(s.milestone_id)) {
-          map.get(s.milestone_id)!.push({ ...s, journey_name: j.name });
+          map.get(s.milestone_id)!.push({ ...s, activity_name: j.name });
         }
       }
     }
@@ -105,7 +105,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
     status?: string;
   }) {
     await createMilestone.mutateAsync({
-      project_id: projectId,
+      product_id: projectId,
       name: data.name,
       goal: data.goal,
       target_date: data.target_date,
@@ -122,7 +122,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
     if (!editing) return;
     await updateMilestone.mutateAsync({
       id: editing.id,
-      projectId,
+      productId: projectId,
       name: data.name,
       goal: data.goal,
       target_date: data.target_date ?? null,
@@ -134,7 +134,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
     if (!window.confirm(`确定删除版本 "${m.name}" 吗？该版本下的故事将回到待规划池。`)) {
       return;
     }
-    await deleteMilestone.mutateAsync({ id: m.id, projectId });
+    await deleteMilestone.mutateAsync({ id: m.id, productId: projectId });
   }
 
   async function handleUpdateStory(updated: UserStory) {
@@ -228,9 +228,9 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
                 <StoryCard
                   key={s.id}
                   story={s}
-                  journeyName={s.journey_name}
+                  activityName={s.activity_name}
                   onClick={(story) =>
-                    setSelectedStory({ story, journeyName: s.journey_name })
+                    setSelectedStory({ story, activityName: s.activity_name })
                   }
                 />
               ))
@@ -289,9 +289,9 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
                     <StoryCard
                       key={s.id}
                       story={s}
-                      journeyName={s.journey_name}
+                      activityName={s.activity_name}
                       onClick={(story) =>
-                        setSelectedStory({ story, journeyName: s.journey_name })
+                        setSelectedStory({ story, activityName: s.activity_name })
                       }
                     />
                   ))
@@ -328,7 +328,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
           {selectedStory && project && (
             <StoryDetailPanel
               story={selectedStory.story}
-              journeyName={selectedStory.journeyName}
+              activityName={selectedStory.activityName}
               project={project}
               onClose={() => setSelectedStory(null)}
               onEdit={(s) => setEditingStory(s)}

@@ -1,7 +1,7 @@
 /**
- * 项目进度统计组件
+ * 产品进度统计组件
  *
- * 显示项目整体进度和统计信息
+ * 显示产品整体进度和统计信息
  */
 
 'use client';
@@ -131,7 +131,7 @@ function ProgressBar({
 }
 
 /**
- * 项目进度统计组件
+ * 产品进度统计组件
  */
 export function ProgressStats({
   taskStats,
@@ -199,7 +199,7 @@ export function ProgressStats({
       {/* 整体进度 */}
       <div className="p-4 rounded-lg border bg-card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">项目进度</h3>
+          <h3 className="text-lg font-semibold">产品进度</h3>
           <span className="text-3xl font-bold text-primary">{calculatedProgress}%</span>
         </div>
         <ProgressBar value={completed} max={total} />

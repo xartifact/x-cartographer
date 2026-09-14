@@ -29,18 +29,25 @@ import {
 import { StoryNode } from './story-node';
 import { StoryDetailPanel } from './story-detail-panel';
 import { StoryEditDialog } from './story-edit-dialog';
-import { JourneyCreateDialog } from './journey-create-dialog';
-import { JourneyEditDialog } from './journey-edit-dialog';
+import { ActivityCreateDialog } from './activity-create-dialog';
+import { ActivityEditDialog } from './activity-edit-dialog';
 import { StoryCreateDialog } from './story-create-dialog';
 import { FilterPanel } from './filter-panel';
 import { ZoomControls } from './zoom-controls';
 import { StoryBulkBar } from './story-bulk-bar';
 import { useStoryMapStore, filterStories } from '../stores/story-map-store';
-import { useMilestonesByProject } from '@/lib/api/hooks';
-import { Priority, UserJourney, UserStory } from '@/types';
+import { useMilestonesByProduct } from '@/lib/api/hooks';
+import { Priority, UserActivity, UserStory } from '@/types';
 import type { StoryStatus } from '@x-cartographer/shared';
 import { cn } from '@/lib/utils';
 import { Button } from '@x-cartographer/ui';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@x-cartographer/ui';
 import { Card, CardHeader } from '@x-cartographer/ui';
 import {
   Dialog,
@@ -51,38 +58,36 @@ import {
   DialogDescription,
 } from '@x-cartographer/ui';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@x-cartographer/ui';
-import {
   useCreateStory,
   useUpdateStory,
   useDeleteStory,
   useUpdateStoryStatus,
-  useCreateJourney,
-  useUpdateJourney,
-  useDeleteJourney,
+  useCreateActivity,
+  useUpdateActivity,
+  useDeleteActivity,
 } from '@/lib/api/hooks';
 import { createLogger } from '@/lib/logger';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 
 interface StoryMapCanvasProps {
-  /** 用户旅程列表 */
-  journeys: UserJourney[];
-  /** 当前项目 ID */
-  projectId: string;
+  /** 用户活动列表（backbone 列） */
+  activities: UserActivity[];
+  /** 当前产品 ID */
+  productId: string;
   className?: string;
 }
 
 // 列宽和行高配置
 const COLUMN_WIDTH = 300;
 const ROW_HEIGHT = 220;
-const HEADER_HEIGHT = 120;
 const COLUMN_GAP = 40;
+/** 活动头（backbone 行）高度 */
+const HEADER_HEIGHT = 110;
+/** 用户任务行高度（backbone 与切片之间的走查骨架层） */
+const TASK_ROW_HEIGHT = 64;
+/** 故事区起始 y（活动头 + 任务行 + 间距） */
+const STORY_TOP = HEADER_HEIGHT + TASK_ROW_HEIGHT + 16;
 
 const log = createLogger('storyMapCanvas');
 
@@ -93,17 +98,18 @@ const _nodeTypes: NodeTypes = {
   story: StoryNode as any,
 };
 
-// 旅程头组件（带添加故事 + 编辑/删除菜单）
-function JourneyHeader({
+// 活动头组件（带添加故事 + 编辑/删除菜单）
+function ActivityHeader({
   data,
 }: {
   data: {
-    journeyName: string;
-    journeyId: string;
+    activityName: string;
+    activityId: string;
     storyCount: number;
-    onAddStory?: (journeyId: string, journeyName: string) => void;
-    onEditJourney?: (journeyId: string) => void;
-    onDeleteJourney?: (journeyId: string, journeyName: string) => void;
+    userTasks?: Array<{ id: string; name: string; description: string }>;
+    onAddStory?: (activityId: string, activityName: string) => void;
+    onEditActivity?: (activityId: string) => void;
+    onDeleteActivity?: (activityId: string, activityName: string) => void;
   };
 }) {
   return (
@@ -114,7 +120,7 @@ function JourneyHeader({
           <GripVertical className="h-4 w-4" />
         </div>
         {/* 右上角操作菜单 */}
-        {(data.onEditJourney || data.onDeleteJourney) && (
+        {(data.onEditActivity || data.onDeleteActivity) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -126,25 +132,25 @@ function JourneyHeader({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
-              {data.onEditJourney && (
+              {data.onEditActivity && (
                 <DropdownMenuItem
-                  onClick={() => data.onEditJourney!(data.journeyId)}
+                  onClick={() => data.onEditActivity!(data.activityId)}
                 >
                   <Pencil className="mr-2 h-3 w-3" />
-                  编辑旅程
+                  编辑活动
                 </DropdownMenuItem>
               )}
-              {data.onDeleteJourney && (
+              {data.onDeleteActivity && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={() =>
-                      data.onDeleteJourney!(data.journeyId, data.journeyName)
+                      data.onDeleteActivity!(data.activityId, data.activityName)
                     }
                   >
                     <Trash2 className="mr-2 h-3 w-3" />
-                    删除旅程
+                    删除活动
                   </DropdownMenuItem>
                 </>
               )}
@@ -153,7 +159,7 @@ function JourneyHeader({
         )}
 
         <h3 className="line-clamp-2 text-sm font-semibold">
-          {data.journeyName}
+          {data.activityName}
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
           {data.storyCount} 个故事
@@ -163,7 +169,7 @@ function JourneyHeader({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              data.onAddStory!(data.journeyId, data.journeyName);
+              data.onAddStory!(data.activityId, data.activityName);
             }}
             className="mt-2 inline-flex items-center gap-1 rounded-md border border-dashed border-primary/40 px-2 py-0.5 text-xs text-primary/70 transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary"
           >
@@ -172,6 +178,42 @@ function JourneyHeader({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// 用户任务行节点 —— Patton 骨架第二层：活动下的用户操作步骤（走查线）
+function UserTaskRow({
+  data,
+}: {
+  data: {
+    tasks: Array<{ id: string; name: string; description: string }>;
+  };
+}) {
+  if (data.tasks.length === 0) {
+    return (
+      <div className="flex h-10 w-64 items-center justify-center rounded-full border border-dashed border-border/60">
+        <span className="text-[10px] italic text-muted-foreground/50">
+          无用户任务步骤
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-10 w-64 flex-wrap items-center justify-center gap-1">
+      {data.tasks.map((t, i) => (
+        <span key={t.id} className="flex items-center gap-1">
+          {i > 0 && (
+            <span className="text-[9px] text-muted-foreground/40">→</span>
+          )}
+          <span
+            className="max-w-[100px] truncate rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary/80"
+            title={t.description || t.name}
+          >
+            {t.name}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -217,7 +259,9 @@ const allNodeTypes: NodeTypes = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   story: StoryNode as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  journeyHeader: JourneyHeader as any,
+  activityHeader: ActivityHeader as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  userTaskRow: UserTaskRow as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   empty: EmptyNode as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -227,8 +271,8 @@ const allNodeTypes: NodeTypes = {
 };
 
 export function StoryMapCanvas({
-  journeys,
-  projectId,
+  activities,
+  productId,
   className,
 }: StoryMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -237,18 +281,18 @@ export function StoryMapCanvas({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingStory, setEditingStory] = useState<UserStory | null>(null);
 
-  // 新建旅程对话框
-  const [journeyCreateOpen, setJourneyCreateOpen] = useState(false);
+  // 新建活动对话框
+  const [activityCreateOpen, setActivityCreateOpen] = useState(false);
 
-  // 编辑旅程对话框
-  const [journeyEditOpen, setJourneyEditOpen] = useState(false);
-  const [editingJourney, setEditingJourney] = useState<UserJourney | null>(
+  // 编辑活动对话框
+  const [activityEditOpen, setActivityEditOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<UserActivity | null>(
     null
   );
 
-  // 删除确认对话框（旅程/故事复用）
+  // 删除确认对话框（活动/故事复用）
   const [deleteConfirm, setDeleteConfirm] = useState<{
-    type: 'journey' | 'story';
+    type: 'activity' | 'story';
     id: string;
     name: string;
   } | null>(null);
@@ -256,14 +300,14 @@ export function StoryMapCanvas({
   // 新建故事对话框
   const [storyCreateOpen, setStoryCreateOpen] = useState(false);
   const [storyCreateTarget, setStoryCreateTarget] = useState<{
-    journeyId: string;
-    journeyName: string;
-  }>({ journeyId: '', journeyName: '' });
+    activityId: string;
+    activityName: string;
+  }>({ activityId: '', activityName: '' });
 
   // 拖拽状态
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [draggingNodeType, setDraggingNodeType] = useState<string | null>(null);
-  const [dragOverJourneyIndex, setDragOverJourneyIndex] = useState<
+  const [dragOverActivityIndex, setDragOverActivityIndex] = useState<
     number | null
   >(null);
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null);
@@ -275,21 +319,21 @@ export function StoryMapCanvas({
   const { selectedStory, setSelectedStory, filter } = useStoryMapStore();
 
   // 版本列表（用于筛选面板）
-  const { data: milestones = [] } = useMilestonesByProject(projectId);
+  const { data: milestones = [] } = useMilestonesByProduct(productId);
 
   // 数据操作 hooks（gateway REST）
   const createStoryMutation = useCreateStory();
   const updateStoryMutation = useUpdateStory();
   const deleteStoryMutation = useDeleteStory();
-  const createJourneyMutation = useCreateJourney();
-  const updateJourneyMutation = useUpdateJourney();
-  const deleteJourneyMutation = useDeleteJourney();
+  const createActivityMutation = useCreateActivity();
+  const updateActivityMutation = useUpdateActivity();
+  const deleteActivityMutation = useDeleteActivity();
   const updateStoryStatusMutation = useUpdateStoryStatus();
 
-  // 本地项目引用（由父组件传入的 journeys 推导，供选中故事/详情面板展示用）
+  // 本地产品引用（由父组件传入的 activities 推导，供选中故事/详情面板展示用）
   const project = useMemo(
     () => ({
-      id: projectId,
+      id: productId,
       name: '',
       metadata: { tech_stack: [], version: '', tags: [] },
       settings: {
@@ -301,25 +345,25 @@ export function StoryMapCanvas({
         },
         workspace_dir: undefined,
       },
-      user_journeys: journeys,
+      user_activities: activities,
     }),
-    [projectId, journeys]
+    [productId, activities]
   );
 
-  // 从 journeys 推导当前选中故事，保证数据更新后是最新的
+  // 从 activities 推导当前选中故事，保证数据更新后是最新的
   const selectedStoryLive = useMemo(() => {
     if (!selectedStory) return selectedStory;
-    for (const journey of journeys) {
-      const found = journey.stories?.find((s) => s.id === selectedStory.id);
+    for (const activity of activities) {
+      const found = activity.stories?.find((s) => s.id === selectedStory.id);
       if (found) return found;
     }
     return selectedStory;
-  }, [journeys, selectedStory]);
+  }, [activities, selectedStory]);
 
-  // 筛选后的旅程（按 order 排序，支持拖拽重排）
-  const filteredJourneys = useMemo(
-    () => filterStories(journeys, filter).sort((a, b) => a.order - b.order),
-    [journeys, filter]
+  // 筛选后的活动（按 order 排序，支持拖拽重排）
+  const filteredActivities = useMemo(
+    () => filterStories(activities, filter).sort((a, b) => a.order - b.order),
+    [activities, filter]
   );
 
   // ---------- 拖拽事件处理 ----------
@@ -331,7 +375,7 @@ export function StoryMapCanvas({
       log.info('drag.start', { nodeId: node.id, type: node.type });
       setDraggingNodeId(node.id);
       setDraggingNodeType(node.type ?? null);
-      setDragOverJourneyIndex(null);
+      setDragOverActivityIndex(null);
       setDragOverRowIndex(null);
     },
     []
@@ -341,7 +385,7 @@ export function StoryMapCanvas({
   const onNodeDrag = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (_: MouseEvent | TouchEvent, node: Node<any>) => {
-      if (filteredJourneys.length === 0) return;
+      if (filteredActivities.length === 0) return;
       // 根据节点 x 坐标计算目标列索引
       const targetIndex = Math.round(
         (node.position.x - COLUMN_GAP) / (COLUMN_WIDTH + COLUMN_GAP)
@@ -349,24 +393,24 @@ export function StoryMapCanvas({
       // 限制在有效范围内
       const clampedIndex = Math.max(
         0,
-        Math.min(targetIndex, filteredJourneys.length - 1)
+        Math.min(targetIndex, filteredActivities.length - 1)
       );
-      setDragOverJourneyIndex(clampedIndex);
+      setDragOverActivityIndex(clampedIndex);
 
       // 计算目标行位置（仅故事节点需要插入线指示器）
       if (node.type === 'story') {
         const targetRow = Math.round(
-          (node.position.y - HEADER_HEIGHT) / ROW_HEIGHT
+          (node.position.y - STORY_TOP) / ROW_HEIGHT
         );
-        const targetJourney = filteredJourneys[clampedIndex];
-        const maxRow = targetJourney?.stories?.length ?? 0;
+        const targetActivity = filteredActivities[clampedIndex];
+        const maxRow = targetActivity?.stories?.length ?? 0;
         const clampedRow = Math.max(0, Math.min(targetRow, maxRow));
         setDragOverRowIndex(clampedRow);
       } else {
         setDragOverRowIndex(null);
       }
     },
-    [filteredJourneys]
+    [filteredActivities]
   );
 
   /** 拖拽结束 - 计算新位置并持久化 */
@@ -380,7 +424,7 @@ export function StoryMapCanvas({
       });
       setDraggingNodeId(null);
       setDraggingNodeType(null);
-      setDragOverJourneyIndex(null);
+      setDragOverActivityIndex(null);
       setDragOverRowIndex(null);
 
       if (!project) {
@@ -389,11 +433,11 @@ export function StoryMapCanvas({
       }
 
       try {
-        // 处理旅程头节点拖拽
+        // 处理活动头节点拖拽
         if (node.type === 'journeyHeader') {
-          const journeyId = node.id.replace('journey-header-', '');
-          const sourceIndex = filteredJourneys.findIndex(
-            (j) => j.id === journeyId
+          const activityId = node.id.replace('journey-header-', '');
+          const sourceIndex = filteredActivities.findIndex(
+            (j) => j.id === activityId
           );
           if (sourceIndex === -1) return;
 
@@ -403,93 +447,93 @@ export function StoryMapCanvas({
           );
           const clampedTarget = Math.max(
             0,
-            Math.min(targetIndex, filteredJourneys.length - 1)
+            Math.min(targetIndex, filteredActivities.length - 1)
           );
 
-          log.info('drag.stop.journey', {
-            journeyId,
+          log.info('drag.stop.activity', {
+            activityId,
             fromIndex: sourceIndex,
             toIndex: clampedTarget,
           });
 
           if (clampedTarget === sourceIndex) {
-            log.info('drag.stop.journey.noChange', { journeyId });
+            log.info('drag.stop.activity.noChange', { activityId });
             return;
           }
 
-          // 重新排序旅程数组
-          const reordered = [...filteredJourneys];
+          // 重新排序活动数组
+          const reordered = [...filteredActivities];
           const [moved] = reordered.splice(sourceIndex, 1);
           reordered.splice(clampedTarget, 0, moved);
 
-          // 更新所有旅程的 order 字段（逐个 PATCH）
+          // 更新所有活动的 order 字段（逐个 PATCH）
           await Promise.all(
             reordered.map((j, idx) =>
-              updateJourneyMutation.mutateAsync({ id: j.id, order: idx })
+              updateActivityMutation.mutateAsync({ id: j.id, order: idx })
             )
           );
-          log.info('drag.stop.journey.success', {
-            journeyId,
+          log.info('drag.stop.activity.success', {
+            activityId,
             newOrder: clampedTarget,
           });
-          toast.success('旅程已重排');
+          toast.success('活动已重排');
           return;
         }
 
         // 处理故事节点拖拽
         if (node.type === 'story') {
           const storyId = node.id.replace('story-', '');
-          const sourceJourney = project.user_journeys.find((j) =>
+          const sourceActivity = project.user_activities.find((j) =>
             j.stories?.some((s) => s.id === storyId)
           );
-          if (!sourceJourney) return;
+          if (!sourceActivity) return;
 
-          const sourceStory = sourceJourney.stories?.find(
+          const sourceStory = sourceActivity.stories?.find(
             (s) => s.id === storyId
           );
           if (!sourceStory) return;
 
-          const sourceIndex = sourceJourney.stories.findIndex(
+          const sourceIndex = sourceActivity.stories.findIndex(
             (s) => s.id === storyId
           );
 
-          // 计算目标旅程索引
-          const targetJourneyIndex = Math.round(
+          // 计算目标活动索引
+          const targetActivityIndex = Math.round(
             (node.position.x - COLUMN_GAP) / (COLUMN_WIDTH + COLUMN_GAP)
           );
-          const clampedTargetJourney = Math.max(
+          const clampedTargetActivity = Math.max(
             0,
-            Math.min(targetJourneyIndex, filteredJourneys.length - 1)
+            Math.min(targetActivityIndex, filteredActivities.length - 1)
           );
-          const targetJourney = filteredJourneys[clampedTargetJourney];
-          if (!targetJourney) return;
+          const targetActivity = filteredActivities[clampedTargetActivity];
+          if (!targetActivity) return;
 
           // 计算目标行位置（order）
           const targetOrder = Math.round(
-            (node.position.y - HEADER_HEIGHT) / ROW_HEIGHT
+            (node.position.y - STORY_TOP) / ROW_HEIGHT
           );
           const maxOrder =
-            (targetJourney.stories?.length || 0) +
-            (sourceJourney.id === targetJourney.id ? -1 : 0);
+            (targetActivity.stories?.length || 0) +
+            (sourceActivity.id === targetActivity.id ? -1 : 0);
           const clampedOrder = Math.max(
             0,
             Math.min(targetOrder, Math.max(0, maxOrder))
           );
 
-          const isSameJourney = sourceJourney.id === targetJourney.id;
+          const isSameActivity = sourceActivity.id === targetActivity.id;
 
           log.info('drag.stop.story', {
             storyId,
-            sourceJourneyId: sourceJourney.id,
-            targetJourneyId: targetJourney.id,
+            sourceActivityId: sourceActivity.id,
+            targetActivityId: targetActivity.id,
             sourceIndex,
             targetOrder: clampedOrder,
-            isSameJourney,
+            isSameActivity,
           });
 
-          if (isSameJourney) {
-            // 同旅程内重排：逐个更新故事 order
-            const stories = [...(sourceJourney.stories || [])];
+          if (isSameActivity) {
+            // 同活动内重排：逐个更新故事 order
+            const stories = [...(sourceActivity.stories || [])];
             const [moved] = stories.splice(sourceIndex, 1);
             stories.splice(clampedOrder, 0, moved);
             await Promise.all(
@@ -498,12 +542,12 @@ export function StoryMapCanvas({
               )
             );
           } else {
-            // 跨旅程移动：更新源/目标旅程内故事 order
-            const sourceStories = (sourceJourney.stories || []).filter(
+            // 跨活动移动：更新源/目标活动内故事 order
+            const sourceStories = (sourceActivity.stories || []).filter(
               (s) => s.id !== storyId
             );
-            const targetStories = [...(targetJourney.stories || [])];
-            const movedStory = { ...sourceStory, journey_id: targetJourney.id };
+            const targetStories = [...(targetActivity.stories || [])];
+            const movedStory = { ...sourceStory, activity_id: targetActivity.id };
             targetStories.splice(clampedOrder, 0, movedStory);
 
             await Promise.all([
@@ -514,19 +558,14 @@ export function StoryMapCanvas({
                 updateStoryMutation.mutateAsync({
                   id: s.id,
                   order: idx,
-                  ...(s.id === storyId ? { journey_id: undefined } : {}),
+                  ...(s.id === storyId ? { activityId: targetActivity.id } : {}),
                 })
               ),
             ]);
-            // 跨旅程移动需要更新故事所属旅程（PATCH 支持 position/order，journey 迁移通过删除+重建兜底）
-            await updateStoryMutation.mutateAsync({
-              id: storyId,
-              position: undefined,
-            });
           }
           log.info('drag.stop.story.success', {
             storyId,
-            newJourneyId: targetJourney.id,
+            newActivityId: targetActivity.id,
             newOrder: clampedOrder,
           });
           toast.success('故事已重排');
@@ -536,80 +575,126 @@ export function StoryMapCanvas({
         toast.error('重排失败', { description: err instanceof Error ? err.message : '未知错误' });
       }
     },
-    [project, filteredJourneys, updateStoryMutation, updateJourneyMutation]
+    [project, filteredActivities, updateStoryMutation, updateActivityMutation]
   );
 
-  /** 触发"添加故事"对话框（从旅程头节点调用） */
+  /** 触发"添加故事"对话框（从活动头节点调用） */
   const handleOpenStoryCreate = useCallback(
-    (journeyId: string, journeyName: string) => {
-      setStoryCreateTarget({ journeyId, journeyName });
+    (activityId: string, activityName: string) => {
+      setStoryCreateTarget({ activityId, activityName });
       setStoryCreateOpen(true);
     },
     []
   );
 
-  /** 打开编辑旅程对话框 */
-  const handleEditJourney = useCallback(
-    (journeyId: string) => {
-      const journey = (project?.user_journeys ?? []).find(
-        (j) => j.id === journeyId
+  /** 打开编辑活动对话框 */
+  const handleEditActivity = useCallback(
+    (activityId: string) => {
+      const activity = (project?.user_activities ?? []).find(
+        (j) => j.id === activityId
       );
-      if (journey) {
-        log.info('journey.editOpen', { id: journeyId, name: journey.name });
-        setEditingJourney(journey);
-        setJourneyEditOpen(true);
+      if (activity) {
+        log.info('activity.editOpen', { id: activityId, name: activity.name });
+        setEditingActivity(activity);
+        setActivityEditOpen(true);
       }
     },
     [project]
   );
 
-  /** 打开删除旅程确认对话框 */
-  const handleDeleteJourney = useCallback(
-    (journeyId: string, journeyName: string) => {
-      log.info('journey.deleteConfirmOpen', {
-        id: journeyId,
-        name: journeyName,
+  /** 打开删除活动确认对话框 */
+  const handleDeleteActivity = useCallback(
+    (activityId: string, activityName: string) => {
+      log.info('activity.deleteConfirmOpen', {
+        id: activityId,
+        name: activityName,
       });
-      setDeleteConfirm({ type: 'journey', id: journeyId, name: journeyName });
+      setDeleteConfirm({ type: 'activity', id: activityId, name: activityName });
     },
     []
   );
 
-  // 计算节点和边
+
+  // 计算节点和边 —— Patton 空间语义：
+  //   横向 = 活动叙事流（backbone，左→右），活动头之间以箭头连接
+  //   纵向 = 重要性阶梯：任务行走查线（head 行 0 加强调）→ body → tail 渐弱
   const { nodes, edges } = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newNodes: Node<any>[] = [];
     const newEdges: Edge[] = [];
 
     let currentX = COLUMN_GAP;
+    let prevHeaderId: string | null = null;
 
-    filteredJourneys.forEach((journey) => {
-      // 添加旅程头节点
+    filteredActivities.forEach((activity) => {
+      const headerId = `journey-header-${activity.id}`;
+
+      // 活动头节点（backbone 行）
       newNodes.push({
-        id: `journey-header-${journey.id}`,
-        type: 'journeyHeader',
+        id: headerId,
+        type: 'activityHeader',
         position: { x: currentX, y: 0 },
         data: {
-          journeyName: journey.name,
-          journeyId: journey.id,
-          storyCount: journey.stories?.length || 0,
+          activityName: activity.name,
+          activityId: activity.id,
+          storyCount: activity.stories?.length || 0,
           onAddStory: handleOpenStoryCreate,
-          onEditJourney: handleEditJourney,
-          onDeleteJourney: handleDeleteJourney,
+          onEditActivity: handleEditActivity,
+          onDeleteActivity: handleDeleteActivity,
         },
         draggable: true,
         dragHandle: '.drag-handle',
       });
 
-      // 按 order 字段排序故事（支持拖拽重排）
-      const sortedStories = [...(journey.stories || [])].sort(
+      // 活动间叙事箭头（横向 = 用户旅程走向）
+      if (prevHeaderId) {
+        newEdges.push({
+          id: `flow-${prevHeaderId}-${headerId}`,
+          source: prevHeaderId,
+          target: headerId,
+          type: 'smoothstep',
+          animated: false,
+          style: {
+            stroke: 'hsl(var(--primary) / 0.35)',
+            strokeWidth: 2,
+            strokeDasharray: '6 4',
+          },
+        });
+      }
+      prevHeaderId = headerId;
+
+      // 用户任务行节点（骨架第二层）
+      const taskRowId = `taskrow-${activity.id}`;
+      newNodes.push({
+        id: taskRowId,
+        type: 'userTaskRow',
+        position: { x: currentX, y: HEADER_HEIGHT },
+        data: {
+          tasks: (activity.user_tasks ?? []).map((ut) => ({
+            id: ut.id,
+            name: ut.name,
+            description: ut.description,
+          })),
+        },
+        draggable: false,
+        selectable: false,
+      });
+
+      // 故事节点（纵向重要性阶梯）
+      const sortedStories = [...(activity.stories || [])].sort(
         (a, b) => a.order - b.order
       );
 
-      // 添加故事节点
+      // user_task_id → 任务名映射（卡片归属链显示）
+      const utName: Record<string, string> = Object.fromEntries(
+        (activity.user_tasks ?? []).map((ut) => [ut.id, ut.name])
+      );
+
       sortedStories.forEach((story, storyIndex) => {
         const nodeId = `story-${story.id}`;
-        const nodeY = HEADER_HEIGHT + storyIndex * ROW_HEIGHT;
+        const nodeY = STORY_TOP + storyIndex * ROW_HEIGHT;
+        const tier: 'head' | 'body' | 'tail' =
+          storyIndex === 0 ? 'head' : storyIndex <= 2 ? 'body' : 'tail';
 
         newNodes.push({
           id: nodeId,
@@ -617,7 +702,11 @@ export function StoryMapCanvas({
           position: { x: currentX, y: nodeY },
           data: {
             story,
-            journeyName: journey.name,
+            activityName: activity.name,
+            userTaskName: story.user_task_id
+              ? utName[story.user_task_id]
+              : undefined,
+            tier,
             isSelected: selectedStory?.id === story.id,
             onSelect: (s: UserStory) => setSelectedStory(s),
           },
@@ -625,35 +714,39 @@ export function StoryMapCanvas({
           dragHandle: '.drag-handle',
         });
 
-        // 创建连接线
+        // 纵向连接线：头→首故事（实线），故事间阶梯虚线（渐弱）
         if (storyIndex === 0) {
           newEdges.push({
-            id: `edge-${journey.id}-${story.id}`,
-            source: `journey-header-${journey.id}`,
+            id: `edge-${activity.id}-${story.id}`,
+            source: taskRowId,
             target: nodeId,
             type: 'smoothstep',
             animated: false,
-            style: { stroke: 'hsl(var(--border))', strokeWidth: 1 },
+            style: { stroke: 'hsl(var(--border))', strokeWidth: 1.5 },
           });
         } else {
           const prevStory = sortedStories[storyIndex - 1];
           newEdges.push({
-            id: `edge-${journey.id}-${story.id}`,
+            id: `edge-${activity.id}-${story.id}`,
             source: `story-${prevStory.id}`,
             target: nodeId,
             type: 'smoothstep',
             animated: false,
-            style: { stroke: 'hsl(var(--border))', strokeWidth: 1 },
+            style: {
+              stroke: 'hsl(var(--border) / 0.5)',
+              strokeWidth: 1,
+              strokeDasharray: '4 3',
+            },
           });
         }
       });
 
-      // 添加空节点占位
+      // 空列占位
       if (sortedStories.length === 0) {
         newNodes.push({
-          id: `empty-${journey.id}`,
+          id: `empty-${activity.id}`,
           type: 'empty',
-          position: { x: currentX, y: HEADER_HEIGHT },
+          position: { x: currentX, y: STORY_TOP },
           data: {},
           draggable: false,
         });
@@ -664,31 +757,31 @@ export function StoryMapCanvas({
 
     return { nodes: newNodes, edges: newEdges };
   }, [
-    filteredJourneys,
+    filteredActivities,
     selectedStory,
     setSelectedStory,
     handleOpenStoryCreate,
-    handleEditJourney,
-    handleDeleteJourney,
+    handleEditActivity,
+    handleDeleteActivity,
   ]);
 
   // 合并拖拽指示器节点（作为 React Flow 节点，自动跟随画布缩放/平移）
   const nodesWithIndicators = useMemo(() => {
-    if (!draggingNodeId || dragOverJourneyIndex === null) return nodes;
+    if (!draggingNodeId || dragOverActivityIndex === null) return nodes;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const indicatorNodes: Node<any>[] = [];
 
     // 列高亮指示器
-    const targetJourney = filteredJourneys[dragOverJourneyIndex];
-    const columnStoryCount = targetJourney?.stories?.length ?? 0;
+    const targetActivity = filteredActivities[dragOverActivityIndex];
+    const columnStoryCount = targetActivity?.stories?.length ?? 0;
     const columnHeight =
-      HEADER_HEIGHT + Math.max(columnStoryCount, 1) * ROW_HEIGHT + 40;
+      STORY_TOP + Math.max(columnStoryCount, 1) * ROW_HEIGHT + 40;
     indicatorNodes.push({
       id: '__drop-column-indicator__',
       type: 'dropColumnIndicator',
       position: {
-        x: dragOverJourneyIndex * (COLUMN_WIDTH + COLUMN_GAP) + COLUMN_GAP / 2,
+        x: dragOverActivityIndex * (COLUMN_WIDTH + COLUMN_GAP) + COLUMN_GAP / 2,
         y: -20,
       },
       data: { columnHeight },
@@ -705,8 +798,8 @@ export function StoryMapCanvas({
       let sourceJourneyIndex = -1;
       let draggedStoryIndex = -1;
       let draggedStoryTitle = '';
-      for (let ji = 0; ji < filteredJourneys.length; ji++) {
-        const sortedStories = [...(filteredJourneys[ji].stories ?? [])].sort(
+      for (let ji = 0; ji < filteredActivities.length; ji++) {
+        const sortedStories = [...(filteredActivities[ji].stories ?? [])].sort(
           (a, b) => a.order - b.order
         );
         const si = sortedStories.findIndex((s) => s.id === draggedStoryId);
@@ -727,8 +820,8 @@ export function StoryMapCanvas({
         id: '__ghost-node__',
         type: 'ghost',
         position: {
-          x: dragOverJourneyIndex * (COLUMN_WIDTH + COLUMN_GAP) + COLUMN_GAP,
-          y: HEADER_HEIGHT + dragOverRowIndex * ROW_HEIGHT,
+          x: dragOverActivityIndex * (COLUMN_WIDTH + COLUMN_GAP) + COLUMN_GAP,
+          y: STORY_TOP + dragOverRowIndex * ROW_HEIGHT,
         },
         data: { title: draggedStoryTitle },
         draggable: false,
@@ -742,8 +835,8 @@ export function StoryMapCanvas({
         const storyId = node.id.replace('story-', '');
         let nodeJourneyIndex = -1;
         let nodeStoryIndex = -1;
-        for (let ji = 0; ji < filteredJourneys.length; ji++) {
-          const sortedStories = [...(filteredJourneys[ji].stories ?? [])].sort(
+        for (let ji = 0; ji < filteredActivities.length; ji++) {
+          const sortedStories = [...(filteredActivities[ji].stories ?? [])].sort(
             (a, b) => a.order - b.order
           );
           const si = sortedStories.findIndex((s) => s.id === storyId);
@@ -757,9 +850,9 @@ export function StoryMapCanvas({
 
         let yOffset = 0;
 
-        if (nodeJourneyIndex === dragOverJourneyIndex) {
+        if (nodeJourneyIndex === dragOverActivityIndex) {
           // Node is in target column
-          if (sourceJourneyIndex === dragOverJourneyIndex) {
+          if (sourceJourneyIndex === dragOverActivityIndex) {
             // Same column: dragged card leaves a gap
             if (nodeStoryIndex > draggedStoryIndex) {
               // Node after dragged card shifts up first (gap left behind)
@@ -784,7 +877,7 @@ export function StoryMapCanvas({
           }
         } else if (
           nodeJourneyIndex === sourceJourneyIndex &&
-          sourceJourneyIndex !== dragOverJourneyIndex
+          sourceJourneyIndex !== dragOverActivityIndex
         ) {
           // Source column on cross-column drag: fill the gap left by dragged card
           if (nodeStoryIndex > draggedStoryIndex) {
@@ -806,8 +899,8 @@ export function StoryMapCanvas({
   }, [
     nodes,
     draggingNodeId,
-    dragOverJourneyIndex,
-    filteredJourneys,
+    dragOverActivityIndex,
+    filteredActivities,
     dragOverRowIndex,
     draggingNodeType,
   ]);
@@ -819,13 +912,13 @@ export function StoryMapCanvas({
   /** 当前批量选中的故事对象 */
   const bulkSelectedStories = useMemo(() => {
     const all: UserStory[] = [];
-    for (const journey of journeys) {
-      for (const story of journey.stories ?? []) {
+    for (const activity of activities) {
+      for (const story of activity.stories ?? []) {
         if (bulkSelectedIds.includes(story.id)) all.push(story);
       }
     }
     return all;
-  }, [journeys, bulkSelectedIds]);
+  }, [activities, bulkSelectedIds]);
 
   const toggleBulkSelect = (storyId: string) => {
     setBulkSelectedIds((prev) =>
@@ -901,7 +994,7 @@ export function StoryMapCanvas({
     async (updated: UserStory) => {
       if (!project) {
         log.warn('story.save.aborted', { reason: 'project is undefined' });
-        toast.error('操作失败', { description: '项目数据未加载' });
+        toast.error('操作失败', { description: '产品数据未加载' });
         return;
       }
       try {
@@ -929,60 +1022,64 @@ export function StoryMapCanvas({
     [project, updateStoryMutation, selectedStory, setSelectedStory]
   );
 
-  // 查找选中故事对应的旅程名称
-  const selectedJourneyName = useMemo(() => {
+  // 查找选中故事对应的活动名称
+  const selectedActivityName = useMemo(() => {
     if (!selectedStoryLive) return undefined;
-    const journey = journeys.find((j) => j.id === selectedStoryLive.journey_id);
-    return journey?.name;
-  }, [selectedStoryLive, journeys]);
+    const activity = activities.find((j) => j.id === selectedStoryLive.activity_id);
+    return activity?.name;
+  }, [selectedStoryLive, activities]);
 
-  // ---------- 新建旅程 ----------
+  // ---------- 新建活动 ----------
 
-  /** 创建新用户旅程 */
-  const handleCreateJourney = useCallback(
+  /** 创建新用户活动 */
+  const handleCreateActivity = useCallback(
     async (data: {
       name: string;
       description: string;
-      persona: string;
-      priority?: 'high' | 'medium' | 'low';
+      order?: number;
     }) => {
-      log.info('journey.create.start', {
-        projectId,
+      log.info('activity.create.start', {
+        productId,
         hasProject: !!project,
         data,
       });
       if (!project) {
-        log.warn('journey.create.aborted', {
+        log.warn('activity.create.aborted', {
           reason: 'project is undefined',
-          projectId,
+          productId,
         });
-        toast.error('操作失败', { description: '项目数据未加载，请刷新页面后重试' });
+        toast.error('操作失败', { description: '产品数据未加载，请刷新页面后重试' });
         return;
       }
       try {
-        const existingJourneys = project.user_journeys ?? [];
-        await createJourneyMutation.mutateAsync({
-          projectId,
+        const nextOrder =
+          data.order ??
+          ((project.user_activities ?? []).reduce(
+            (max, a) => Math.max(max, a.order),
+            -1
+          ) +
+            1);
+        await createActivityMutation.mutateAsync({
+          productId,
           name: data.name,
           description: data.description,
-          persona: data.persona,
-          priority: data.priority ?? 'medium',
+          order: nextOrder,
         });
-        log.info('journey.create.success', { name: data.name });
-        toast.success('旅程已创建', { description: `「${data.name}」创建成功` });
+        log.info('activity.create.success', { name: data.name });
+        toast.success('活动已创建', { description: `「${data.name}」创建成功` });
       } catch (err) {
-        log.error('journey.create.failed', { error: err });
-        toast.error('创建旅程失败', { description: err instanceof Error ? err.message : '未知错误' });
+        log.error('activity.create.failed', { error: err });
+        toast.error('创建活动失败', { description: err instanceof Error ? err.message : '未知错误' });
         throw err; // re-throw so the dialog knows save failed
       }
     },
-    [project, projectId, createJourneyMutation]
+    [project, productId, createActivityMutation]
   );
 
   /** 创建新用户故事 */
   const handleCreateStory = useCallback(
     async (data: {
-      journeyId: string;
+      activityId: string;
       title: string;
       description: string;
       priority: Priority;
@@ -991,22 +1088,22 @@ export function StoryMapCanvas({
       tags: string[];
     }) => {
       log.info('story.create.start', {
-        projectId,
+        productId,
         hasProject: !!project,
-        journeyId: data.journeyId,
+        activityId: data.activityId,
       });
       if (!project) {
         log.warn('story.create.aborted', {
           reason: 'project is undefined',
-          projectId,
+          productId,
         });
-        toast.error('操作失败', { description: '项目数据未加载，请刷新页面后重试' });
+        toast.error('操作失败', { description: '产品数据未加载，请刷新页面后重试' });
         return;
       }
 
       try {
         await createStoryMutation.mutateAsync({
-          journeyId: data.journeyId,
+          activityId: data.activityId,
           title: data.title,
           description: data.description,
           priority: data.priority,
@@ -1022,34 +1119,33 @@ export function StoryMapCanvas({
         throw err;
       }
     },
-    [project, projectId, createStoryMutation]
+    [project, productId, createStoryMutation]
   );
 
-  // ---------- 编辑旅程 ----------
+  // ---------- 编辑活动 ----------
 
-  /** 保存旅程编辑 */
-  const handleSaveJourney = useCallback(
-    async (updated: UserJourney) => {
+  /** 保存活动编辑 */
+  const handleSaveActivity = useCallback(
+    async (updated: UserActivity) => {
       if (!project) {
-        log.warn('journey.save.aborted', { reason: 'project is undefined' });
-        toast.error('操作失败', { description: '项目数据未加载' });
+        log.warn('activity.save.aborted', { reason: 'project is undefined' });
+        toast.error('操作失败', { description: '产品数据未加载' });
         return;
       }
       try {
-        await updateJourneyMutation.mutateAsync({
+        await updateActivityMutation.mutateAsync({
           id: updated.id,
           name: updated.name,
           description: updated.description,
-          persona: updated.persona,
         });
-        toast.success('旅程已更新');
+        toast.success('活动已更新');
       } catch (err) {
-        log.error('journey.save.failed', { error: err });
-        toast.error('保存旅程失败', { description: err instanceof Error ? err.message : '未知错误' });
+        log.error('activity.save.failed', { error: err });
+        toast.error('保存活动失败', { description: err instanceof Error ? err.message : '未知错误' });
         throw err;
       }
     },
-    [project, updateJourneyMutation]
+    [project, updateActivityMutation]
   );
 
   // ---------- 删除故事 ----------
@@ -1063,7 +1159,7 @@ export function StoryMapCanvas({
     []
   );
 
-  // ---------- 确认删除（旅程/故事通用） ----------
+  // ---------- 确认删除（活动/故事通用） ----------
 
   /** 执行确认删除操作 */
   const handleConfirmDelete = useCallback(async () => {
@@ -1075,11 +1171,11 @@ export function StoryMapCanvas({
     });
 
     try {
-      if (deleteConfirm.type === 'journey') {
-        // 删除旅程
-        await deleteJourneyMutation.mutateAsync({ id: deleteConfirm.id });
-        log.info('journey.deleted', { id: deleteConfirm.id });
-        toast.success('旅程已删除');
+      if (deleteConfirm.type === 'activity') {
+        // 删除活动
+        await deleteActivityMutation.mutateAsync({ id: deleteConfirm.id });
+        log.info('activity.deleted', { id: deleteConfirm.id });
+        toast.success('活动已删除');
       } else {
         // 删除故事
         await deleteStoryMutation.mutateAsync({ id: deleteConfirm.id });
@@ -1100,10 +1196,10 @@ export function StoryMapCanvas({
     }
 
     setDeleteConfirm(null);
-  }, [project, deleteConfirm, deleteJourneyMutation, deleteStoryMutation, selectedStory, setSelectedStory]);
+  }, [project, deleteConfirm, deleteActivityMutation, deleteStoryMutation, selectedStory, setSelectedStory]);
 
   // 空状态
-  if (journeys.length === 0) {
+  if (activities.length === 0) {
     return (
       <>
         <div
@@ -1114,31 +1210,31 @@ export function StoryMapCanvas({
         >
           <div className="text-center">
             <Map className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-medium">暂无用户旅程</h3>
+            <h3 className="mb-2 text-lg font-medium">暂无用户活动</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              创建第一个用户旅程来开始规划产品
+              创建第一个用户活动来开始规划产品
             </p>
             <div className="flex items-center justify-center gap-2">
-              <Button size="sm" onClick={() => setJourneyCreateOpen(true)}>
+              <Button size="sm" onClick={() => setActivityCreateOpen(true)}>
                 <Plus className="mr-1.5 h-4 w-4" />
-                添加旅程
+                添加活动
               </Button>
             </div>
           </div>
         </div>
 
-        {/* 新建旅程对话框 */}
-        <JourneyCreateDialog
-          open={journeyCreateOpen}
-          onOpenChange={setJourneyCreateOpen}
-          onSave={handleCreateJourney}
+        {/* 新建活动对话框 */}
+        <ActivityCreateDialog
+          open={activityCreateOpen}
+          onOpenChange={setActivityCreateOpen}
+          onSave={handleCreateActivity}
         />
       </>
     );
   }
 
   // 空筛选结果
-  if (filteredJourneys.length === 0) {
+  if (filteredActivities.length === 0) {
     return (
       <div
         className={cn(
@@ -1195,28 +1291,27 @@ export function StoryMapCanvas({
           <ZoomControls />
         </Panel>
 
-        {/* 旅程统计 + 添加按钮 */}
+        {/* 活动统计 + 添加按钮 */}
         <Panel position="top-left">
           <div className="flex items-center gap-2">
             <div className="rounded-lg border bg-background/80 px-3 py-1.5 text-sm text-muted-foreground backdrop-blur-sm">
-              <span className="font-medium">{filteredJourneys.length}</span>{' '}
-              个旅程，
+              <span className="font-medium">{filteredActivities.length}</span>{' '}
+              个活动，
               <span className="ml-1 font-medium">
-                {filteredJourneys.reduce(
+                {filteredActivities.reduce(
                   (acc, j) => acc + (j.stories?.length || 0),
                   0
                 )}
               </span>{' '}
-              个故事
             </div>
             <Button
               size="sm"
               variant="outline"
               className="h-8 gap-1 bg-background/80 backdrop-blur-sm"
-              onClick={() => setJourneyCreateOpen(true)}
+              onClick={() => setActivityCreateOpen(true)}
             >
               <Plus className="h-3.5 w-3.5" />
-              添加旅程
+              添加活动
             </Button>
             <Button
               size="sm"
@@ -1267,7 +1362,7 @@ export function StoryMapCanvas({
 
       {filterPanelOpen && (
         <div className="absolute bottom-4 left-4 top-4 z-10 overflow-y-auto rounded-lg shadow-lg">
-          <FilterPanel journeys={journeys} milestones={milestones} />
+          <FilterPanel activities={activities} milestones={milestones} />
         </div>
       )}
 
@@ -1276,7 +1371,7 @@ export function StoryMapCanvas({
         <div className="absolute bottom-4 right-4 top-4 z-10 w-96 overflow-y-auto rounded-lg border bg-background p-4 shadow-lg">
           <StoryDetailPanel
             story={selectedStoryLive}
-            journeyName={selectedJourneyName}
+            activityName={selectedActivityName}
             project={project}
             onClose={() => setSelectedStory(null)}
             onEdit={(s) => {
@@ -1296,28 +1391,29 @@ export function StoryMapCanvas({
         onSave={handleSaveStory}
       />
 
-      {/* 新建旅程对话框 */}
-      <JourneyCreateDialog
-        open={journeyCreateOpen}
-        onOpenChange={setJourneyCreateOpen}
-        onSave={handleCreateJourney}
+      {/* 新建活动对话框 */}
+      <ActivityCreateDialog
+        open={activityCreateOpen}
+        onOpenChange={setActivityCreateOpen}
+        onSave={handleCreateActivity}
       />
 
       {/* 新建故事对话框 */}
       <StoryCreateDialog
         open={storyCreateOpen}
         onOpenChange={setStoryCreateOpen}
-        journeyId={storyCreateTarget.journeyId}
-        journeyName={storyCreateTarget.journeyName}
+        activityId={storyCreateTarget.activityId}
+        activities={activities.map((j) => ({ id: j.id, name: j.name }))}
+        activityName={storyCreateTarget.activityName}
         onSave={handleCreateStory}
       />
 
-      {/* 编辑旅程对话框 */}
-      <JourneyEditDialog
-        open={journeyEditOpen}
-        journey={editingJourney}
-        onOpenChange={setJourneyEditOpen}
-        onSave={handleSaveJourney}
+      {/* 编辑活动对话框 */}
+      <ActivityEditDialog
+        open={activityEditOpen}
+        activity={editingActivity}
+        onOpenChange={setActivityEditOpen}
+        onSave={handleSaveActivity}
       />
 
       {/* 删除确认对话框 */}
@@ -1330,11 +1426,11 @@ export function StoryMapCanvas({
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              确认删除{deleteConfirm?.type === 'journey' ? '旅程' : '故事'}
+              确认删除{deleteConfirm?.type === 'activity' ? '活动' : '故事'}
             </DialogTitle>
             <DialogDescription>
-              {deleteConfirm?.type === 'journey'
-                ? `确定要删除旅程「${deleteConfirm?.name}」及其所有故事吗？此操作不可撤销。`
+              {deleteConfirm?.type === 'activity'
+                ? `确定要删除活动「${deleteConfirm?.name}」及其所有故事吗？此操作不可撤销。`
                 : `确定要删除故事「${deleteConfirm?.name}」吗？此操作不可撤销。`}
             </DialogDescription>
           </DialogHeader>

@@ -9,7 +9,7 @@ import { StoryRepository, StatusChangeRepository } from '@x-cartographer/db';
 import { Priority } from '@x-cartographer/shared';
 
 const createStorySchema = z.object({
-  journeyId: z.string(),
+  activityId: z.string(),
   title: z.string(),
   description: z.string().default(''),
   priority: z.nativeEnum(Priority),
@@ -28,7 +28,8 @@ const updateStorySchema = z.object({
   order: z.number().optional(),
   position: z.object({ x: z.number(), y: z.number() }).optional(),
   milestoneId: z.string().nullable().optional(),
-  journeyId: z.string().optional(),
+  activityId: z.string().optional(),
+  userTaskId: z.string().nullable().optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -40,11 +41,11 @@ const storyRepo = new StoryRepository();
 const statusChangeRepo = new StatusChangeRepository();
 
 export const storiesRoutes = new Hono()
-  // GET /api/stories?journeyId=
+  // GET /api/stories?activityId=
   .get('/', async (c) => {
-    const journeyId = c.req.query('journeyId');
-    if (!journeyId) return c.json({ error: 'journeyId required' }, 400);
-    return c.json(await storyRepo.findByJourneyId(journeyId));
+    const activityId = c.req.query('activityId');
+    if (!activityId) return c.json({ error: 'activityId required' }, 400);
+    return c.json(await storyRepo.findByActivityId(activityId));
   })
   // GET /api/stories/:id
   .get('/:id', async (c) => {
@@ -55,7 +56,7 @@ export const storiesRoutes = new Hono()
     const input = c.req.valid('json');
     const id = nanoid();
     await storyRepo.create(id, {
-      journey_id: input.journeyId,
+      activity_id: input.activityId,
       title: input.title,
       description: input.description,
       priority: input.priority,
@@ -78,7 +79,8 @@ export const storiesRoutes = new Hono()
     if (input.order !== undefined) dto.order = input.order;
     if (input.position !== undefined) dto.position = input.position;
     if (input.milestoneId !== undefined) dto.milestoneId = input.milestoneId;
-    if (input.journeyId !== undefined) dto.journeyId = input.journeyId;
+    if (input.activityId !== undefined) dto.activityId = input.activityId;
+    if (input.userTaskId !== undefined) dto.userTaskId = input.userTaskId;
     await storyRepo.update(c.req.param('id'), dto);
     return c.json({ success: true });
   })

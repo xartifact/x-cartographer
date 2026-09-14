@@ -15,7 +15,15 @@ import type { StoryNodeData } from '../types';
 
 export const StoryNode = memo<NodeProps<Node<Record<string, unknown>> & { data: StoryNodeData }>>(
   ({ data, selected }) => {
-    const { story, journeyName, isSelected } = data;
+    const { story, activityName, userTaskName, tier, isSelected } = data;
+
+    // Patton 纵向重要性：head=走查线（强），body=主体，tail=细化（渐弱）
+    const tierCls =
+      tier === 'head'
+        ? 'ring-1 ring-primary/40 shadow-[0_2px_10px_rgba(59,130,246,0.12)]'
+        : tier === 'tail'
+          ? 'opacity-80 shadow-none'
+          : '';
 
     return (
       <>
@@ -38,14 +46,14 @@ export const StoryNode = memo<NodeProps<Node<Record<string, unknown>> & { data: 
             selected || isSelected
               ? 'shadow-md ring-2 ring-primary'
               : 'shadow-sm',
-            priorityLeftBorderCls(story.priority),
+            tierCls,
             'border-l-4',
             // 增加左侧内边距以容纳拖拽手柄
             'pl-6'
           )}
         >
           <CardContent className="p-3">
-            <StoryCardBody story={story} journeyName={journeyName} />
+            <StoryCardBody story={story} activityName={activityName} userTaskName={userTaskName} />
           </CardContent>
         </Card>
 
@@ -64,15 +72,15 @@ StoryNode.displayName = 'StoryNode';
 /**
  * 旅程头节点组件
  */
-export const JourneyHeaderNode = memo<
-  NodeProps<Node<Record<string, unknown>> & { data: { journeyName: string; storyCount: number } }>
+export const ActivityHeaderNode = memo<
+  NodeProps<Node<Record<string, unknown>> & { data: { activityName: string; storyCount: number } }>
 >(({ data }) => {
-  const { journeyName, storyCount } = data;
+  const { activityName, storyCount } = data;
   return (
     <div className="flex items-center justify-center">
       <Card className="w-60 border-primary/20 bg-primary/5">
         <CardContent className="p-4 text-center">
-          <h3 className="line-clamp-2 text-sm font-semibold">{journeyName}</h3>
+          <h3 className="line-clamp-2 text-sm font-semibold">{activityName}</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {storyCount} 个故事
           </p>
@@ -82,7 +90,7 @@ export const JourneyHeaderNode = memo<
   );
 });
 
-JourneyHeaderNode.displayName = 'JourneyHeaderNode';
+ActivityHeaderNode.displayName = 'ActivityHeaderNode';
 
 /**
  * 空状态节点

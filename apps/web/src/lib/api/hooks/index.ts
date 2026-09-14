@@ -1,23 +1,31 @@
 export {
-  useProjects,
-  useProject,
-  useSearchProjects,
-  useCreateProject,
-  useUpdateProject,
-  useDeleteProject,
-  useSaveFullProject,
-} from './use-projects';
+  useProducts,
+  useProduct,
+  useSearchProducts,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
+  useSaveFullProduct,
+} from './use-products';
 
 export {
-  useJourneysByProject,
-  useCreateJourney,
-  useUpdateJourney,
-  useDeleteJourney,
-} from './use-journeys';
+  useActivitiesByProduct,
+  useCreateActivity,
+  useUpdateActivity,
+  useDeleteActivity,
+} from './use-activities';
+
+export {
+  useUserTasksByActivity,
+  useUserTasksByProduct,
+  useCreateUserTask,
+  useUpdateUserTask,
+  useDeleteUserTask,
+} from './use-user-tasks';
 
 export {
   useStory,
-  useStoriesByJourney,
+  useStoriesByActivity,
   useCreateStory,
   useUpdateStory,
   useDeleteStory,
@@ -25,22 +33,22 @@ export {
 } from './use-stories';
 
 export {
-  useTask,
-  useTasksByStory,
-  useAllTasks,
-  useNextTask,
-  useCreateTask,
-  useUpdateTask,
-  useDeleteTask,
-  useUpdateTaskStatus,
-} from './use-tasks';
+  useDevTask,
+  useDevTasksByStory,
+  useAllDevTasks,
+  useNextDevTask,
+  useCreateDevTask,
+  useUpdateDevTask,
+  useDeleteDevTask,
+  useUpdateDevTaskStatus,
+} from './use-dev-tasks';
 export type {
-  CreateTaskVariables,
-  UpdateTaskVariables,
-  UpdateTaskStatusVariables,
-} from './use-tasks';
+  CreateDevTaskVariables,
+  UpdateDevTaskVariables,
+  UpdateDevTaskStatusVariables,
+} from './use-dev-tasks';
 export {
-  useMilestonesByProject,
+  useMilestonesByProduct,
   useCreateMilestone,
   useUpdateMilestone,
   useDeleteMilestone,

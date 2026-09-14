@@ -10,7 +10,7 @@ import { api } from '@/lib/api/client';
 
 export interface CreateStatusChangeVariables {
   entityId: string;
-  entityType: 'task' | 'story';
+  entityType: 'task' | 'story' | 'adr';
   previousStatus: string;
   newStatus: string;
   reason?: string;

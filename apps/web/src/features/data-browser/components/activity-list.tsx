@@ -1,49 +1,48 @@
 /**
- * 用户旅程列表组件
+ * 用户活动列表组件
  */
 
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, LayoutList } from 'lucide-react';
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
-import { UserJourney } from '@/types';
+import { UserActivity } from '@/types';
 import { StoryCard } from './story-card';
 import { cn } from '@/lib/utils';
 
-interface JourneyListProps {
-  journeys: UserJourney[];
+interface ActivityListProps {
+  activities: UserActivity[];
 }
 
-export function JourneyList({ journeys }: JourneyListProps) {
-  const [expandedJourneys, setExpandedJourneys] = useState<Set<string>>(new Set());
+export function ActivityList({ activities }: ActivityListProps) {
+  const [expandedActivities, setExpandedActivities] = useState<Set<string>>(new Set());
 
-  const toggleJourney = (journeyId: string) => {
-    setExpandedJourneys((prev) => {
+  const toggleActivity = (activityId: string) => {
+    setExpandedActivities((prev) => {
       const next = new Set(prev);
-      if (next.has(journeyId)) {
-        next.delete(journeyId);
+      if (next.has(activityId)) {
+        next.delete(activityId);
       } else {
-        next.add(journeyId);
+        next.add(activityId);
       }
       return next;
     });
   };
 
   const expandAll = () => {
-    setExpandedJourneys(new Set(journeys.map((j) => j.id)));
+    setExpandedActivities(new Set(activities.map((a) => a.id)));
   };
 
   const collapseAll = () => {
-    setExpandedJourneys(new Set());
+    setExpandedActivities(new Set());
   };
 
-  if (journeys.length === 0) {
+  if (activities.length === 0) {
     return (
       <Card>
-        <CardContent className="py-8 text-center">
-          <BookOpen className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-          <p className="text-muted-foreground">暂无用户旅程</p>
+        <CardContent className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+          暂无用户活动
         </CardContent>
       </Card>
     );
@@ -52,7 +51,7 @@ export function JourneyList({ journeys }: JourneyListProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">用户旅程列表</h3>
+        <h3 className="text-lg font-semibold">用户活动列表</h3>
         <div className="flex gap-2">
           <button
             onClick={expandAll}
@@ -70,13 +69,13 @@ export function JourneyList({ journeys }: JourneyListProps) {
         </div>
       </div>
       <div className="space-y-3">
-        {journeys.map((journey) => {
-          const isExpanded = expandedJourneys.has(journey.id);
-          const storyCount = journey.stories?.length || 0;
+        {activities.map((activity) => {
+          const isExpanded = expandedActivities.has(activity.id);
+          const storyCount = activity.stories?.length || 0;
 
           return (
             <Card
-              key={journey.id}
+              key={activity.id}
               className={cn(
                 'transition-all duration-200',
                 isExpanded && 'ring-2 ring-primary'
@@ -84,7 +83,7 @@ export function JourneyList({ journeys }: JourneyListProps) {
             >
               <CardHeader
                 className="cursor-pointer hover:bg-muted/50 transition-colors p-3"
-                onClick={() => toggleJourney(journey.id)}
+                onClick={() => toggleActivity(activity.id)}
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -95,10 +94,10 @@ export function JourneyList({ journeys }: JourneyListProps) {
                     )}
                     <div className="min-w-0">
                       <CardTitle className="text-base font-medium truncate">
-                        {journey.name}
+                        {activity.name}
                       </CardTitle>
                       <p className="text-xs text-muted-foreground truncate">
-                        目标用户: {journey.persona}
+                        序号: {activity.order}
                       </p>
                     </div>
                   </div>
@@ -109,23 +108,24 @@ export function JourneyList({ journeys }: JourneyListProps) {
               </CardHeader>
               {isExpanded && (
                 <CardContent className="p-3 pt-0 border-t">
-                  {journey.description && (
+                  {activity.description && (
                     <p className="text-sm text-muted-foreground mb-3 pl-6">
-                      {journey.description}
+                      {activity.description}
                     </p>
                   )}
                   <div className="space-y-2 pl-6">
                     {storyCount > 0 ? (
-                      journey.stories?.map((story) => (
+                      activity.stories?.map((story) => (
                         <StoryCard
                           key={story.id}
                           story={story}
-                          journeyName={journey.name}
+                          activityName={activity.name}
                         />
                       ))
                     ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        该旅程下暂无用户故事
+                      <p className="flex items-center justify-center gap-1 py-4 text-sm text-muted-foreground">
+                        <LayoutList className="h-3 w-3" />
+                        该活动下暂无用户故事
                       </p>
                     )}
                   </div>

@@ -3,12 +3,11 @@
  */
 
 export { StoryMapCanvas } from './story-map-canvas';
-export { StoryNode, JourneyHeaderNode, EmptyNode } from './story-node';
-export { JourneyColumn } from './journey-column';
-export { StoryDetailPanel } from './story-detail-panel';
+export { StoryNode, ActivityHeaderNode, EmptyNode } from './story-node';
 export { StoryEditDialog } from './story-edit-dialog';
 export { StoryCreateDialog } from './story-create-dialog';
-export { JourneyCreateDialog } from './journey-create-dialog';
-export { JourneyEditDialog } from './journey-edit-dialog';
+export { StoryDetailPanel } from './story-detail-panel';
+export { ActivityCreateDialog } from './activity-create-dialog';
+export { ActivityEditDialog } from './activity-edit-dialog';
 export { FilterPanel } from './filter-panel';
 export { ZoomControls } from './zoom-controls';

@@ -1,12 +1,12 @@
 /**
- * 项目编辑对话框组件
+ * 产品编辑对话框组件
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { FolderOpen } from 'lucide-react';
-import type { Project } from '@x-cartographer/shared';
+import type { Product } from '@x-cartographer/shared';
 import { validateProjectName } from '@/features/projects/api';
 import {
   Button,
@@ -24,7 +24,7 @@ import { useProjectActions } from '../hooks';
 import { toast } from 'sonner';
 
 /**
- * 项目编辑表单数据
+ * 产品编辑表单数据
  */
 interface EditFormData {
   name: string;
@@ -34,9 +34,9 @@ interface EditFormData {
 }
 
 /**
- * 从项目数据初始化表单
+ * 从产品数据初始化表单
  */
-function projectToFormData(project: Project): EditFormData {
+function projectToFormData(project: Product): EditFormData {
   return {
     name: project.name,
     description: project.description || '',
@@ -46,7 +46,7 @@ function projectToFormData(project: Project): EditFormData {
 }
 
 /**
- * 项目编辑对话框
+ * 产品编辑对话框
  */
 export function ProjectEditDialog({
   project,
@@ -54,10 +54,10 @@ export function ProjectEditDialog({
   onOpenChange,
   onSuccess,
 }: {
-  project: Project;
+  project: Product;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: (project: Project) => void;
+  onSuccess?: (product: Product) => void;
 }) {
   const { updateProject } = useProjectActions();
 
@@ -67,7 +67,7 @@ export function ProjectEditDialog({
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // 当项目数据变化时重置表单
+  // 当产品数据变化时重置表单
   useEffect(() => {
     if (open) {
       setFormData(projectToFormData(project));
@@ -120,7 +120,7 @@ export function ProjectEditDialog({
         },
       });
 
-      toast.success('项目已更新', { description: `项目 "${formData.name.trim()}" 已保存` });
+      toast.success('产品已更新', { description: `产品 "${formData.name.trim()}" 已保存` });
       onOpenChange(false);
       onSuccess?.({
         ...project,
@@ -139,19 +139,19 @@ export function ProjectEditDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5" />
-            编辑项目
+            编辑产品
           </DialogTitle>
           <DialogDescription>
-            修改项目名称、描述、技术栈标签和工作空间路径
+            修改产品名称、描述、技术栈标签和工作空间路径
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-name">项目名称 *</Label>
+            <Label htmlFor="edit-name">产品名称 *</Label>
             <Input
               id="edit-name"
-              placeholder="输入项目名称"
+              placeholder="输入产品名称"
               value={formData.name}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, name: e.target.value }))
@@ -164,10 +164,10 @@ export function ProjectEditDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-description">项目描述</Label>
+            <Label htmlFor="edit-description">产品描述</Label>
             <Textarea
               id="edit-description"
-              placeholder="输入项目描述（可选）"
+              placeholder="输入产品描述（可选）"
               value={formData.description}
               onChange={(e) =>
                 setFormData((prev) => ({

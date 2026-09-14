@@ -45,21 +45,21 @@ import { StatusBadge } from './status-badge';
 import { PriorityBadge } from '@/components/common/priority-badge';
 import { InfoItem } from '@/components/common/info-item';
 import { cn } from '@/lib/utils';
-import type { Task, TaskStatus } from '@/types';
+import type { DevTask, TaskStatus } from '@/types';
 
 interface TaskDetailSheetProps {
   /** 当前选中的任务 */
-  task: Task | null;
+  task: DevTask | null;
   /** 是否打开 */
   open: boolean;
   /** 打开/关闭回调 */
   onOpenChange: (open: boolean) => void;
   /** 所有任务列表（用于解析依赖） */
-  allTasks: Task[];
+  allTasks: DevTask[];
   /** 故事/旅程上下文映射 */
-  storyContextMap?: Record<string, { storyTitle: string; journeyName: string }>;
+  storyContextMap?: Record<string, { storyTitle: string; activityName: string }>;
   /** 点击依赖任务时的回调（用于跳转到其他任务详情） */
-  onTaskNavigate?: (task: Task) => void;
+  onTaskNavigate?: (task: DevTask) => void;
   /** 更新依赖关系的回调（TASK-062） */
   onUpdateDependencies?: (taskId: string, dependencies: string[]) => Promise<void>;
 }
@@ -145,7 +145,7 @@ export function TaskDetailSheet({
 
   if (!task) return null;
 
-  const typeInfo = typeConfig[task.type] ?? typeConfig.technical_task;
+  const typeInfo = typeConfig.technical_task;
   const storyContext = task.story_id
     ? (storyContextMap?.[task.story_id] ?? undefined)
     : undefined;
@@ -164,7 +164,7 @@ export function TaskDetailSheet({
           {storyContext && (
             <SheetDescription className="flex items-center gap-1 text-xs">
               <GitBranch className="h-3 w-3" />
-              {storyContext.journeyName} &rsaquo; {storyContext.storyTitle}
+              {storyContext.activityName} &rsaquo; {storyContext.storyTitle}
             </SheetDescription>
           )}
         </SheetHeader>

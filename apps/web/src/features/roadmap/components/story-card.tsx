@@ -17,14 +17,14 @@ import type { UserStory } from '@/types';
 
 interface StoryCardProps {
   story: UserStory;
-  /** 所属旅程名（展示在其上） */
-  journeyName?: string;
+  /** 所属活动名（展示在其上） */
+  activityName?: string;
   /** 点击打开详情（可选，传则整卡可点击） */
   onClick?: (story: UserStory) => void;
   className?: string;
 }
 
-export function StoryCard({ story, journeyName, onClick, className }: StoryCardProps) {
+export function StoryCard({ story, activityName, onClick, className }: StoryCardProps) {
   return (
     <Card
       onClick={onClick ? () => onClick(story) : undefined}
@@ -36,7 +36,7 @@ export function StoryCard({ story, journeyName, onClick, className }: StoryCardP
       )}
     >
       <CardContent className="p-3">
-        <StoryCardBody story={story} journeyName={journeyName} />
+        <StoryCardBody story={story} activityName={activityName} />
       </CardContent>
     </Card>
   );

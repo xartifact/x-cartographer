@@ -7,7 +7,7 @@ import { Sidebar, MobileSidebarOverlay } from './Sidebar';
 import { cn } from '@/lib/utils';
 import { mainNavItems } from './navigation';
 import { useProjectStore, selectActiveProjectId } from '@/features/projects/stores';
-import { useProject } from '@/lib/api/hooks';
+import { useProduct } from '@/lib/api/hooks';
 import { AppLayoutProps } from './types';
 import { OnboardingGate } from '@/features/onboarding';
 
@@ -58,12 +58,12 @@ export function AppLayout({
     onMobileSidebarToggle?.(newOpen);
   };
 
-  // 活动项目：侧边栏显示"当前项目"分组
+  // 活动产品：侧边栏显示"当前产品"分组
   const activeProjectId = useProjectStore(selectActiveProjectId);
-  const { data: activeProject } = useProject(activeProjectId ?? undefined);
+  const { data: activeProject } = useProduct(activeProjectId ?? undefined);
 
-  // 检查是否是项目详情页面
-  const isProjectPage = pathname?.startsWith('/projects/');
+  // 检查是否是产品详情页面
+  const isProjectPage = pathname?.startsWith('/products/');
 
   return (
     <div className="min-h-screen bg-background">

@@ -19,15 +19,6 @@ export declare enum TaskPriority {
     P3 = "P3"
 }
 /**
- * 任务类型
- */
-export declare enum TaskType {
-    USER_STORY = "user_story",
-    TECHNICAL_TASK = "technical_task",
-    BUG_FIX = "bug_fix",
-    SPIKE = "spike"
-}
-/**
  * 任务状态
  */
 export declare enum TaskStatus {
@@ -67,8 +58,8 @@ export interface StatusChangeRecord {
     id: string;
     /** 关联的任务或故事 ID */
     entity_id: string;
-    /** 实体类型：'task' | 'story' */
-    entity_type: 'task' | 'story';
+    /** 实体类型：'task' | 'story' | 'adr' */
+    entity_type: 'task' | 'story' | 'adr';
     /** 变更前的状态 */
     previous_status: string;
     /** 变更后的状态 */

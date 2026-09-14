@@ -1,20 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import {
   Priority as PriorityEnum,
-  TaskType as TaskTypeEnum,
   TaskPriority as TaskPriorityEnum,
   TaskStatus as TaskStatusEnum,
-  type Project,
+  type Product,
 } from '@x-cartographer/shared';
 import {
-  flattenProjects,
+  flattenProducts,
   filterByQuery,
-  groupByProject,
+  groupByProduct,
   isActiveStoryStatus,
   isActiveTaskStatus,
 } from '../active-workbench';
 
-function makeProject(id: string, name: string): Project {
+function makeProduct(id: string, name: string): Product {
   return {
     id,
     name,
@@ -22,13 +21,12 @@ function makeProject(id: string, name: string): Project {
     settings: { auto_save: true, display_preferences: { show_priority_colors: true, show_estimation: true, default_view: 'map' } },
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
-    user_journeys: [
+    user_activities: [
       {
-        id: `${id}-journey-1`,
-        name: '核心旅程',
+        id: `${id}-activity-1`,
+        name: '核心活动',
         description: '',
-        persona: 'PM',
-        project_id: id,
+        product_id: id,
         order: 0,
         created_at: '2026-01-01T00:00:00.000Z',
         updated_at: '2026-01-01T00:00:00.000Z',
@@ -41,14 +39,14 @@ function makeProject(id: string, name: string): Project {
             estimation: 5,
             acceptance_criteria: [],
             tags: [],
-            journey_id: `${id}-journey-1`,
+            activity_id: `${id}-activity-1`,
             order: 0,
             status: TaskStatusEnum.IN_PROGRESS,
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
-            tasks: [
-              { id: `${id}-T-1`, title: '写解析器', description: '', type: TaskTypeEnum.TECHNICAL_TASK, priority: TaskPriorityEnum.P1, estimation: 3, status: TaskStatusEnum.IN_PROGRESS, dependencies: [], story_id: `${id}-US-01`, project_id: id, tags: [], created_at: '', updated_at: '' },
-              { id: `${id}-T-2`, title: '写 UI', description: '', type: TaskTypeEnum.TECHNICAL_TASK, priority: TaskPriorityEnum.P2, estimation: 2, status: TaskStatusEnum.BACKLOG, dependencies: [], story_id: `${id}-US-01`, project_id: id, tags: [], created_at: '', updated_at: '' },
+            dev_tasks: [
+              { id: `${id}-T-1`, title: '写解析器', description: '', priority: TaskPriorityEnum.P1, estimation: 3, status: TaskStatusEnum.IN_PROGRESS, dependencies: [], story_id: `${id}-US-01`, product_id: id, tags: [], created_at: '', updated_at: '' },
+              { id: `${id}-T-2`, title: '写 UI', description: '', priority: TaskPriorityEnum.P2, estimation: 2, status: TaskStatusEnum.BACKLOG, dependencies: [], story_id: `${id}-US-01`, product_id: id, tags: [], created_at: '', updated_at: '' },
             ],
           },
           {
@@ -59,13 +57,13 @@ function makeProject(id: string, name: string): Project {
             estimation: 2,
             acceptance_criteria: [],
             tags: [],
-            journey_id: `${id}-journey-1`,
+            activity_id: `${id}-activity-1`,
             order: 1,
             status: TaskStatusEnum.BACKLOG,
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
-            tasks: [
-              { id: `${id}-T-3`, title: '调研', description: '', type: TaskTypeEnum.SPIKE, priority: TaskPriorityEnum.P3, estimation: 1, status: TaskStatusEnum.BACKLOG, dependencies: [], story_id: `${id}-US-02`, project_id: id, tags: [], created_at: '', updated_at: '' },
+            dev_tasks: [
+              { id: `${id}-T-3`, title: '调研', description: '', priority: TaskPriorityEnum.P3, estimation: 1, status: TaskStatusEnum.BACKLOG, dependencies: [], story_id: `${id}-US-02`, product_id: id, tags: [], created_at: '', updated_at: '' },
             ],
           },
           {
@@ -76,13 +74,13 @@ function makeProject(id: string, name: string): Project {
             estimation: 1,
             acceptance_criteria: [],
             tags: [],
-            journey_id: `${id}-journey-1`,
+            activity_id: `${id}-activity-1`,
             order: 2,
             status: TaskStatusEnum.DONE,
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
-            tasks: [
-              { id: `${id}-T-4`, title: '已完任务', description: '', type: TaskTypeEnum.BUG_FIX, priority: TaskPriorityEnum.P0, estimation: 1, status: TaskStatusEnum.DONE, dependencies: [], story_id: `${id}-US-03`, project_id: id, tags: [], created_at: '', updated_at: '' },
+            dev_tasks: [
+              { id: `${id}-T-4`, title: '已完任务', description: '', priority: TaskPriorityEnum.P0, estimation: 1, status: TaskStatusEnum.DONE, dependencies: [], story_id: `${id}-US-03`, product_id: id, tags: [], created_at: '', updated_at: '' },
             ],
           },
         ],
@@ -106,18 +104,18 @@ describe('active-workbench', () => {
     expect(isActiveTaskStatus(TaskStatusEnum.DONE)).toBe(false);
   });
 
-  it('flattenProjects 聚合活跃需求/任务并区分待办池', () => {
-    const data = flattenProjects([makeProject('P-1', 'App'), makeProject('P-2', 'Web')]);
+  it('flattenProducts 聚合活跃需求/任务并区分待办池', () => {
+    const data = flattenProducts([makeProduct('P-1', 'App'), makeProduct('P-2', 'Web')]);
 
-    // 活跃需求：每个项目 1 个 in_progress 故事
+    // 活跃需求：每个产品 1 个 in_progress 故事
     expect(data.activeStories).toHaveLength(2);
-    expect(data.activeStories.map((s) => s.project_name).sort()).toEqual(['App', 'Web']);
+    expect(data.activeStories.map((s) => s.product_name).sort()).toEqual(['App', 'Web']);
 
-    // 活跃任务：每项目 1 个 in_progress 任务
+    // 活跃任务：每产品 1 个 in_progress 任务
     expect(data.activeTasks).toHaveLength(2);
     expect(data.activeTasks[0].story_title).toBe('导入故事');
 
-    // 待办池：每项目 1 个 backlog 故事 + 2 个 backlog 任务（T-2, T-3）
+    // 待办池：每产品 1 个 backlog 故事 + 2 个 backlog 任务（T-2, T-3）
     expect(data.backlogStories).toHaveLength(2);
     expect(data.backlogTasks).toHaveLength(4);
 
@@ -128,18 +126,18 @@ describe('active-workbench', () => {
     // 活跃故事下统计其活跃任务数
     expect(data.activeStories[0].active_task_count).toBe(1);
 
-    // 项目数
-    expect(data.projectCount).toBe(2);
+    // 产品数
+    expect(data.productCount).toBe(2);
   });
 
-  it('flattenProjects 容忍空/不完整树', () => {
-    expect(flattenProjects(undefined).activeStories).toEqual([]);
-    expect(flattenProjects([]).activeTasks).toEqual([]);
-    expect(flattenProjects(null).projectCount).toBe(0);
-    // 无 user_journeys 的项目
-    const p = makeProject('P-x', 'X');
-    p.user_journeys = [];
-    expect(flattenProjects([p]).projectCount).toBe(1);
+  it('flattenProducts 容忍空/不完整树', () => {
+    expect(flattenProducts(undefined).activeStories).toEqual([]);
+    expect(flattenProducts([]).activeTasks).toEqual([]);
+    expect(flattenProducts(null).productCount).toBe(0);
+    // 无 user_activities 的产品
+    const p = makeProduct('P-x', 'X');
+    p.user_activities = [];
+    expect(flattenProducts([p]).productCount).toBe(1);
   });
 
   it('filterByQuery 按标题过滤', () => {
@@ -149,11 +147,11 @@ describe('active-workbench', () => {
     expect(filterByQuery(items, '不存在')).toHaveLength(0);
   });
 
-  it('groupByProject 按项目分组且保持顺序', () => {
-    const data = flattenProjects([makeProject('P-1', 'App'), makeProject('P-2', 'Web')]);
-    const groups = groupByProject(data.activeStories);
+  it('groupByProduct 按产品分组且保持顺序', () => {
+    const data = flattenProducts([makeProduct('P-1', 'App'), makeProduct('P-2', 'Web')]);
+    const groups = groupByProduct(data.activeStories);
     expect(groups).toHaveLength(2);
-    expect(groups[0].project_name).toBe('App');
+    expect(groups[0].product_name).toBe('App');
     expect(groups.map((g) => g.items.length)).toEqual([1, 1]);
   });
 });

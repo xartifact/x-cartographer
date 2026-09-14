@@ -16,35 +16,44 @@ import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { TaskDetailSheet } from '@/features/tasks/components/task-detail-sheet';
 import { TASK_PRIORITY_CLS } from '@/features/workbench/components/card-meta';
-import { useUpdateTask } from '@/lib/api/hooks';
-import type { Project, Milestone, Task } from '@/types';
+import { useUpdateDevTask } from '@/lib/api/hooks';
+import type { Product, Milestone, DevTask } from '@/types';
 
 type EnrichedStory = {
   id: string;
   title: string;
   milestone_id?: string;
   estimation?: number;
-  journey_name: string;
-  tasks: Task[];
+  activity_name: string;
+  dev_tasks: DevTask[];
 };
 
+interface DevStory {
+  id: string;
+  title: string;
+  status?: string;
+  milestone_id?: string;
+  estimation?: number;
+  dev_tasks?: DevTask[];
+}
+
 interface RoadmapTasksViewProps {
-  project: Project;
+  project: Product;
   milestones: Milestone[];
 }
 
 export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps) {
   // 选中的任务详情（Sheet 抽屉）
-  const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [detailTask, setDetailTask] = useState<DevTask | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
-  const updateTask = useUpdateTask();
+  const updateTask = useUpdateDevTask();
 
   // 收集所有任务（用于解析依赖）
-  const allTasks = useMemo<Task[]>(() => {
-    const tasks: Task[] = [];
-    (project.user_journeys ?? []).forEach((j) => {
+  const allTasks = useMemo<DevTask[]>(() => {
+    const tasks: DevTask[] = [];
+    (project.user_activities ?? []).forEach((j: { id: string; name: string; stories?: Array<{ id: string; title: string; dev_tasks?: DevTask[] }> }) => {
       (j.stories ?? []).forEach((s) => {
-        if (s.tasks) tasks.push(...s.tasks);
+        if (s.dev_tasks) tasks.push(...s.dev_tasks);
       });
     });
     return tasks;
@@ -52,34 +61,34 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
 
   // 故事/旅程上下文 map
   const storyContextMap = useMemo(() => {
-    const map: Record<string, { storyTitle: string; journeyName: string }> = {};
-    (project.user_journeys ?? []).forEach((j) => {
+    const map: Record<string, { storyTitle: string; activityName: string }> = {};
+    (project.user_activities ?? []).forEach((j: { id: string; name: string; stories?: Array<{ id: string; title: string; dev_tasks?: DevTask[] }> }) => {
       (j.stories ?? []).forEach((s) => {
-        map[s.id] = { storyTitle: s.title, journeyName: j.name };
+        map[s.id] = { storyTitle: s.title, activityName: j.name };
       });
     });
     return map;
   }, [project]);
 
-  const openTaskDetail = (task: Task) => {
+  const openTaskDetail = (task: DevTask) => {
     setDetailTask(task);
     setDetailSheetOpen(true);
   };
 
   // 扁平化带旅程名+任务的未排期/已排期故事（排除已取消故事）
   const stories = useMemo<EnrichedStory[]>(() => {
-    return (project.user_journeys ?? []).flatMap((j) =>
+    return (project.user_activities ?? []).flatMap((j: { id: string; name: string; stories?: DevStory[] }) =>
       (j.stories ?? [])
-        .filter((s) => s.status !== 'cancelled')
+        .filter((s: DevStory) => s.status !== 'cancelled')
         .map(
-          (s) =>
+          (s: DevStory) =>
             ({
               id: s.id,
               title: s.title,
               milestone_id: s.milestone_id,
               estimation: s.estimation,
-              journey_name: j.name,
-              tasks: s.tasks ?? [],
+              activity_name: j.name,
+              dev_tasks: s.dev_tasks ?? [],
             }) as EnrichedStory
         )
     );
@@ -100,7 +109,7 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
   }, [stories, milestones]);
 
   function taskStats(storyList: EnrichedStory[]) {
-    const tasks = storyList.flatMap((s) => s.tasks);
+    const tasks = storyList.flatMap((s) => s.dev_tasks);
     const done = tasks.filter((t) => t.status === 'done').length;
     const est = tasks.reduce((sum, t) => sum + (t.estimation ?? 0), 0);
     return { total: tasks.length, done, est, pct: tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0 };
@@ -137,11 +146,11 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
                   {s.estimation ? <span>{s.estimation}h</span> : null}
                 </div>
                 {/* 任务行 */}
-                {s.tasks.length === 0 ? (
+                {s.dev_tasks.length === 0 ? (
                   <p className="pl-1 text-xs italic text-muted-foreground">无任务</p>
                 ) : (
                   <div className="space-y-1">
-                    {s.tasks.map((t) => (
+                    {s.dev_tasks.map((t: DevTask) => (
                       <div
                         key={t.id}
                         role="button"

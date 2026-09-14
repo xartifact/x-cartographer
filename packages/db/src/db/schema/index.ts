@@ -1,13 +1,17 @@
-export { projects } from './projects';
-export { userJourneys } from './user-journeys';
+export { products } from './products';
+export { userActivities } from './user-activities';
+export { userTasks } from './user-tasks';
 export { userStories } from './user-stories';
 export { milestones } from './milestones';
-export { tasks } from './tasks';
+export { devTasks } from './dev-tasks';
+export { adrRecords } from './adr-records';
 export {
-  projectsRelations,
-  userJourneysRelations,
+  productsRelations,
+  userActivitiesRelations,
+  userTasksRelations,
   userStoriesRelations,
+  devTasksRelations,
   milestonesRelations,
-  tasksRelations,
+  adrRecordsRelations,
 } from './relations';
 export { appSettings } from './app-settings';

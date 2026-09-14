@@ -21,15 +21,15 @@ import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { STORY_PRIORITY_CLS, STORY_STATUS_LABEL } from '@/features/workbench/components/card-meta';
 import { useCreateStory, useUpdateStory, useDeleteStory, useUpdateStoryStatus } from '@/lib/api/hooks';
 import { Priority } from '@/types';
-import type { Project, StoryStatus, UserStory } from '@/types';
+import type { Product, StoryStatus, UserStory } from '@/types';
 
 interface StoriesPageProps {
-  /** 当前项目 */
-  project: Project;
+  /** 当前产品 */
+  project: Product;
 }
 
-/** 带旅程名的故事 */
-type EnrichedStory = UserStory & { journey_name: string };
+/** 带用户活动名的故事 */
+type EnrichedStory = UserStory & { activity_name: string };
 
 const PRIORITY_FILTERS: Priority[] = [Priority.HIGH, Priority.MEDIUM, Priority.LOW];
 
@@ -44,36 +44,36 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
   const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
   const [statusFilter, setStatusFilter] = useState<StoryStatus | null>(null);
 
-  // 新建故事的目标旅程
+  // 新建故事的目标活动
   const [targetJourneyId, setTargetJourneyId] = useState<string>('');
   const [createOpen, setCreateOpen] = useState(false);
   // 编辑
   const [editing, setEditing] = useState<UserStory | null>(null);
   // 详情抽屉
-  const [detail, setDetail] = useState<{ story: UserStory; journeyName: string } | null>(null);
+  const [detail, setDetail] = useState<{ story: UserStory; activityName: string } | null>(null);
 
   useEffect(() => {
     setProject(initialProject);
   }, [initialProject]);
 
-  // 旅程列表
-  const journeys = useMemo(() => project.user_journeys ?? [], [project]);
+  // 用户活动列表
+  const activities = useMemo(() => project.user_activities ?? [], [project]);
 
-  // 带旅程名的故事（排除已取消）
+  // 带用户活动名的故事（排除已取消）
   const allStories = useMemo<EnrichedStory[]>(() => {
-    return journeys.flatMap((j) =>
-      (j.stories ?? [])
+    return activities.flatMap((j) =>
+      ((j as { stories?: UserStory[] }).stories ?? [])
         .filter((s) => s.status !== 'cancelled')
-        .map((s) => ({ ...s, journey_name: j.name })) as EnrichedStory[]
+        .map((s) => ({ ...s, activity_name: j.name })) as EnrichedStory[]
     );
-  }, [journeys]);
+  }, [activities]);
 
-  // 目标旅程默认第一个
+  // 目标活动默认第一个
   useEffect(() => {
-    if (!targetJourneyId && journeys.length > 0) {
-      setTargetJourneyId(journeys[0].id);
+    if (!targetJourneyId && activities.length > 0) {
+      setTargetJourneyId(activities[0].id);
     }
-  }, [journeys, targetJourneyId]);
+  }, [activities, targetJourneyId]);
 
   const filteredStories = useMemo(() => {
     let list = allStories;
@@ -88,7 +88,7 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
     return list;
   }, [allStories, priorityFilter, statusFilter, searchQuery]);
 
-  const targetJourney = journeys.find((j) => j.id === targetJourneyId);
+  const targetJourney = activities.find((j) => j.id === targetJourneyId);
 
   function togglePriority(p: Priority) {
     setPriorityFilter((prev) => (prev === p ? null : p));
@@ -96,7 +96,7 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
 
 
   async function handleCreate(data: {
-    journeyId: string;
+    activityId: string;
     title: string;
     description: string;
     priority: Priority;
@@ -189,7 +189,7 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
             onChange={(e) => setTargetJourneyId(e.target.value)}
             className="h-9 rounded-md border bg-background px-2 text-sm"
           >
-            {journeys.map((j) => (
+            {activities.map((j) => (
               <option key={j.id} value={j.id}>
                 {j.name}
               </option>
@@ -222,8 +222,8 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
                 key={s.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => setDetail({ story: s, journeyName: s.journey_name })}
-                onKeyDown={(e) => { if (e.key === 'Enter') setDetail({ story: s, journeyName: s.journey_name }); }}
+                onClick={() => setDetail({ story: s, activityName: s.activity_name })}
+                onKeyDown={(e) => { if (e.key === 'Enter') setDetail({ story: s, activityName: s.activity_name }); }}
                 className="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors hover:bg-accent/40"
               >
                 <span className="font-mono text-xs text-muted-foreground">{s.id}</span>
@@ -241,13 +241,13 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
                   </button>
                 )}
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{s.title}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{s.journey_name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{s.activity_name}</span>
                 {s.estimation > 0 && (
                   <span className="shrink-0 text-xs text-muted-foreground">{s.estimation}h</span>
                 )}
-                {(s.tasks?.length ?? 0) > 0 && (
+                {(s.dev_tasks?.length ?? 0) > 0 && (
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {s.tasks?.filter((t) => t.status === 'done').length}/{s.tasks?.length} 任务
+                    {s.dev_tasks?.filter((t) => t.status === 'done').length}/{s.dev_tasks?.length} 研发任务
                   </span>
                 )}
               </div>
@@ -260,8 +260,9 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
       <StoryCreateDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        journeyId={targetJourneyId}
-        journeyName={targetJourney?.name ?? ''}
+        activityId={targetJourneyId}
+        activities={activities.map((j) => ({ id: j.id, name: j.name }))}
+        activityName={targetJourney?.name ?? ''}
         onSave={handleCreate}
       />
       {/* 故事编辑对话框 */}
@@ -280,7 +281,7 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
           {detail && (
             <StoryDetailPanel
               story={detail.story}
-              journeyName={detail.journeyName}
+              activityName={detail.activityName}
               project={project}
               onClose={() => setDetail(null)}
               onEdit={(s) => setEditing(s)}

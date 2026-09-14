@@ -16,8 +16,8 @@ export interface Milestone {
   /** 唯一标识符 */
   id: string;
 
-  /** 所属项目 ID */
-  project_id: string;
+  /** 所属产品 ID */
+  product_id: string;
 
   /** 版本名称（如 v1.0） */
   name: string;
@@ -36,13 +36,16 @@ export interface Milestone {
 
   /** 更新时间 */
   updated_at: Timestamp;
+
+  /** 锚定的 ADR id；可空纯字段，无 DB 外键（§3.7），归属由仓库层校验 */
+  adr_id?: string;
 }
 
 /**
  * 里程碑创建 DTO
  */
 export interface CreateMilestoneDTO {
-  project_id: string;
+  product_id: string;
   name: string;
   goal?: string;
   target_date?: string;

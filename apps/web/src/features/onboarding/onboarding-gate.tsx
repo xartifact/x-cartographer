@@ -3,7 +3,7 @@
 /**
  * Onboarding 入口组件（TASK-083/084/085/086）
  *
- * 首访自动弹出欢迎向导；提供 createSample 回调以便在向导中一键创建示例项目。
+ * 首访自动弹出欢迎向导；提供 createSample 回调以便在向导中一键创建示例产品。
  * 设置页通过 resetOnboarding 重新触发。
  */
 
@@ -11,7 +11,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { OnboardingWizard, ONBOARDING_STORAGE_KEY } from './onboarding-wizard';
 import { createSampleProjectData } from './sample-project';
-import { useCreateProject } from '@/lib/api/hooks';
+import { useCreateProduct } from '@/lib/api/hooks';
 
 interface OnboardingGateProps {
   /** 是否立即显示（首访自动触发或设置页重看） */
@@ -20,7 +20,7 @@ interface OnboardingGateProps {
 
 export function OnboardingGate({ forceOpen = false }: OnboardingGateProps) {
   const [open, setOpen] = useState(forceOpen);
-  const createProject = useCreateProject();
+  const createProject = useCreateProduct();
   const navigate = useNavigate();
 
   // 首访判定（TASK-086：跳过即不再展示）
@@ -56,7 +56,7 @@ export function OnboardingGate({ forceOpen = false }: OnboardingGateProps) {
       tech_stack: data.metadata.tech_stack,
     })) as { success?: boolean; id?: string };
     if (res.id) {
-      navigate({ to: '/projects/$projectId/story-map', params: { projectId: res.id } });
+      navigate({ to: '/products/$productId/story-map', params: { productId: res.id } });
     }
   }, [createProject, navigate]);
 

@@ -34,11 +34,11 @@ function jsonRequest(
   return app.request(url, init) as Promise<Response>;
 }
 
-async function createProject(
+async function createProduct(
   name: string,
   extra: Record<string, unknown> = {}
 ): Promise<string> {
-  const res = await jsonRequest('POST', '/api/projects', {
+  const res = await jsonRequest('POST', '/api/products', {
     name,
     description: `${name} description`,
     ...extra,
@@ -50,12 +50,11 @@ async function createProject(
   return body.id;
 }
 
-async function createJourney(projectId: string, name: string): Promise<string> {
-  const res = await jsonRequest('POST', '/api/journeys', {
-    projectId,
+async function createActivity(productId: string, name: string): Promise<string> {
+  const res = await jsonRequest('POST', '/api/user-activities', {
+    productId,
     name,
     description: `${name} description`,
-    persona: 'user',
   });
   expect(res.status).toBe(201);
   const body = (await res.json()) as { success: boolean; id: string };
@@ -63,11 +62,11 @@ async function createJourney(projectId: string, name: string): Promise<string> {
 }
 
 async function createStory(
-  journeyId: string,
+  activityId: string,
   title: string
 ): Promise<string> {
   const res = await jsonRequest('POST', '/api/stories', {
-    journeyId,
+    activityId,
     title,
     description: `${title} description`,
     priority: 'high',
@@ -78,16 +77,15 @@ async function createStory(
   return body.id;
 }
 
-async function createTask(
+async function createDevTask(
   storyId: string,
   title: string,
   dependencies: string[] = []
 ): Promise<string> {
-  const res = await jsonRequest('POST', '/api/tasks', {
+  const res = await jsonRequest('POST', '/api/dev-tasks', {
     storyId,
     title,
     description: `${title} description`,
-    type: 'technical_task',
     priority: 'P2',
     estimation: 2,
     dependencies,
@@ -112,9 +110,9 @@ afterAll(() => {
 
 beforeEach(async () => {
   const db = await ensureDb();
-  // 清空全部业务表（projects 的 FK 级联删除 journeys/stories/tasks）
+  // 清空全部业务表（products 的 FK 级联删除 activities/stories/dev-tasks）
   await db.execute(
-    sql`TRUNCATE TABLE projects, status_changes, app_settings CASCADE`
+    sql`TRUNCATE TABLE products, status_changes, app_settings CASCADE`
   );
 });
 
@@ -134,22 +132,22 @@ describe('health & metrics', () => {
   });
 });
 
-describe('projects CRUD', () => {
+describe('products CRUD', () => {
   it('full lifecycle: create → list → search → detail → update → delete', async () => {
-    const id = await createProject('Alpha Project', {
+    const id = await createProduct('Alpha Project', {
       tech_stack: ['bun', 'hono'],
       workspace_dir: '/tmp/alpha',
     });
 
     // list
-    let res = await app.request('/api/projects');
+    let res = await app.request('/api/products');
     expect(res.status).toBe(200);
     let body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(id);
     expect(body[0].name).toBe('Alpha Project');
-    expect(body[0].user_journeys).toEqual([]);
+    expect(body[0].user_activities).toEqual([]);
     // create 时写入的 tech_stack 进 metadata
     expect((body[0].metadata as { tech_stack: string[] }).tech_stack).toEqual([
       'bun',
@@ -157,25 +155,25 @@ describe('projects CRUD', () => {
     ]);
 
     // search（大小写不敏感，name/description 均匹配）
-    res = await app.request('/api/projects/search?q=alpha');
+    res = await app.request('/api/products/search?q=alpha');
     expect(res.status).toBe(200);
     body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(id);
 
-    res = await app.request(`/api/projects/search?q=description`);
+    res = await app.request(`/api/products/search?q=description`);
     body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
     expect(body).toHaveLength(1);
 
-    res = await app.request('/api/projects/search?q=zzz-none');
+    res = await app.request('/api/products/search?q=zzz-none');
     body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
     expect(body).toHaveLength(0);
 
     // detail
-    res = await app.request(`/api/projects/${id}`);
+    res = await app.request(`/api/products/${id}`);
     expect(res.status).toBe(200);
     body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
@@ -184,14 +182,14 @@ describe('projects CRUD', () => {
     );
 
     // update（部分字段 + settings 合并）
-    res = await jsonRequest('PATCH', `/api/projects/${id}`, {
+    res = await jsonRequest('PATCH', `/api/products/${id}`, {
       name: 'Alpha Renamed',
       settings: { auto_save: false },
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
 
-    res = await app.request(`/api/projects/${id}`);
+    res = await app.request(`/api/products/${id}`);
     body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
     expect(body.name).toBe('Alpha Renamed');
@@ -200,62 +198,62 @@ describe('projects CRUD', () => {
     ).toBe(false);
 
     // delete（返回 JSON true）
-    res = await app.request(`/api/projects/${id}`, { method: 'DELETE' });
+    res = await app.request(`/api/products/${id}`, { method: 'DELETE' });
     expect(res.status).toBe(200);
     expect(await res.json()).toBe(true);
 
-    res = await app.request(`/api/projects/${id}`);
+    res = await app.request(`/api/products/${id}`);
     expect(res.status).toBe(200);
     expect(await res.json()).toBeNull();
   });
 
-  it('delete cascades to journeys/stories/tasks', async () => {
-    const projectId = await createProject('Cascade');
-    const journeyId = await createJourney(projectId, 'J');
-    const storyId = await createStory(journeyId, 'S');
-    const taskId = await createTask(storyId, 'T');
+  it('delete cascades to activities/stories/dev-tasks', async () => {
+    const projectId = await createProduct('Cascade');
+    const activityId = await createActivity(projectId, 'J');
+    const storyId = await createStory(activityId, 'S');
+    const taskId = await createDevTask(storyId, 'T');
 
-    const res = await app.request(`/api/projects/${projectId}`, {
+    const res = await app.request(`/api/products/${projectId}`, {
       method: 'DELETE',
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toBe(true);
 
-    const journeys = (await (
-      await app.request(`/api/journeys?projectId=${projectId}`)
+    const activities = (await (
+      await app.request(`/api/user-activities?productId=${projectId}`)
     ).json()) as unknown[];
-    expect(journeys).toEqual([]);
+    expect(activities).toEqual([]);
 
     // stories/tasks 详情端点对不存在的行返回空 body（drizzle findFirst → undefined）
     const storyRes = await app.request(`/api/stories/${storyId}`);
     expect(storyRes.status).toBe(200);
     expect(await storyRes.text()).toBe('');
 
-    const taskRes = await app.request(`/api/tasks/${taskId}`);
+    const taskRes = await app.request(`/api/dev-tasks/${taskId}`);
     expect(taskRes.status).toBe(200);
     expect(await taskRes.text()).toBe('');
   });
 });
 
-describe('journeys CRUD', () => {
+describe('user-activities CRUD', () => {
   it('create → list by project → update → delete', async () => {
-    const projectId = await createProject('Journey Project');
-    const journeyId = await createJourney(projectId, 'Onboarding');
+    const projectId = await createProduct('Journey Project');
+    const activityId = await createActivity(projectId, 'Onboarding');
 
-    let res = await app.request(`/api/journeys?projectId=${projectId}`);
+    let res = await app.request(`/api/user-activities?productId=${projectId}`);
     expect(res.status).toBe(200);
     let body = (await res.json()) as Array<Record<string, unknown>>;
     expect(body).toHaveLength(1);
-    expect(body[0].id).toBe(journeyId);
-    expect(body[0].projectId).toBe(projectId);
+    expect(body[0].id).toBe(activityId);
+    expect(body[0].product_id).toBe(projectId);
     expect(body[0].stories).toEqual([]);
 
     // 缺 projectId → 400
-    res = await app.request('/api/journeys');
+    res = await app.request('/api/user-activities');
     expect(res.status).toBe(400);
 
     // update
-    res = await jsonRequest('PATCH', `/api/journeys/${journeyId}`, {
+    res = await jsonRequest('PATCH', `/api/user-activities/${activityId}`, {
       name: 'Onboarding v2',
       order: 5,
     });
@@ -263,20 +261,20 @@ describe('journeys CRUD', () => {
     expect(await res.json()).toEqual({ success: true });
 
     body = (await (
-      await app.request(`/api/journeys?projectId=${projectId}`)
+      await app.request(`/api/user-activities?productId=${projectId}`)
     ).json()) as Array<Record<string, unknown>>;
     expect(body[0].name).toBe('Onboarding v2');
     expect(body[0].order).toBe(5);
 
     // delete
-    res = await app.request(`/api/journeys/${journeyId}`, {
+    res = await app.request(`/api/user-activities/${activityId}`, {
       method: 'DELETE',
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
 
     body = (await (
-      await app.request(`/api/journeys?projectId=${projectId}`)
+      await app.request(`/api/user-activities?productId=${projectId}`)
     ).json()) as Array<Record<string, unknown>>;
     expect(body).toHaveLength(0);
   });
@@ -284,19 +282,19 @@ describe('journeys CRUD', () => {
 
 describe('stories CRUD + status flow', () => {
   it('create → list → detail → update → status change records', async () => {
-    const projectId = await createProject('Story Project');
-    const journeyId = await createJourney(projectId, 'Journey A');
-    const storyId = await createStory(journeyId, 'As a user I can login');
+    const projectId = await createProduct('Story Project');
+    const activityId = await createActivity(projectId, 'Journey A');
+    const storyId = await createStory(activityId, 'As a user I can login');
 
     // list by journey
-    let res = await app.request(`/api/stories?journeyId=${journeyId}`);
+    let res = await app.request(`/api/stories?activityId=${activityId}`);
     expect(res.status).toBe(200);
     let body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(storyId);
 
-    // 缺 journeyId → 400
+    // 缺 activityId → 400
     res = await app.request('/api/stories');
     expect(res.status).toBe(400);
 
@@ -324,10 +322,10 @@ describe('stories CRUD + status flow', () => {
     expect(body.title).toBe('As a user I can login with SSO');
     expect(body.estimation).toBe(5);
 
-    // 跨旅程迁移（PATCH journeyId → journey_id 持久化）
-    const journey2 = await createJourney(projectId, 'Journey B');
+    // 跨旅程迁移（PATCH activityId → activity_id 持久化）
+    const journey2 = await createActivity(projectId, 'Journey B');
     res = await jsonRequest('PATCH', `/api/stories/${storyId}`, {
-      journeyId: journey2,
+      activityId: journey2,
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
@@ -336,11 +334,11 @@ describe('stories CRUD + status flow', () => {
       await app.request(`/api/stories/${storyId}`)
     ).json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
-    expect(body.journeyId).toBe(journey2);
-    res = await app.request(`/api/stories?journeyId=${journey2}`);
+    expect(body.activityId).toBe(journey2);
+    res = await app.request(`/api/stories?activityId=${journey2}`);
     const moved = (await res.json()) as Array<Record<string, unknown>>;
     expect(moved.some((s) => s.id === storyId)).toBe(true);
-    res = await app.request(`/api/stories?journeyId=${journeyId}`);
+    res = await app.request(`/api/stories?activityId=${activityId}`);
     const source = (await res.json()) as Array<Record<string, unknown>>;
     expect(source.some((s) => s.id === storyId)).toBe(false);
 
@@ -394,15 +392,15 @@ describe('stories CRUD + status flow', () => {
   });
 });
 
-describe('tasks CRUD + topological next', () => {
+describe('dev-tasks CRUD + topological next', () => {
   it('create → list → detail → update → delete', async () => {
-    const projectId = await createProject('Task Project');
-    const journeyId = await createJourney(projectId, 'J');
-    const storyId = await createStory(journeyId, 'S');
-    const taskId = await createTask(storyId, 'Implement login');
+    const projectId = await createProduct('Task Project');
+    const activityId = await createActivity(projectId, 'J');
+    const storyId = await createStory(activityId, 'S');
+    const taskId = await createDevTask(storyId, 'Implement login');
 
     // list by story
-    let res = await app.request(`/api/tasks?storyId=${storyId}`);
+    let res = await app.request(`/api/dev-tasks?storyId=${storyId}`);
     expect(res.status).toBe(200);
     let body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
@@ -411,11 +409,11 @@ describe('tasks CRUD + topological next', () => {
     expect(body[0].storyId).toBe(storyId);
 
     // 缺 storyId → 400
-    res = await app.request('/api/tasks');
+    res = await app.request('/api/dev-tasks');
     expect(res.status).toBe(400);
 
     // detail
-    res = await app.request(`/api/tasks/${taskId}`);
+    res = await app.request(`/api/dev-tasks/${taskId}`);
     expect(res.status).toBe(200);
     body = (await res.json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
@@ -424,7 +422,7 @@ describe('tasks CRUD + topological next', () => {
     );
 
     // update
-    res = await jsonRequest('PATCH', `/api/tasks/${taskId}`, {
+    res = await jsonRequest('PATCH', `/api/dev-tasks/${taskId}`, {
       title: 'Implement login v2',
       assignee: 'bob',
       estimation: 4,
@@ -433,7 +431,7 @@ describe('tasks CRUD + topological next', () => {
     expect(await res.json()).toEqual({ success: true });
 
     body = (await (
-      await app.request(`/api/tasks/${taskId}`)
+      await app.request(`/api/dev-tasks/${taskId}`)
     ).json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
     expect(body.title).toBe('Implement login v2');
@@ -441,32 +439,32 @@ describe('tasks CRUD + topological next', () => {
     expect(body.estimation).toBe(4);
 
     // delete
-    res = await app.request(`/api/tasks/${taskId}`, { method: 'DELETE' });
+    res = await app.request(`/api/dev-tasks/${taskId}`, { method: 'DELETE' });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
 
     // 删除后详情返回空 body
-    const deleted = await app.request(`/api/tasks/${taskId}`);
+    const deleted = await app.request(`/api/dev-tasks/${taskId}`);
     expect(deleted.status).toBe(200);
     expect(await deleted.text()).toBe('');
   });
 
   it('GET /api/tasks/next honors dependency completion order', async () => {
-    const projectId = await createProject('Topo Project');
-    const journeyId = await createJourney(projectId, 'J');
-    const storyId = await createStory(journeyId, 'S');
+    const projectId = await createProduct('Topo Project');
+    const activityId = await createActivity(projectId, 'J');
+    const storyId = await createStory(activityId, 'S');
     // A 无依赖，B 依赖 A，C 依赖 B
-    const a = await createTask(storyId, 'Task A');
-    const b = await createTask(storyId, 'Task B', [a]);
-    const c = await createTask(storyId, 'Task C', [b]);
+    const a = await createDevTask(storyId, 'Task A');
+    const b = await createDevTask(storyId, 'Task B', [a]);
+    const c = await createDevTask(storyId, 'Task C', [b]);
 
     const next = async (): Promise<Record<string, unknown> | null> => {
-      const res = await app.request(`/api/tasks/next?projectId=${projectId}`);
+      const res = await app.request(`/api/dev-tasks/next?productId=${projectId}`);
       expect(res.status).toBe(200);
       return (await res.json()) as Record<string, unknown> | null;
     };
     const setStatus = async (id: string, status: string) => {
-      const res = await jsonRequest('POST', `/api/tasks/${id}/status`, {
+      const res = await jsonRequest('POST', `/api/dev-tasks/${id}/status`, {
         status,
         reason: `-> ${status}`,
       });
@@ -498,12 +496,12 @@ describe('tasks CRUD + topological next', () => {
     expect(await next()).toBeNull();
 
     // 不存在的项目 → 200 + null
-    const missing = await app.request('/api/tasks/next?projectId=nope');
+    const missing = await app.request('/api/dev-tasks/next?productId=nope');
     expect(missing.status).toBe(200);
     expect(await missing.json()).toBeNull();
 
     // 缺 projectId → 400
-    const noParam = await app.request('/api/tasks/next');
+    const noParam = await app.request('/api/dev-tasks/next');
     expect(noParam.status).toBe(400);
 
     // 任务状态流转记录了 status_changes（entity_type=task）
@@ -516,15 +514,21 @@ describe('tasks CRUD + topological next', () => {
     expect(changes[1].new_status).toBe('todo');
   });
 
-  it('status endpoint 404s for unknown task', async () => {
-    const res = await jsonRequest('POST', '/api/tasks/nope/status', {
+  it('status endpoint 404s for unknown dev-task', async () => {
+    const res = await jsonRequest('POST', '/api/dev-tasks/nope/status', {
       status: 'done',
     });
     expect(res.status).toBe(404);
   });
+  it('legacy /api/tasks routes return 410 Gone', async () => {
+    const res = await jsonRequest('POST', '/api/tasks/nope/status', {
+      status: 'done',
+    });
+    expect(res.status).toBe(410);
+  });
 });
 
-describe('PUT /api/projects/full transaction', () => {
+describe('PUT /api/products/full transaction', () => {
   it('writes the whole tree and replaces children on re-put', async () => {
     const now = new Date().toISOString();
     const projectId = 'P-FULL-001';
@@ -544,13 +548,12 @@ describe('PUT /api/projects/full transaction', () => {
           default_view: 'map',
         },
       },
-      user_journeys: [
+      user_activities: [
         {
           id: 'UJ-001',
-          name: 'Journey One',
+          name: 'Activity One',
           description: 'jd',
-          persona: 'admin',
-          project_id: projectId,
+          product_id: projectId,
           order: 0,
           created_at: now,
           updated_at: now,
@@ -563,17 +566,16 @@ describe('PUT /api/projects/full transaction', () => {
               estimation: 4,
               acceptance_criteria: ['works'],
               tags: ['core'],
-              journey_id: 'UJ-001',
+              activity_id: 'UJ-001',
               order: 0,
               status: 'in_progress',
               created_at: now,
               updated_at: now,
-              tasks: [
+              dev_tasks: [
                 {
                   id: 'TASK-001',
-                  title: 'Task One',
+                  title: 'DevTask One',
                   description: 'td',
-                  type: 'technical_task',
                   priority: 'P1',
                   estimation: 2,
                   status: 'todo',
@@ -589,10 +591,9 @@ describe('PUT /api/projects/full transaction', () => {
         },
         {
           id: 'UJ-002',
-          name: 'Journey Two',
+          name: 'Activity Two',
           description: 'jd2',
-          persona: 'user',
-          project_id: projectId,
+          product_id: projectId,
           order: 1,
           created_at: now,
           updated_at: now,
@@ -601,47 +602,47 @@ describe('PUT /api/projects/full transaction', () => {
       ],
     };
 
-    let res = await jsonRequest('PUT', '/api/projects/full', { project });
+    let res = await jsonRequest('PUT', '/api/products/full', { project });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
 
-    res = await app.request(`/api/projects/${projectId}`);
+    res = await app.request(`/api/products/${projectId}`);
     expect(res.status).toBe(200);
     let body = (await res.json()) as Record<string, unknown> & {
-      user_journeys: Array<Record<string, unknown> & { stories: unknown[] }>;
+      user_activities: Array<Record<string, unknown> & { stories: unknown[] }>;
     };
     expect(body.name).toBe('Full Tree Project');
-    expect(body.user_journeys).toHaveLength(2);
-    const journey = body.user_journeys[0];
+    expect(body.user_activities).toHaveLength(2);
+    const journey = body.user_activities[0];
     expect(journey.id).toBe('UJ-001');
     const story = (journey.stories as Array<
       Record<string, unknown> & { tasks: unknown[] }
     >)[0];
     expect(story.id).toBe('US-001');
     expect(story.status).toBe('in_progress');
-    const task = (story.tasks as Array<Record<string, unknown>>)[0];
+    const task = (story.dev_tasks as Array<Record<string, unknown>>)[0];
     expect(task.id).toBe('TASK-001');
     expect(task.status).toBe('todo');
 
-    // 二次 PUT 只保留 1 个 journey → 旧 journeys 级联清除
+    // 二次 PUT 只保留 1 个 journey → 旧 activities 级联清除
     const slim = {
       ...project,
-      user_journeys: [
-        { ...project.user_journeys[0], stories: [] },
+      user_activities: [
+        { ...project.user_activities[0], stories: [] },
       ],
     };
-    res = await jsonRequest('PUT', '/api/projects/full', { project: slim });
+    res = await jsonRequest('PUT', '/api/products/full', { project: slim });
     expect(res.status).toBe(200);
 
     body = (await (
-      await app.request(`/api/projects/${projectId}`)
+      await app.request(`/api/products/${projectId}`)
     ).json()) as Record<string, unknown> & {
-      user_journeys: Array<Record<string, unknown> & { stories: unknown[] }>;
+      user_activities: Array<Record<string, unknown> & { stories: unknown[] }>;
     };
-    expect(body.user_journeys).toHaveLength(1);
-    expect(body.user_journeys[0].id).toBe('UJ-001');
+    expect(body.user_activities).toHaveLength(1);
+    expect(body.user_activities[0].id).toBe('UJ-001');
     expect(
-      (body.user_journeys[0].stories as unknown[]).length
+      (body.user_activities[0].stories as unknown[]).length
     ).toBe(0);
   });
 });
@@ -650,10 +651,10 @@ describe('PUT /api/projects/full transaction', () => {
 describe('validation failures return 400', () => {
   it('zValidator rejects invalid bodies', async () => {
     // 缺 name
-    let res = await jsonRequest('POST', '/api/projects', {});
+    let res = await jsonRequest('POST', '/api/products', {});
     expect(res.status).toBe(400);
 
-    // 缺 journeyId/title/priority/estimation
+    // 缺 activityId/title/priority/estimation
     res = await jsonRequest('POST', '/api/stories', {
       title: 'no journey',
     });
@@ -661,7 +662,7 @@ describe('validation failures return 400', () => {
 
     // 非法 priority 枚举
     res = await jsonRequest('POST', '/api/stories', {
-      journeyId: 'j',
+      activityId: 'j',
       title: 't',
       description: 'd',
       priority: 'urgent',
@@ -670,11 +671,11 @@ describe('validation failures return 400', () => {
     expect(res.status).toBe(400);
 
     // 缺 storyId/title
-    res = await jsonRequest('POST', '/api/tasks', {});
+    res = await jsonRequest('POST', '/api/dev-tasks', {});
     expect(res.status).toBe(400);
 
     // 非法 task status
-    res = await jsonRequest('POST', '/api/tasks/some-id/status', {
+    res = await jsonRequest('POST', '/api/dev-tasks/some-id/status', {
       status: 'banana',
     });
     expect(res.status).toBe(400);

@@ -1,23 +1,26 @@
-export { ProjectRepository } from './project.repository';
-export { JourneyRepository } from './journey.repository';
+export { ProductRepository } from './product.repository';
+export { UserActivityRepository } from './user-activity.repository';
 export { StoryRepository } from './story.repository';
-export { TaskRepository } from './task.repository';
+export { DevTaskRepository } from './dev-task.repository';
 export { MilestoneRepository } from './milestone.repository';
 export { StatusChangeRepository } from './status-change.repository';
+export { AdrRepository, foldConstitution } from './adr.repository';
 export { AppSettingsRepository } from './app-settings.repository';
 
 // 单例实例
-import { ProjectRepository } from './project.repository';
+import { ProductRepository } from './product.repository';
 import { StatusChangeRepository } from './status-change.repository';
+import { AdrRepository } from './adr.repository';
 
-let projectRepo: ProjectRepository | null = null;
+let productRepo: ProductRepository | null = null;
 let statusChangeRepo: StatusChangeRepository | null = null;
+let adrRepo: AdrRepository | null = null;
 
-export function getProjectRepository(): ProjectRepository {
-  if (!projectRepo) {
-    projectRepo = new ProjectRepository();
+export function getProductRepository(): ProductRepository {
+  if (!productRepo) {
+    productRepo = new ProductRepository();
   }
-  return projectRepo;
+  return productRepo;
 }
 
 export function getStatusChangeRepository(): StatusChangeRepository {
@@ -25,4 +28,11 @@ export function getStatusChangeRepository(): StatusChangeRepository {
     statusChangeRepo = new StatusChangeRepository();
   }
   return statusChangeRepo;
+}
+
+export function getAdrRepository(): AdrRepository {
+  if (!adrRepo) {
+    adrRepo = new AdrRepository();
+  }
+  return adrRepo;
 }

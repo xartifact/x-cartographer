@@ -28,17 +28,17 @@ import { MilestoneSelect } from '@/features/roadmap/components/milestone-select'
 import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { PriorityBadge } from '@/components/common/priority-badge';
 import { InfoItem } from '@/components/common/info-item';
-import type { UserStory } from '@/types/user-story';
-import type { Project } from '@/types';
+import type { UserStory } from '@/types';
+import type { Product } from '@/types';
 import { cn } from '@/lib/utils';
 import type { StoryStatus } from '@/types';
 
 interface StoryDetailPanelProps {
   story: UserStory | null;
-  journeyName?: string;
+  activityName?: string;
   project: Pick<
-    Project,
-    'id' | 'name' | 'description' | 'metadata' | 'settings' | 'user_journeys'
+    Product,
+    'id' | 'name' | 'description' | 'metadata' | 'settings' | 'user_activities'
   >;
   onClose: () => void;
   onEdit?: (story: UserStory) => void;
@@ -49,12 +49,12 @@ interface StoryDetailPanelProps {
 
 export const StoryDetailPanel = memo<StoryDetailPanelProps>(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- onClose 为公开回调，供调用方 Sheet 关闭
-  ({ story, journeyName, project, onClose, onEdit, onDelete, className }) => {
+  ({ story, activityName, project, onClose, onEdit, onDelete, className }) => {
     if (!story) {
       return null;
     }
 
-    const tasks = story.tasks ?? [];
+    const tasks = story.dev_tasks ?? [];
     const doneTasks = tasks.filter((t) => t.status === 'done').length;
     const taskCount = tasks.length;
 
@@ -76,10 +76,10 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
               )}
             </div>
             <h3 className="text-lg font-semibold leading-snug">{story.title}</h3>
-            {journeyName && (
+            {activityName && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <GitBranch className="h-3 w-3" />
-                {journeyName}
+                {activityName}
               </div>
             )}
           </div>
@@ -106,10 +106,10 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
               <InfoItem icon={<ListChecks className="h-3.5 w-3.5" />} label="任务进度">
                 <span>{taskCount > 0 ? `${doneTasks}/${taskCount}` : '无任务'}</span>
               </InfoItem>
-              {/* 所属旅程 */}
-              {journeyName && (
-                <InfoItem icon={<GitBranch className="h-3.5 w-3.5" />} label="所属旅程">
-                  <span>{journeyName}</span>
+              {/* 所属活动 */}
+              {activityName && (
+                <InfoItem icon={<GitBranch className="h-3.5 w-3.5" />} label="所属活动">
+                  <span>{activityName}</span>
                 </InfoItem>
               )}
               {/* 创建时间 */}

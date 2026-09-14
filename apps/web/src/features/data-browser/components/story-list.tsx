@@ -7,38 +7,38 @@
 import { useMemo, useState } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from '@x-cartographer/ui';
-import { UserJourney, UserStory, Priority, getPriorityConfig } from '@/types';
+import { UserActivity, UserStory, Priority, getPriorityConfig } from '@/types';
 import { StoryCard } from './story-card';
 import { cn } from '@/lib/utils';
 
 interface StoryListProps {
-  journeys: UserJourney[];
+  activities: UserActivity[];
 }
 
 interface FilterState {
   search: string;
   priority: Priority | 'all';
-  journeyId: 'all';
+  activityId: 'all';
 }
 
-export function StoryList({ journeys }: StoryListProps) {
+export function StoryList({ activities }: StoryListProps) {
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     priority: 'all',
-    journeyId: 'all',
+    activityId: 'all',
   });
   const [showFilters, setShowFilters] = useState(false);
 
-  // 提取所有用户故事并关联旅程名称
-  const allStories: Array<UserStory & { journeyName: string }> = useMemo(() => {
-    const stories: Array<UserStory & { journeyName: string }> = [];
-    journeys.forEach((journey) => {
-      journey.stories?.forEach((story) => {
-        stories.push({ ...story, journeyName: journey.name });
+  // 提取所有用户故事并关联活动名称
+  const allStories: Array<UserStory & { activityName: string }> = useMemo(() => {
+    const stories: Array<UserStory & { activityName: string }> = [];
+    activities.forEach((activity) => {
+      activity.stories?.forEach((story) => {
+        stories.push({ ...story, activityName: activity.name });
       });
     });
     return stories;
-  }, [journeys]);
+  }, [activities]);
 
   // 筛选后的故事列表
   const filteredStories = useMemo(() => {
@@ -51,16 +51,16 @@ export function StoryList({ journeys }: StoryListProps) {
       if (filters.priority !== 'all' && story.priority !== filters.priority) {
         return false;
       }
-      // 用户旅程筛选
-      if (filters.journeyId !== 'all') {
-        const journey = journeys.find((j) => j.id === filters.journeyId);
-        if (!journey || !journey.stories?.some((s) => s.id === story.id)) {
+      // 用户活动筛选
+      if (filters.activityId !== 'all') {
+        const activity = activities.find((a) => a.id === filters.activityId);
+        if (!activity || !activity.stories?.some((s) => s.id === story.id)) {
           return false;
         }
       }
       return true;
     });
-  }, [allStories, filters, journeys]);
+  }, [allStories, filters, activities]);
 
   // 统计信息
   const stats = useMemo(() => {
@@ -71,10 +71,10 @@ export function StoryList({ journeys }: StoryListProps) {
   }, [allStories]);
 
   const clearFilters = () => {
-    setFilters({ search: '', priority: 'all', journeyId: 'all' });
+    setFilters({ search: '', priority: 'all', activityId: 'all' });
   };
 
-  const hasActiveFilters = filters.search || filters.priority !== 'all' || filters.journeyId !== 'all';
+  const hasActiveFilters = filters.search || filters.priority !== 'all' || filters.activityId !== 'all';
 
   return (
     <div className="space-y-4">
@@ -160,20 +160,20 @@ export function StoryList({ journeys }: StoryListProps) {
                 </div>
               </div>
 
-              {/* 用户旅程筛选 */}
+              {/* 用户活动筛选 */}
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">用户旅程</label>
+                <label className="text-sm text-muted-foreground">用户活动</label>
                 <select
-                  value={filters.journeyId}
+                  value={filters.activityId}
                   onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, journeyId: e.target.value as 'all' }))
+                    setFilters((prev) => ({ ...prev, activityId: e.target.value as 'all' }))
                   }
                   className="w-full px-2 py-1 text-sm border rounded-md bg-background"
                 >
-                  <option value="all">全部旅程</option>
-                  {journeys.map((journey) => (
-                    <option key={journey.id} value={journey.id}>
-                      {journey.name}
+                  <option value="all">全部活动</option>
+                  {activities.map((activity) => (
+                    <option key={activity.id} value={activity.id}>
+                      {activity.name}
                     </option>
                   ))}
                 </select>
@@ -211,7 +211,7 @@ export function StoryList({ journeys }: StoryListProps) {
       <div className="space-y-2">
         {filteredStories.length > 0 ? (
           filteredStories.map((story) => (
-            <StoryCard key={story.id} story={story} journeyName={story.journeyName} />
+            <StoryCard key={story.id} story={story} activityName={story.activityName} />
           ))
         ) : (
           <Card>

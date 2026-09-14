@@ -19,12 +19,12 @@ import {
 } from '@x-cartographer/ui';
 import { useStoryMapStore } from '../stores/story-map-store';
 import { Priority, StoryStatus, PRIORITY_CONFIG, PRIORITY_COLOR_VARIANTS } from '@/types';
-import { UserJourney } from '@/types/user-journey';
+import type { UserActivity } from '@/types';
 import { STORY_STATUS_OPTIONS } from '@/features/tasks/components/status-badge';
 import { cn } from '@/lib/utils';
 
 interface FilterPanelProps {
-  journeys: UserJourney[];
+  activities: UserActivity[];
   /** 版本（里程碑）列表，用于按版本筛选 */
   milestones?: Array<{ id: string; name: string; status: string }>;
   className?: string;
@@ -35,12 +35,12 @@ const priorityOptions = Object.values(PRIORITY_CONFIG).map((config) => ({
   label: `${config.label}优先级`,
   color: PRIORITY_COLOR_VARIANTS[config.color].text,
 }));
-export const FilterPanel = memo<FilterPanelProps>(({ journeys, milestones = [], className }) => {
+export const FilterPanel = memo<FilterPanelProps>(({ activities, milestones = [], className }) => {
   const {
     filter,
     setSearchQuery,
     setPriorityFilter,
-    setJourneyFilter,
+    setActivityFilter,
     setStatusFilter,
     setMilestoneFilter,
     resetFilter,
@@ -48,12 +48,12 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, milestones = [], 
 
   const [isPriorityOpen, setIsPriorityOpen] = useState(true);
   const [isStatusOpen, setIsStatusOpen] = useState(true);
-  const [isJourneyOpen, setIsJourneyOpen] = useState(true);
+  const [isActivityOpen, setIsActivityOpen] = useState(true);
   const [isMilestoneOpen, setIsMilestoneOpen] = useState(false);
 
   const activeFilterCount =
     filter.priorities.length +
-    filter.journeyIds.length +
+    filter.activityIds.length +
     filter.statuses.length +
     filter.milestoneIds.length +
     (filter.searchQuery ? 1 : 0);
@@ -74,11 +74,11 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, milestones = [], 
     }
   };
 
-  const handleJourneyChange = (journeyId: string, checked: boolean | string) => {
+  const handleActivityChange = (activityId: string, checked: boolean | string) => {
     if (checked) {
-      setJourneyFilter([...filter.journeyIds, journeyId]);
+      setActivityFilter([...filter.activityIds, activityId]);
     } else {
-      setJourneyFilter(filter.journeyIds.filter((id) => id !== journeyId));
+      setActivityFilter(filter.activityIds.filter((id) => id !== activityId));
     }
   };
 
@@ -205,12 +205,12 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, milestones = [], 
 
         <Separator />
 
-        {/* 旅程筛选 */}
-        <Collapsible open={isJourneyOpen} onOpenChange={setIsJourneyOpen}>
+        {/* 活动筛选 */}
+        <Collapsible open={isActivityOpen} onOpenChange={setIsActivityOpen}>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="w-full justify-between p-0">
-              <span className="text-sm font-medium">用户旅程</span>
-              {isJourneyOpen ? (
+              <span className="text-sm font-medium">用户活动</span>
+              {isActivityOpen ? (
                 <ChevronUp className="h-4 w-4" />
               ) : (
                 <ChevronDown className="h-4 w-4" />
@@ -218,28 +218,28 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, milestones = [], 
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-2 space-y-2 max-h-48 overflow-y-auto">
-            {journeys.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无旅程</p>
+            {activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground">暂无活动</p>
             ) : (
-              journeys.map((journey) => (
+              activities.map((activity) => (
                 <div
-                  key={journey.id}
+                  key={activity.id}
                   className="flex items-center space-x-2"
                 >
                   <Checkbox
-                    id={`journey-${journey.id}`}
-                    checked={filter.journeyIds.includes(journey.id)}
-                    onCheckedChange={(checked) => handleJourneyChange(journey.id, checked)}
+                    id={`activity-${activity.id}`}
+                    checked={filter.activityIds.includes(activity.id)}
+                    onCheckedChange={(checked) => handleActivityChange(activity.id, checked)}
                   />
                   <label
-                    htmlFor={`journey-${journey.id}`}
+                    htmlFor={`activity-${activity.id}`}
                     className="text-sm cursor-pointer truncate"
-                    title={journey.name}
+                    title={activity.name}
                   >
-                    {journey.name}
+                    {activity.name}
                   </label>
                   <Badge variant="outline" className="text-xs ml-auto">
-                    {journey.stories?.length || 0}
+                    {activity.stories?.length || 0}
                   </Badge>
                 </div>
               ))
@@ -249,7 +249,7 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, milestones = [], 
 
         <Separator />
 
-        {/* 版本筛选 */}
+        {/* 发布筛选 */}
         <Collapsible open={isMilestoneOpen} onOpenChange={setIsMilestoneOpen}>
           <CollapsibleTrigger asChild>
             <Button variant="ghost" size="sm" className="w-full justify-between p-0">
@@ -263,7 +263,7 @@ export const FilterPanel = memo<FilterPanelProps>(({ journeys, milestones = [], 
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-2 space-y-2 max-h-48 overflow-y-auto">
             {milestones.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无版本</p>
+              <p className="text-sm text-muted-foreground">暂无发布</p>
             ) : (
               <>
                 {/* 未排期选项 */}

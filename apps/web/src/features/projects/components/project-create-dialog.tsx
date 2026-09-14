@@ -1,5 +1,5 @@
 /**
- * 项目创建对话框组件
+ * 产品创建对话框组件
  */
 
 'use client';
@@ -23,7 +23,7 @@ import { useProjectActions } from '../hooks';
 import { toast } from 'sonner';
 
 /**
- * 项目创建表单数据
+ * 产品创建表单数据
  */
 interface CreateFormData {
   name: string;
@@ -33,7 +33,7 @@ interface CreateFormData {
 }
 
 /**
- * 项目创建对话框
+ * 产品创建对话框
  */
 export function ProjectCreateDialog({
   open,
@@ -98,7 +98,7 @@ export function ProjectCreateDialog({
         workspace_dir: formData.workspace_dir.trim() || undefined,
       });
 
-      toast.success('项目创建成功', { description: `已创建项目 "${formData.name.trim()}"` });
+      toast.success('产品创建成功', { description: `已创建产品 "${formData.name.trim()}"` });
 
       onSuccess(project.id);
       resetForm();
@@ -135,19 +135,19 @@ export function ProjectCreateDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5" />
-            创建新项目
+            创建新产品
           </DialogTitle>
           <DialogDescription>
-            创建新的项目来管理您的产品路线图和用户故事地图
+            创建新的产品来管理您的产品路线图和用户故事地图
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="name">项目名称 *</Label>
+            <Label htmlFor="name">产品名称 *</Label>
             <Input
               id="name"
-              placeholder="输入项目名称"
+              placeholder="输入产品名称"
               value={formData.name}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, name: e.target.value }))
@@ -160,10 +160,10 @@ export function ProjectCreateDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">项目描述</Label>
+            <Label htmlFor="description">产品描述</Label>
             <Textarea
               id="description"
-              placeholder="输入项目描述（可选）"
+              placeholder="输入产品描述（可选）"
               value={formData.description}
               onChange={(e) =>
                 setFormData((prev) => ({

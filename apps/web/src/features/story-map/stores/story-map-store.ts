@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { Priority, Position, StoryStatus } from '@/types';
-import { UserJourney, UserStory } from '@/types';
+import { UserActivity, UserStory } from '@/types';
 import type { StoryMapFilter, StoryMapConfig, ZoomLevel } from '../types';
 
 interface StoryMapState {
@@ -30,11 +30,11 @@ interface StoryMapState {
   setSelectedStory: (story: UserStory | null) => void;
   /** 设置优先级筛选 */
   setPriorityFilter: (priorities: Priority[]) => void;
-  /** 设置旅程筛选 */
-  setJourneyFilter: (journeyIds: string[]) => void;
+  /** 设置活动筛选 */
+  setActivityFilter: (activityIds: string[]) => void;
   /** 设置状态筛选 */
   setStatusFilter: (statuses: StoryStatus[]) => void;
-  /** 设置版本筛选 */
+  /** 设置发布筛选 */
   setMilestoneFilter: (milestoneIds: string[]) => void;
   /** 设置搜索关键词 */
   setSearchQuery: (query: string) => void;
@@ -60,7 +60,7 @@ interface StoryMapState {
 
 const defaultFilter: StoryMapFilter = {
   priorities: [],
-  journeyIds: [],
+  activityIds: [],
   statuses: [],
   milestoneIds: [],
   searchQuery: '',
@@ -71,7 +71,7 @@ const defaultConfig: StoryMapConfig = {
   rowHeight: 120,
   nodePadding: 12,
   showGrid: true,
-  showJourneyHeader: true,
+  showActivityHeader: true,
 };
 
 const defaultPosition: Position = { x: 0, y: 0 };
@@ -95,9 +95,9 @@ export const useStoryMapStore = create<StoryMapState>((set, get) => ({
     }));
   },
 
-  setJourneyFilter: (journeyIds) => {
+  setActivityFilter: (activityIds) => {
     set((state) => ({
-      filter: { ...state.filter, journeyIds },
+      filter: { ...state.filter, activityIds },
     }));
   },
 
@@ -171,32 +171,32 @@ export const useStoryMapStore = create<StoryMapState>((set, get) => ({
 /**
  * 根据筛选条件过滤故事
  *
- * 当没有任何筛选条件激活时，保留所有旅程（包括空旅程），
- * 以便用户能在画布上看到新创建的空旅程。
- * 当有筛选条件激活时，隐藏没有匹配故事的旅程。
+ * 当没有任何筛选条件激活时，保留所有活动（包括空活动），
+ * 以便用户能在画布上看到新创建的空活动。
+ * 当有筛选条件激活时，隐藏没有匹配故事的活动。
  */
 export function filterStories(
-  journeys: UserJourney[],
+  activities: UserActivity[],
   filter: StoryMapFilter
-): UserJourney[] {
+): UserActivity[] {
   const hasActiveFilter =
     filter.priorities.length > 0 ||
-    filter.journeyIds.length > 0 ||
+    filter.activityIds.length > 0 ||
     filter.statuses.length > 0 ||
     filter.milestoneIds.length > 0 ||
     filter.searchQuery.length > 0;
 
-  return journeys
-    .map((journey) => {
-      // 旅程筛选：如果指定了旅程 ID，且该旅程不在列表中，整个旅程跳过
+  return activities
+    .map((activity) => {
+      // 活动筛选：如果指定了活动 ID，且该活动不在列表中，整个活动跳过
       if (
-        filter.journeyIds.length > 0 &&
-        !filter.journeyIds.includes(journey.id)
+        filter.activityIds.length > 0 &&
+        !filter.activityIds.includes(activity.id)
       ) {
         return null;
       }
 
-      const filteredStories = (journey.stories || []).filter((story) => {
+      const filteredStories = (activity.stories || []).filter((story) => {
         // 优先级筛选
         if (
           filter.priorities.length > 0 &&
@@ -213,7 +213,7 @@ export function filterStories(
           }
         }
 
-        // 版本筛选：'unplanned' 表示未排期故事
+        // 发布筛选：'unplanned' 表示未排期故事
         if (filter.milestoneIds.length > 0) {
           const storyMilestone = story.milestone_id ?? null;
           const wantsUnplanned = filter.milestoneIds.includes('unplanned');
@@ -239,16 +239,16 @@ export function filterStories(
       });
 
       return {
-        ...journey,
+        ...activity,
         stories: filteredStories,
       };
     })
-    .filter((journey): journey is UserJourney => {
-      if (journey === null) return false;
-      // 无筛选条件时：保留所有旅程（包括空旅程）
-      // 有筛选条件时：仅保留有匹配故事的旅程
+    .filter((activity): activity is UserActivity => {
+      if (activity === null) return false;
+      // 无筛选条件时：保留所有活动（包括空活动）
+      // 有筛选条件时：仅保留有匹配故事的活动
       if (!hasActiveFilter) return true;
-      return journey.stories.length > 0;
+      return activity.stories.length > 0;
     });
 }
 

@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import type { Project } from '@/types';
+import type { Product } from '@/types';
 import {
   validateProject,
   validateProjectName,
   validateProjectDescription,
 } from '../project-validator';
 
-function makeProject(overrides: Partial<Project> = {}): Project {
+function makeProject(overrides: Partial<Product> = {}): Product {
   return {
     id: 'proj-1',
     name: '测试项目',
     description: '描述',
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
-    user_journeys: [],
+    user_activities: [],
     metadata: { tech_stack: [], version: '1.0', tags: [] },
     settings: {
       auto_save: true,
@@ -61,13 +61,12 @@ describe('validateProject', () => {
   it('用户旅程缺 id/name 时报错并标注索引', () => {
     const result = validateProject(
       makeProject({
-        user_journeys: [
+        user_activities: [
           {
-            id: 'UJ-001',
-            name: '正常旅程',
+            id: 'UA-001',
+            name: '正常活动',
             description: 'D',
-            persona: 'P',
-            project_id: 'proj-1',
+            product_id: 'proj-1',
             stories: [],
             order: 0,
             created_at: '2026-01-01T00:00:00.000Z',
@@ -77,18 +76,17 @@ describe('validateProject', () => {
             id: '',
             name: '  ',
             description: 'D',
-            persona: 'P',
-            project_id: 'proj-1',
+            product_id: 'proj-1',
             stories: [],
             order: 1,
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
           },
         ],
-      })
+      }),
     );
-    expect(result.errors).toContain('Journey at index 1: ID is required');
-    expect(result.errors).toContain('Journey at index 1: Name is required');
+    expect(result.errors).toContain('Activity at index 1: ID is required');
+    expect(result.errors).toContain('Activity at index 1: Name is required');
   });
 });
 

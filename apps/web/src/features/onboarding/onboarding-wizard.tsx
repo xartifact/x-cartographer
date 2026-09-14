@@ -5,7 +5,7 @@
  *
  * 首次访问时以对话框形式引导新用户了解核心功能：
  * - 4 步介绍：故事地图、任务拆解、状态追踪、排期规划
- * - 提供「创建示例项目」快捷入口（示例项目模板）
+ * - 提供「创建示例产品」快捷入口（示例产品模板）
  * - 支持跳过（首次不再展示）与重新查看（设置页入口）
  */
 
@@ -35,7 +35,7 @@ const WIZARD_STEPS = [
     icon: Map,
     title: '创建故事地图',
     description:
-      '以用户旅程为维度组织用户故事，拖拽调整优先级与顺序，可视化产品全貌。',
+      '以用户活动为维度组织用户故事，拖拽调整优先级与顺序，可视化产品全貌。',
   },
   {
     icon: CheckSquare,
@@ -60,7 +60,7 @@ const WIZARD_STEPS = [
 interface OnboardingWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** 创建示例项目（TASK-085） */
+  /** 创建示例产品（TASK-085） */
   onCreateSample?: () => Promise<void>;
   /** 全部跳过标记（写入 localStorage） */
   onComplete?: () => void;
@@ -135,18 +135,18 @@ export function OnboardingWizard({
             ))}
           </div>
 
-          {/* 示例项目模板（TASK-085） */}
+          {/* 示例产品模板（TASK-085） */}
           {isLastStep && onCreateSample && (
             <div className="mt-4 rounded-lg border border-dashed p-3 text-center">
               <p className="text-xs text-muted-foreground mb-2">
-                想先看看示例？一键创建演示项目
+                想先看看示例？一键创建演示产品
               </p>
               <Button
                 size="sm"
                 onClick={handleCreateSample}
                 disabled={creating}
               >
-                {creating ? '创建中...' : '创建示例项目'}
+                {creating ? '创建中...' : '创建示例产品'}
               </Button>
             </div>
           )}

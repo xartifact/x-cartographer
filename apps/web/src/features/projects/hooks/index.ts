@@ -7,30 +7,30 @@
 import { useCallback } from 'react';
 import { useProjectStore, selectActiveProjectId, selectSearchQuery } from '@/features/projects/stores';
 import {
-  useProjects,
-  useProject,
-  useSearchProjects,
-  useCreateProject,
-  useUpdateProject,
-  useDeleteProject,
+  useProducts,
+  useProduct,
+  useSearchProducts,
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
 } from '@/lib/api/hooks';
 import { toast } from 'sonner';
-import type { CreateProjectDTO, UpdateProjectDTO, Project } from '@x-cartographer/shared';
+import type { CreateProductDTO, UpdateProductDTO, Product } from '@x-cartographer/shared';
 
 /**
  * 项目操作 Hook — 基于 lib/api hooks（gateway REST）
  */
 export function useProjectActions() {
   const { setActiveProjectId } = useProjectStore();
-  const createProjectMutation = useCreateProject();
-  const updateProjectMutation = useUpdateProject();
-  const deleteProjectMutation = useDeleteProject();
+  const createProjectMutation = useCreateProduct();
+  const updateProjectMutation = useUpdateProduct();
+  const deleteProjectMutation = useDeleteProduct();
 
   const createProject = useCallback(
-    async (dto: CreateProjectDTO) => {
+    async (dto: CreateProductDTO) => {
       try {
         const result = await createProjectMutation.mutateAsync(dto);
-        toast.success('创建成功', { description: `已创建项目 "${dto.name}"` });
+        toast.success('创建成功', { description: `已创建产品 "${dto.name}"` });
         return result;
       } catch (error) {
         toast.error('创建失败', { description: error instanceof Error ? error.message : '未知错误' });        throw error;
@@ -40,10 +40,10 @@ export function useProjectActions() {
   );
 
   const updateProject = useCallback(
-    async (id: string, dto: UpdateProjectDTO) => {
+    async (id: string, dto: UpdateProductDTO) => {
       try {
         await updateProjectMutation.mutateAsync({ id, ...dto });
-        toast.success('更新成功', { description: '已更新项目' });      } catch (error) {
+        toast.success('更新成功', { description: '已更新产品' });      } catch (error) {
         toast.error('更新失败', { description: error instanceof Error ? error.message : '未知错误' });        throw error;
       }
     },
@@ -81,11 +81,11 @@ export function useProjectActions() {
  * 项目选择 Hook — 基于 lib/api hooks queries
  */
 export function useProjectSelector() {
-  const { data: projects = [], isLoading, error } = useProjects();
+  const { data: projects = [], isLoading, error } = useProducts();
   const activeProjectId = useProjectStore(selectActiveProjectId);
   const searchQuery = useProjectStore(selectSearchQuery);
   const { setSearchQuery } = useProjectStore();
-  const { data: searchResults } = useSearchProjects(searchQuery);
+  const { data: searchResults } = useSearchProducts(searchQuery);
 
   const activeProject = projects.find((p) => p.id === activeProjectId) ?? null;
 
@@ -111,8 +111,8 @@ export function useProjectSelector() {
  */
 export function useActiveProject() {
   const activeProjectId = useProjectStore(selectActiveProjectId);
-  const { data: projects } = useProjects();
-  const { data: project, isLoading } = useProject(activeProjectId ?? undefined);
+  const { data: projects } = useProducts();
+  const { data: project, isLoading } = useProduct(activeProjectId ?? undefined);
 
   const activeProject = projects?.find((p) => p.id === activeProjectId) ?? project ?? null;
 

@@ -19,22 +19,15 @@ import {
 import { Button } from '@x-cartographer/ui';
 import { Input } from '@x-cartographer/ui';
 import { Label } from '@x-cartographer/ui';
-import type { Task, TaskType, TaskPriority, Project } from '@/types';
-import { TaskType as TaskTypeEnum, TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
+import type { DevTask, TaskPriority, Product } from '@/types';
+import { TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
 
 interface TaskCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  project: Project;
-  onSave: (storyId: string, task: Task) => Promise<void>;
+  project: Product;
+  onSave: (storyId: string, task: DevTask) => Promise<void>;
 }
-
-const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
-  { value: TaskTypeEnum.TECHNICAL_TASK, label: '技术任务' },
-  { value: TaskTypeEnum.USER_STORY, label: '功能实现' },
-  { value: TaskTypeEnum.BUG_FIX, label: 'Bug 修复' },
-  { value: TaskTypeEnum.SPIKE, label: '技术探索' },
-];
 
 const TASK_PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
   { value: TaskPriorityEnum.P0, label: 'P0 - 紧急' },
@@ -44,31 +37,29 @@ const TASK_PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
 ];
 
 export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCreateDialogProps) {
-  const [selectedJourneyId, setSelectedJourneyId] = useState('');
+  const [selectedActivityId, setSelectedActivityId] = useState('');
   const [selectedStoryId, setSelectedStoryId] = useState('');
   const [title, setTitle] = useState('');
-  const [type, setType] = useState<TaskType>(TaskTypeEnum.TECHNICAL_TASK);
   const [priority, setPriority] = useState<TaskPriority>(TaskPriorityEnum.P1);
   const [estimation, setEstimation] = useState(2);
   const [saving, setSaving] = useState(false);
 
-  const journeys = useMemo(() => project.user_journeys ?? [], [project.user_journeys]);
+  const activities = useMemo(() => project.user_activities ?? [], [project.user_activities]);
 
-  const storiesInJourney = useMemo(() => {
-    if (!selectedJourneyId) return [];
-    return journeys.find((j) => j.id === selectedJourneyId)?.stories ?? [];
-  }, [journeys, selectedJourneyId]);
+  const storiesInActivity = useMemo(() => {
+    if (!selectedActivityId) return [];
+    return activities.find((j) => j.id === selectedActivityId)?.stories ?? [];
+  }, [activities, selectedActivityId]);
 
-  function handleJourneyChange(journeyId: string) {
-    setSelectedJourneyId(journeyId);
+  function handleActivityChange(activityId: string) {
+    setSelectedActivityId(activityId);
     setSelectedStoryId('');
   }
 
   function handleClose() {
-    setSelectedJourneyId('');
+    setSelectedActivityId('');
     setSelectedStoryId('');
     setTitle('');
-    setType(TaskTypeEnum.TECHNICAL_TASK);
     setPriority(TaskPriorityEnum.P1);
     setEstimation(2);
     onOpenChange(false);
@@ -78,13 +69,12 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
     if (!title.trim() || !selectedStoryId) return;
 
     const now = new Date().toISOString();
-    const task: Task = {
+    const task: DevTask = {
       id: `TASK-${nanoid(8)}`,
       story_id: selectedStoryId,
-      project_id: project.id,
+      product_id: project.id,
       title: title.trim(),
       description: '',
-      type,
       priority,
       estimation,
       status: TaskStatus.BACKLOG,
@@ -113,19 +103,19 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* 步骤 1：选择旅程 */}
+          {/* 步骤 1：选择活动 */}
           <div className="space-y-1.5">
-            <Label htmlFor="journey-select">
-              所属旅程 <span className="text-muted-foreground text-xs">（用于筛选故事）</span>
+            <Label htmlFor="activity-select">
+              所属活动 <span className="text-muted-foreground text-xs">（用于筛选故事）</span>
             </Label>
             <select
-              id="journey-select"
-              value={selectedJourneyId}
-              onChange={(e) => handleJourneyChange(e.target.value)}
+              id="activity-select"
+              value={selectedActivityId}
+              onChange={(e) => handleActivityChange(e.target.value)}
               className="w-full text-sm h-9 rounded-md border bg-background px-3"
             >
-              <option value="">— 选择旅程 —</option>
-              {journeys.map((j) => (
+              <option value="">— 选择活动 —</option>
+              {activities.map((j) => (
                 <option key={j.id} value={j.id}>{j.name}</option>
               ))}
             </select>
@@ -140,18 +130,18 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
               id="story-select"
               value={selectedStoryId}
               onChange={(e) => setSelectedStoryId(e.target.value)}
-              disabled={!selectedJourneyId}
+              disabled={!selectedActivityId}
               className="w-full text-sm h-9 rounded-md border bg-background px-3 disabled:opacity-50"
             >
               <option value="">— 选择故事 —</option>
-              {storiesInJourney.map((s) => (
+              {storiesInActivity.map((s) => (
                 <option key={s.id} value={s.id}>
                   [{s.id}] {s.title}
                 </option>
               ))}
             </select>
-            {!selectedJourneyId && (
-              <p className="text-xs text-muted-foreground">请先选择旅程</p>
+            {!selectedActivityId && (
+              <p className="text-xs text-muted-foreground">请先选择活动</p>
             )}
           </div>
 
@@ -169,20 +159,8 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
             />
           </div>
 
-          {/* 步骤 4-6：类型 / 优先级 / 工时 */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label>任务类型</Label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as TaskType)}
-                className="w-full text-sm h-9 rounded-md border bg-background px-2"
-              >
-                {TASK_TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
+          {/* 步骤 4-5：优先级 / 工时 */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>优先级</Label>
               <select

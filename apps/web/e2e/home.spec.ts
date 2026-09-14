@@ -16,18 +16,18 @@ test.describe('首页', () => {
       page.getByText('AI Native 用户故事地图可视化应用'),
     ).toBeVisible();
 
-    // 导航卡片 → 项目管理
-    const card = page.getByRole('link', { name: /项目管理/ });
+    // 导航卡片 → 产品管理
+    const card = page.getByRole('link', { name: /产品管理/ });
     await expect(card).toBeVisible();
     await expect(
-      page.getByText('创建、导入、管理你的项目'),
+      page.getByText('创建、导入、管理你的产品'),
     ).toBeVisible();
 
-    // 点击卡片跳转到项目列表
+    // 点击卡片跳转到产品列表
     await card.click();
     await page.waitForURL('/projects');
     await expect(
-      page.getByRole('heading', { name: '项目管理' }),
+      page.getByRole('heading', { name: '产品管理' }),
     ).toBeVisible();
   });
 });

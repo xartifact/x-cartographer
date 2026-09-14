@@ -5,7 +5,7 @@
  */
 
 import { TaskStatus } from '@x-cartographer/shared';
-import type { Project, Task } from '@x-cartographer/shared';
+import type { Product, DevTask } from '@x-cartographer/shared';
 
 /**
  * 任务状态顺序（从待规划到已完成）
@@ -39,7 +39,7 @@ const KANBAN_STATUS_COLUMNS: Record<
 /**
  * 将任务列表序列化为简单 Markdown 列表
  */
-export function serializeTaskListToMarkdown(tasks: Task[]): string {
+export function serializeTaskListToMarkdown(tasks: DevTask[]): string {
   if (tasks.length === 0) {
     return '';
   }
@@ -51,9 +51,9 @@ export function serializeTaskListToMarkdown(tasks: Task[]): string {
  * 将任务按状态分组
  */
 export function groupTasksByStatus(
-  tasks: Task[]
-): Record<TaskStatus, Task[]> {
-  const grouped = {} as Record<TaskStatus, Task[]>;
+  tasks: DevTask[]
+): Record<TaskStatus, DevTask[]> {
+  const grouped = {} as Record<TaskStatus, DevTask[]>;
 
   for (const status of KANBAN_STATUS_ORDER) {
     grouped[status] = [];
@@ -73,16 +73,15 @@ export function groupTasksByStatus(
  * 收集项目下所有任务，并按故事分组
  */
 function collectTasksByStory(
-  project: Project
-): Record<string, { storyId: string; storyTitle: string; priority: string; tasks: Task[] }> {
+  project: Product
+): Record<string, { storyId: string; storyTitle: string; priority: string; tasks: DevTask[] }> {
   const storyMap: Record<
     string,
-    { storyId: string; storyTitle: string; priority: string; tasks: Task[] }
+    { storyId: string; storyTitle: string; priority: string; tasks: DevTask[] }
   > = {};
-
-  for (const journey of project.user_journeys ?? []) {
-    for (const story of journey.stories ?? []) {
-      if (!story.tasks || story.tasks.length === 0) {
+  for (const activity of project.user_activities ?? []) {
+    for (const story of activity.stories ?? []) {
+      if (!story.dev_tasks || story.dev_tasks.length === 0) {
         continue;
       }
       if (!storyMap[story.id]) {
@@ -93,26 +92,25 @@ function collectTasksByStory(
           tasks: [],
         };
       }
-      storyMap[story.id].tasks.push(...story.tasks);
+      storyMap[story.id].tasks.push(...story.dev_tasks);
     }
   }
-
   return storyMap;
 }
 
 /**
  * 将项目序列化为 Kanban Markdown 格式
  */
-export function serializeKanbanMarkdown(project: Project): string {
+export function serializeKanbanMarkdown(project: Product): string {
+  const projectName = project.name || '未命名产品';
   const lines: string[] = [];
-  const projectName = project.name || '未命名项目';
 
   // 收集所有任务
-  const allTasks: Task[] = [];
-  for (const journey of project.user_journeys ?? []) {
-    for (const story of journey.stories ?? []) {
-      if (story.tasks) {
-        allTasks.push(...story.tasks);
+  const allTasks: DevTask[] = [];
+  for (const activity of project.user_activities ?? []) {
+    for (const story of activity.stories ?? []) {
+      if (story.dev_tasks) {
+        allTasks.push(...story.dev_tasks);
       }
     }
   }
@@ -151,7 +149,7 @@ export function serializeKanbanMarkdown(project: Project): string {
       story.tasks.some((task) => task.status === status)
     );
 
-    // 保持原有顺序：按用户旅程和故事顺序
+    // 保持原有顺序：按用户活动和故事顺序
     const orderedStories = orderStoriesByProject(
       project,
       storiesWithTasks,
@@ -173,7 +171,6 @@ export function serializeKanbanMarkdown(project: Project): string {
         lines.push(
           `#### ${task.id}: ${task.title} \`${task.priority}\`${estimation}`
         );
-        lines.push(`- **类型**: ${task.type}`);
         lines.push(`- **描述**: ${task.description || '无'}`);
         if (task.dependencies && task.dependencies.length > 0) {
           lines.push(`- **依赖**: ${task.dependencies.join(', ')}`);
@@ -194,19 +191,19 @@ export function serializeKanbanMarkdown(project: Project): string {
 }
 
 /**
- * 按项目中的用户旅程和故事顺序排列故事
+ * 按产品中的用户活动和故事顺序排列故事
  */
 function orderStoriesByProject(
-  project: Project,
-  stories: { storyId: string; storyTitle: string; priority: string; tasks: Task[] }[],
+  project: Product,
+  stories: { storyId: string; storyTitle: string; priority: string; tasks: DevTask[] }[],
   status: TaskStatus
-): { storyId: string; storyTitle: string; priority: string; tasks: Task[] }[] {
+): { storyId: string; storyTitle: string; priority: string; tasks: DevTask[] }[] {
   const storyOrder: string[] = [];
 
-  for (const journey of project.user_journeys ?? []) {
-    for (const story of journey.stories ?? []) {
+  for (const activity of project.user_activities ?? []) {
+    for (const story of activity.stories ?? []) {
       if (
-        story.tasks?.some((task) => task.status === status) &&
+        story.dev_tasks?.some((task) => task.status === status) &&
         !storyOrder.includes(story.id)
       ) {
         storyOrder.push(story.id);

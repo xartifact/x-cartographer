@@ -31,22 +31,22 @@ import type { ViewType, FilterConditions } from '@/features/tasks/components';
 import { TaskCreateDialog } from './task-create-dialog';
 import { TaskDetailSheet } from './task-detail-sheet';
 import {
-  useUpdateTaskStatus,
-  useCreateTask,
-  useUpdateTask,
+  useUpdateDevTaskStatus,
+  useCreateDevTask,
+  useUpdateDevTask,
 } from '@/lib/api/hooks';
-import type { Task, TaskStatus, StoryStatus, Project } from '@/types';
+import type { DevTask, TaskStatus, StoryStatus, Product } from '@/types';
 import { serializeKanbanMarkdown } from '@/lib/markdown';
 import { useHotkeys } from '@/lib/hooks/use-hotkeys';
 
 interface TasksPageProps {
-  /** 当前项目 */
-  project: Project;
+  /** 当前产品 */
+  project: Product;
 }
 export function TasksPage({ project: initialProject }: TasksPageProps) {
-  const updateTaskStatus = useUpdateTaskStatus();
-  const createTask = useCreateTask();
-  const updateTask = useUpdateTask();
+  const updateTaskStatus = useUpdateDevTaskStatus();
+  const createTask = useCreateDevTask();
+  const updateTask = useUpdateDevTask();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<
     (TaskStatus | StoryStatus)[]
@@ -63,13 +63,13 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   const [project, setProject] = React.useState(initialProject);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   /** 任务详情抽屉 */
-  const [detailTask, setDetailTask] = React.useState<Task | null>(null);
+  const [detailTask, setDetailTask] = React.useState<DevTask | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = React.useState(false);
 
   /**
    * 打开任务详情抽屉
    */
-  const openTaskDetail = React.useCallback((task: Task) => {
+  const openTaskDetail = React.useCallback((task: DevTask) => {
     setDetailTask(task);
     setDetailSheetOpen(true);
   }, []);
@@ -89,30 +89,30 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
     searchInputRef.current?.focus();
   });
 
-  // 同步项目数据
+  // 同步产品数据
   React.useEffect(() => {
     setProject(initialProject);
   }, [initialProject]);
 
-  // 收集所有任务
+  // 收集所有研发任务
   const allTasks = React.useMemo(() => {
-    const tasks: Task[] = [];
-    project.user_journeys?.forEach((journey) => {
-      journey.stories?.forEach((story) => {
-        if (story.tasks) {
-          tasks.push(...story.tasks);
+    const tasks: DevTask[] = [];
+    project.user_activities?.forEach((activity) => {
+      activity.stories?.forEach((story) => {
+        if (story.dev_tasks) {
+          tasks.push(...story.dev_tasks);
         }
       });
     });
     return tasks;
   }, [project]);
 
-  // 故事/旅程上下文 map，用于任务卡片显示归属
+  // 故事/活动上下文 map，用于任务卡片显示归属
   const storyContextMap = React.useMemo(() => {
-    const map: Record<string, { storyTitle: string; journeyName: string }> = {};
-    project.user_journeys?.forEach((journey) => {
-      journey.stories?.forEach((story) => {
-        map[story.id] = { storyTitle: story.title, journeyName: journey.name };
+    const map: Record<string, { storyTitle: string; activityName: string }> = {};
+    project.user_activities?.forEach((activity) => {
+      activity.stories?.forEach((story) => {
+        map[story.id] = { storyTitle: story.title, activityName: activity.name };
       });
     });
     return map;
@@ -165,8 +165,8 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       in_progress: 0,
       done: 0,
     };
-    project.user_journeys?.forEach((journey) => {
-      journey.stories?.forEach((story) => {
+    project.user_activities?.forEach((activity) => {
+      activity.stories?.forEach((story) => {
         if (story.status && stats[story.status] !== undefined) {
           stats[story.status]++;
         }
@@ -204,14 +204,14 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
           })
         )
       );
-      // 乐观更新本地项目状态
+      // 乐观更新本地产品状态
       setProject((prev) => ({
         ...prev,
-        user_journeys: prev.user_journeys?.map((journey) => ({
-          ...journey,
-          stories: journey.stories?.map((story) => ({
+        user_activities: prev.user_activities?.map((activity) => ({
+          ...activity,
+          stories: activity.stories?.map((story) => ({
             ...story,
-            tasks: story.tasks?.map((task) =>
+            dev_tasks: story.dev_tasks?.map((task) =>
               selectedTaskIds.includes(task.id)
                 ? { ...task, status: bulkTargetStatus as TaskStatus }
                 : task
@@ -230,14 +230,14 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
     try {
       await updateTaskStatus.mutateAsync({ id: taskId, status: newStatus });
-      // 乐观更新本地项目状态
+      // 乐观更新本地产品状态
       setProject((prev) => ({
         ...prev,
-        user_journeys: prev.user_journeys?.map((journey) => ({
-          ...journey,
-          stories: journey.stories?.map((story) => ({
+        user_activities: prev.user_activities?.map((activity) => ({
+          ...activity,
+          stories: activity.stories?.map((story) => ({
             ...story,
-            tasks: story.tasks?.map((task) =>
+            dev_tasks: story.dev_tasks?.map((task) =>
               task.id === taskId ? { ...task, status: newStatus } : task
             ),
           })),
@@ -274,26 +274,26 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   const progress =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   // 处理新建任务（绑定到指定故事）
-  const handleCreateTask = async (storyId: string, task: Task) => {
+  const handleCreateTask = async (storyId: string, task: DevTask) => {
     try {
       await createTask.mutateAsync({
         storyId,
+        productId: project.id,
         title: task.title,
         description: task.description,
-        type: task.type,
         priority: task.priority,
         estimation: task.estimation,
         dependencies: task.dependencies ?? [],
         tags: task.tags ?? [],
       });
-      // 乐观更新本地项目状态
+      // 乐观更新本地产品状态
       setProject((prev) => ({
         ...prev,
-        user_journeys: prev.user_journeys?.map((journey) => ({
-          ...journey,
-          stories: journey.stories?.map((story) =>
+        user_activities: prev.user_activities?.map((activity) => ({
+          ...activity,
+          stories: activity.stories?.map((story) =>
             story.id === storyId
-              ? { ...story, tasks: [...(story.tasks ?? []), task] }
+              ? { ...story, dev_tasks: [...(story.dev_tasks ?? []), task] }
               : story
           ),
         })),
@@ -474,18 +474,18 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       {/* 按故事分组视图 */}
       {view === 'board' && (
         <div className="space-y-4">
-          {project.user_journeys
-            ?.filter((journey) =>
-              journey.stories?.some((s) => s.tasks && s.tasks.length > 0)
+          {project.user_activities
+            ?.filter((activity) =>
+              activity.stories?.some((s) => s.dev_tasks && s.dev_tasks.length > 0)
             )
-            .map((journey) => (
-              <Card key={journey.id}>
+            .map((activity) => (
+              <Card key={activity.id}>
                 <CardHeader>
-                  <CardTitle className="text-base">{journey.name}</CardTitle>
+                  <CardTitle className="text-base">{activity.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {journey.stories
-                    ?.filter((story) => story.tasks && story.tasks.length > 0)
+                  {activity.stories
+                    ?.filter((story) => story.dev_tasks && story.dev_tasks.length > 0)
                     .map((story) => (
                       <div key={story.id} className="space-y-2">
                         <div className="flex items-center gap-2">
@@ -497,7 +497,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
                           </span>
                         </div>
                         <TaskList
-                          tasks={story.tasks || []}
+                          tasks={story.dev_tasks || []}
                           onStatusChange={handleStatusChange}
                           onTaskClick={openTaskDetail}
                           showStatusFilter={false}
@@ -550,14 +550,14 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         }}
         onUpdateDependencies={async (taskId, dependencies) => {
           await updateTask.mutateAsync({ id: taskId, dependencies });
-          // 乐观更新本地项目状态
+          // 乐观更新本地产品状态
           setProject((prev) => ({
             ...prev,
-            user_journeys: prev.user_journeys?.map((journey) => ({
-              ...journey,
-              stories: journey.stories?.map((story) => ({
+            user_activities: prev.user_activities?.map((activity) => ({
+              ...activity,
+              stories: activity.stories?.map((story) => ({
                 ...story,
-                tasks: story.tasks?.map((task) =>
+                dev_tasks: story.dev_tasks?.map((task) =>
                   task.id === taskId
                     ? { ...task, dependencies }
                     : task

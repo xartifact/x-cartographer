@@ -3,6 +3,6 @@
  */
 
 export { DataBrowserPage } from './data-browser-page';
-export { JourneyList } from './journey-list';
+export { ActivityList } from './activity-list';
 export { StoryList } from './story-list';
 export { StoryCard } from './story-card';

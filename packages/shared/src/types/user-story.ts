@@ -3,7 +3,7 @@
  */
 
 import { Priority, Timestamp, Position, StoryStatus } from './common';
-import { Task } from './task';
+import { DevTask } from './dev-task';
 
 /**
  * 用户故事接口
@@ -30,13 +30,18 @@ export interface UserStory {
   /** 标签 */
   tags: string[];
 
-  /** 所属用户旅程 ID */
-  journey_id: string;
+  /** 地图列归属：用户活动 ID（backbone 位置，必填） */
+  activity_id: string;
 
-  /** 拆解的任务列表 */
-  tasks?: Task[];
+  /** 可选：活动下具体操作步骤（用户任务）ID */
+  user_task_id?: string;
 
-  /** 排序顺序 */
+  /** 拆解的研发任务列表 */
+  dev_tasks?: DevTask[];
+
+  /** [迁移保留] 原 journey 归属（退役字段，迁移回滚锚点，勿读写） */
+  journey_id?: string;
+  /** 同列内叙事深度序（骨架行在上，深化行向下） */
   order: number;
 
   /** 状态 */
@@ -53,6 +58,9 @@ export interface UserStory {
 
   /** 所属里程碑（版本）ID，未排期时为 undefined */
   milestone_id?: string;
+
+  /** 受影响模块（引用 SystemModule.id，§3.7） */
+  affected_modules?: string[];
 }
 
 /**
@@ -91,10 +99,10 @@ export interface CreateUserStoryDTO {
   title: string;
   description: string;
   priority: Priority;
+  activity_id: string;
   estimation: number;
   acceptance_criteria: string[];
   tags: string[];
-  journey_id: string;
 }
 
 /**
@@ -107,8 +115,9 @@ export interface UpdateUserStoryDTO {
   estimation?: number;
   acceptance_criteria?: string[];
   tags?: string[];
+  activityId?: string;
+  userTaskId?: string | null;
   order?: number;
   position?: Position;
   milestoneId?: string | null;
-  journeyId?: string;
 }

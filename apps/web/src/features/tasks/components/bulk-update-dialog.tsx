@@ -101,7 +101,7 @@ export function BulkUpdateConfirmDialog({
             批量更新状态
           </DialogTitle>
           <DialogDescription>
-            确认将选中的 {totalCount} 个项目更新到新状态
+            确认将选中的 {totalCount} 个产品更新到新状态
           </DialogDescription>
         </DialogHeader>
 
@@ -123,7 +123,7 @@ export function BulkUpdateConfirmDialog({
 
           {/* 选中内容统计 */}
           <div className="bg-muted/50 rounded-lg p-4">
-            <div className="text-sm font-medium mb-2">将要更新的项目</div>
+            <div className="text-sm font-medium mb-2">将要更新的产品</div>
             <div className="flex gap-4 text-sm">
               {selectedCount.tasks > 0 && (
                 <div className="flex items-center gap-1">

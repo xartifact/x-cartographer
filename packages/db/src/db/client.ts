@@ -18,10 +18,12 @@ const g = globalThis as typeof globalThis & {
 };
 
 const TABLE_SQLS = [
-  `CREATE TABLE IF NOT EXISTS "projects" (
+  // ── 平台域 ──
+  `CREATE TABLE IF NOT EXISTS "products" (
     "id" text PRIMARY KEY NOT NULL,
     "name" text NOT NULL,
     "description" text,
+    "persona" text DEFAULT '' NOT NULL,
     "metadata" jsonb DEFAULT '{"tech_stack":[],"version":"1.0.0","tags":[]}'::jsonb NOT NULL,
     "settings" jsonb NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -35,31 +37,44 @@ const TABLE_SQLS = [
     "new_status" text NOT NULL,
     "reason" text,
     "changed_by" text,
-    "changed_at" timestamp with time zone DEFAULT now() NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS "user_journeys" (
-    "id" text PRIMARY KEY NOT NULL,
-    "project_id" text NOT NULL REFERENCES "projects"("id") ON DELETE CASCADE,
-    "name" text NOT NULL,
-    "description" text DEFAULT '' NOT NULL,
-    "persona" text DEFAULT '' NOT NULL,
-    "order" integer DEFAULT 0 NOT NULL,
-    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+    "changed_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "seq" bigserial NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS "milestones" (
     "id" text PRIMARY KEY NOT NULL,
-    "project_id" text NOT NULL REFERENCES "projects"("id") ON DELETE CASCADE,
+    "product_id" text NOT NULL REFERENCES "products"("id") ON DELETE CASCADE,
     "name" text NOT NULL,
     "goal" text DEFAULT '' NOT NULL,
     "target_date" timestamp with time zone,
     "status" text DEFAULT 'planned' NOT NULL,
+    "adr_id" text,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  )`,
+  // ── 用户域（用户故事地图）──
+  `CREATE TABLE IF NOT EXISTS "user_activities" (
+    "id" text PRIMARY KEY NOT NULL,
+    "product_id" text NOT NULL REFERENCES "products"("id") ON DELETE CASCADE,
+    "name" text NOT NULL,
+    "description" text DEFAULT '' NOT NULL,
+    "order" integer DEFAULT 0 NOT NULL,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS "user_tasks" (
+    "id" text PRIMARY KEY NOT NULL,
+    "activity_id" text NOT NULL REFERENCES "user_activities"("id") ON DELETE CASCADE,
+    "name" text NOT NULL,
+    "description" text DEFAULT '' NOT NULL,
+    "order" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS "user_stories" (
     "id" text PRIMARY KEY NOT NULL,
-    "journey_id" text NOT NULL REFERENCES "user_journeys"("id") ON DELETE CASCADE,
+    "activity_id" text REFERENCES "user_activities"("id") ON DELETE CASCADE,
+    "user_task_id" text REFERENCES "user_tasks"("id") ON DELETE SET NULL,
+    "legacy_journey_id" text,
     "milestone_id" text REFERENCES "milestones"("id") ON DELETE SET NULL,
     "title" text NOT NULL,
     "description" text DEFAULT '' NOT NULL,
@@ -67,34 +82,49 @@ const TABLE_SQLS = [
     "estimation" real DEFAULT 0 NOT NULL,
     "acceptance_criteria" jsonb DEFAULT '[]'::jsonb NOT NULL,
     "tags" jsonb DEFAULT '[]'::jsonb NOT NULL,
+    "affected_modules" jsonb DEFAULT '[]'::jsonb NOT NULL,
     "status" text DEFAULT 'backlog',
     "position" jsonb,
     "order" integer DEFAULT 0 NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
-  `ALTER TABLE "user_stories" ADD COLUMN IF NOT EXISTS "milestone_id" text REFERENCES "milestones"("id") ON DELETE SET NULL`,
-  `CREATE TABLE IF NOT EXISTS "tasks" (
+  // ── 执行域 ──
+  `CREATE TABLE IF NOT EXISTS "dev_tasks" (
     "id" text PRIMARY KEY NOT NULL,
     "story_id" text REFERENCES "user_stories"("id") ON DELETE CASCADE,
-    "project_id" text REFERENCES "projects"("id") ON DELETE CASCADE,
+    "product_id" text REFERENCES "products"("id") ON DELETE CASCADE,
     "title" text NOT NULL,
     "description" text DEFAULT '' NOT NULL,
-    "type" text DEFAULT 'technical_task' NOT NULL,
     "priority" text DEFAULT 'P2' NOT NULL,
     "estimation" real DEFAULT 0 NOT NULL,
     "status" text DEFAULT 'backlog' NOT NULL,
     "dependencies" jsonb DEFAULT '[]'::jsonb NOT NULL,
     "tags" jsonb DEFAULT '[]'::jsonb NOT NULL,
+    "affected_modules" jsonb DEFAULT '[]'::jsonb NOT NULL,
     "assignee" text,
     "started_at" timestamp with time zone,
     "completed_at" timestamp with time zone,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
-  `ALTER TABLE "tasks" ADD COLUMN IF NOT EXISTS "project_id" text REFERENCES "projects"("id") ON DELETE CASCADE`,
-  `ALTER TABLE "tasks" ALTER COLUMN "story_id" DROP NOT NULL`,
-  `ALTER TABLE "user_journeys" ADD COLUMN IF NOT EXISTS "priority" text DEFAULT 'medium' NOT NULL`,
+  // ── 技术宪法 ──
+  `CREATE TABLE IF NOT EXISTS "adr_records" (
+    "id" text PRIMARY KEY NOT NULL,
+    "product_id" text NOT NULL REFERENCES "products"("id") ON DELETE CASCADE,
+    "title" text NOT NULL,
+    "status" text DEFAULT 'proposed' NOT NULL,
+    "context" text NOT NULL,
+    "decision" text NOT NULL,
+    "consequences" text,
+    "alternatives_considered" text,
+    "supersedes" text,
+    "milestone_id" text REFERENCES "milestones"("id") ON DELETE SET NULL,
+    "module_ids" jsonb DEFAULT '[]'::jsonb NOT NULL,
+    "changes" jsonb,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "seq" bigserial NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS "app_settings" (
     "key" text PRIMARY KEY NOT NULL,
     "value" text NOT NULL,
