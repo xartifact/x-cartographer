@@ -50,6 +50,7 @@ export interface CreateMilestoneDTO {
   goal?: string;
   target_date?: string;
   status?: MilestoneStatus;
+  adr_id?: string | null;
 }
 
 /**
@@ -60,4 +61,5 @@ export interface UpdateMilestoneDTO {
   goal?: string;
   target_date?: string | null;
   status?: MilestoneStatus;
+  adr_id?: string | null;
 }

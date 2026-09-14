@@ -15,6 +15,7 @@ const createMilestoneSchema = z.object({
   goal: z.string().optional(),
   target_date: z.string().optional(),
   status: milestoneStatusSchema.optional(),
+  adr_id: z.string().nullable().optional(),
 });
 
 const updateMilestoneSchema = z.object({
@@ -22,6 +23,7 @@ const updateMilestoneSchema = z.object({
   goal: z.string().optional(),
   target_date: z.string().nullable().optional(),
   status: milestoneStatusSchema.optional(),
+  adr_id: z.string().nullable().optional(),
 });
 
 const milestoneRepo = new MilestoneRepository();
@@ -33,6 +35,7 @@ function toJson(m: {
   goal: string;
   targetDate: Date | null;
   status: string;
+  adrId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -43,6 +46,7 @@ function toJson(m: {
     goal: m.goal,
     target_date: m.targetDate?.toISOString(),
     status: m.status,
+    adr_id: m.adrId ?? null,
     created_at: m.createdAt.toISOString(),
     updated_at: m.updatedAt.toISOString(),
   };
