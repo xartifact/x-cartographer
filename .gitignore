@@ -46,3 +46,7 @@ SWARM_PLAN.json
 SWARM_PLAN.md
 apps/server/data
 apps/web/.tanstack
+
+# 会话/代理产物（本地不入库）
+.agents/
+.codex/

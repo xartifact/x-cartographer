@@ -56,17 +56,17 @@ This project is indexed by GitNexus as **x-cartographer** (2346 symbols, 4367 re
 - 服务地址：CLI 默认读 `~/.config/xcart/config`（`server=...`），未配置时 `$XCART_API_URL` → `http://localhost:8787`
 - Skills：读取 `.claude/skills/xcart-*/SKILL.md` 获取命令细节
 
-## 常用操作
+## 常用操作（注意：板命令走生产网关，部署新 server 前用 `task` 而非 `dev-task`）
 
 ```bash
-xcart task summary --project 69hKGAjvxjf6QVQu6DtZx     # 进度总览
-xcart task next --project 69hKGAjvxjf6QVQu6DtZx       # 下一个可执行任务
-xcart task info <taskId>
-xcart task status <taskId> in_progress --reason "认领"
-xcart task status <taskId> done --reason "实现完成"
+xcart dev-task summary --product 69hKGAjvxjf6QVQu6DtZx     # 进度总览（task 为 deprecated alias）
+xcart dev-task next --product 69hKGAjvxjf6QVQu6DtZx       # 下一个可执行任务
+xcart dev-task info <taskId>
+xcart dev-task status <taskId> in_progress --reason "认领"
+xcart dev-task status <taskId> done --reason "实现完成"
 xcart status history <taskId>
-xcart overview --project 69hKGAjvxjf6QVQu6DtZx
-xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
+xcart overview --product 69hKGAjvxjf6QVQu6DtZx
+xcart context export 69hKGAjvxjf6QVQu6DtZx                # 全景 Markdown 供 LLM
 ```
 
 ## 状态事实（以任务板实时数据为准）
@@ -94,7 +94,21 @@ xcart context export 69hKGAjvxjf6QVQu6DtZx            # 全景 Markdown 供 LLM
 
 - **Bun 运行时 + pnpm 依赖管理**（仓库根 `bun.lock`；勿引入 npm 新增包）。
 - Monorepo：`apps/web`（React + TanStack Router + Vite）、`apps/server`（Hono + PGlite + Drizzle）、`apps/cli`（xcart CLI）、`packages/{db,shared,ui}`。
-- **禁内置 LLM 依赖**：项目定位为纯存储/协调层（`refactor: remove built-in AI`）。story/任务 AI 生成类需求按架构决策废弃，勿新建该类功能。**MCP Server 已评估并否决，不实现**——Agent 集成只走 `xcart` CLI + Agent Skills，勿为 MCP 预留设计。
+- **禁内置 LLM 依赖**：项目定位为纯存储/协调层（`refactor: remove built-in AI`）。story/任务 AI 生成类需求按架构决策废弃，勿新建该类功能。**MCP Server 已评估并否决，��实现**——Agent 集成只走 `xcart` CLI + Agent Skills，勿为 MCP 预留设计。
+
+## 实体术语（2026-09 重设计，权威定义见 `docs/design/story-map-redesign.md`）
+
+**迁移进行中**：实体体系正切换为用户故事地图语义。过渡期新旧并存说明：
+
+| 旧 | 新 | 说明 |
+|---|---|---|
+| Project / 项目 | **Product / 产品** | `products` 表、`/api/products` |
+| Journey / 用户旅程 | **UserActivity / 用户活动**（backbone） | `user_activities` 表；journey 已退役 |
+| （无） | **UserTask / 用户任务** | `user_tasks` 表（活动下的用户操作步骤） |
+| UserStory | UserStory（保留） | 改挂 `activity_id` + 可选 `user_task_id` |
+| Task / 任务 | **DevTask / 研发任务** | `dev_tasks` 表；**type 字段已废除**（tags 承载性质） |
+
+新代码一律用新术语；旧 API（/projects、/journeys、/tasks）返回 410。
 
 ## UI 开发约束（web）
 
