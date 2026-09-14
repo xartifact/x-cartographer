@@ -325,6 +325,7 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const est = opt(f, 'estimation'); if (est !== undefined) body.estimation = Number(est);
       const ac = splitList(opt(f, 'ac', 'acceptance')); if (ac) body.acceptanceCriteria = ac;
       const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
+      const affected = splitList(opt(f, 'affected-modules', 'modules')); if (affected) body.affectedModules = affected;
       const activity = opt(f, 'journey');
       if (activity !== undefined) body.activityId = activity === 'none' ? null : activity;
       const milestone = opt(f, 'milestone');
@@ -431,6 +432,7 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       const est = opt(f, 'estimation'); if (est !== undefined) body.estimation = Number(est);
       const deps = opt(f, 'deps');
       if (deps !== undefined) body.dependencies = splitList(deps);
+      const affected = splitList(opt(f, 'affected-modules', 'modules')); if (affected) body.affectedModules = affected;
       const assignee = opt(f, 'assignee'); if (assignee !== undefined) body.assignee = assignee;
       const status = opt(f, 'status');
       if (status !== undefined) {
