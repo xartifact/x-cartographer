@@ -20,6 +20,10 @@ xcart overview --project <projectId>     # 项目总览：旅程/故事/任务�
 xcart context export <projectId>         # 导出全景 Markdown（需求/故事/任务/排期统计）
 ```
 
+## 技术宪法纪律（先读后写）
+
+实现/拆解前先执行 `xcart adr current --product <productId>`（或看 `xcart overview` 的 constitution 计数）确认架构约束；`[MUST]` 级原则直接约束本次实现方式。宪法未建立时（空数组）可建议负责人用 `xcart adr create` 沉淀首条决策。详见 skill `xcart-technical-constitution`。
+
 ## 前置条件
 
 - X-Cartographer gateway 需在运行（默认 `http://localhost:8787`）。
