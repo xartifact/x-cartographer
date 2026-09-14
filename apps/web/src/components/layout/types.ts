@@ -59,6 +59,8 @@ export interface SidebarProps {
   items: NavItem[];
   /** 当前项目（有活动项目时侧边栏显示"当前项目"分组） */
   currentProject?: { id: string; name: string } | null;
+  /** 切换当前产品（下拉选择后回调，处理导航+持久化） */
+  onSwitchProduct?: (productId: string) => void;
   /** 当前路径，用于高亮 */
   currentPath?: string;
   /** 侧边栏折叠状态 */

@@ -2,8 +2,9 @@
 
 import { Link } from '@tanstack/react-router';
 import { useLocation } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { Button } from '@x-cartographer/ui';
+import { ChevronLeft, ChevronRight, ChevronsUpDown, X } from 'lucide-react';
+import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@x-cartographer/ui';
+import { useProducts } from '@/lib/api/hooks';
 import { cn } from '@/lib/utils';
 import { SidebarProps, NavItem } from './types';
 import { projectNavItems } from './navigation';
@@ -101,9 +102,11 @@ export function Sidebar({
   currentProject,
   collapsed = false,
   onCollapsedChange,
+  onSwitchProduct,
   footer,
 }: SidebarProps) {
   const pathname = useLocation().pathname;
+  const { data: allProducts = [] } = useProducts();
 
   const toggleCollapsed = () => {
     onCollapsedChange?.(!collapsed);
@@ -156,9 +159,35 @@ export function Sidebar({
               <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 当前产品
               </div>
-              <div className="px-3 pb-2 text-sm font-semibold truncate">
-                {currentProject.name}
-              </div>
+              {onSwitchProduct && allProducts.length > 1 ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="mb-2 flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-semibold truncate hover:bg-muted"
+                    >
+                      <span className="truncate">{currentProject.name}</span>
+                      <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[200px]">
+                    <DropdownMenuItem key={currentProject.id} className="font-medium" disabled>
+                      {currentProject.name}（当前）
+                    </DropdownMenuItem>
+                    {allProducts
+                      .filter((p: { id: string }) => p.id !== currentProject.id)
+                      .map((p: { id: string; name: string }) => (
+                        <DropdownMenuItem key={p.id} onClick={() => onSwitchProduct(p.id)}>
+                          {p.name}
+                        </DropdownMenuItem>
+                      ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="px-2 pb-2 text-sm font-semibold truncate">
+                  {currentProject.name}
+                </div>
+              )}
               <div className="space-y-1">
                 {projectScopedItems(currentProject.id).map((item) => (
                   <NavItemContent

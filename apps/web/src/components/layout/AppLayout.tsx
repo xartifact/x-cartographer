@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useLocation } from '@tanstack/react-router';
+import { useLocation , useNavigate } from '@tanstack/react-router';
 import { Header } from './Header';
 import { Sidebar, MobileSidebarOverlay } from './Sidebar';
 import { cn } from '@/lib/utils';
@@ -60,6 +60,8 @@ export function AppLayout({
 
   // 活动产品：侧边栏显示"当前产品"分组
   const activeProjectId = useProjectStore(selectActiveProjectId);
+  const setActiveProjectId = useProjectStore((s) => s.setActiveProjectId);
+  const navigate = useNavigate();
   const { data: activeProject } = useProduct(activeProjectId ?? undefined);
 
   // 检查是否是产品详情页面
@@ -80,6 +82,10 @@ export function AppLayout({
                 ? { id: activeProjectId, name: activeProject.name }
                 : null
             }
+            onSwitchProduct={(id) => {
+              setActiveProjectId(id);
+              void navigate({ to: '/products/$productId', params: { productId: id } });
+            }}
             collapsed={sidebarCollapsed}
             onCollapsedChange={setSidebarCollapsed}
           />
