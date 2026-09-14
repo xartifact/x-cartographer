@@ -69,6 +69,16 @@ export const adrRecordsRoutes = new Hono()
     if (!projectId) return c.json({ error: 'projectId required' }, 400);
     return c.json(await adrRepo.getCurrentConstitution(projectId));
   })
+  // GET /api/adr-records/as-of-milestone?milestoneId=（历史架构快照）
+  .get('/as-of-milestone', async (c) => {
+    const milestoneId = c.req.query('milestoneId');
+    if (!milestoneId) return c.json({ error: 'milestoneId required' }, 400);
+    try {
+      return c.json(await adrRepo.getConstitutionAsOfMilestone(milestoneId));
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 404);
+    }
+  })
   // GET /api/adr-records/:id
   .get('/:id', async (c) => {
     const rec = await adrRepo.findById(c.req.param('id'));

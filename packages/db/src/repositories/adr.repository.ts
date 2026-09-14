@@ -2,6 +2,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { adrRecords } from '../db/schema/adr-records';
 import { statusChanges } from '../db/schema/status-changes';
+import { milestones } from '../db/schema/milestones';
 import type {
   AdrRecord,
   AdrStatus,
@@ -207,6 +208,25 @@ export class AdrRepository {
     for (const r of records) {
       if (r.changes === undefined) continue;
       if ((await this.acceptedAt(r.id, r)) === null) continue;
+      folded.push(r);
+    }
+    return foldConstitution(folded);
+  }
+
+  /**
+   * 历史态查询（§3.3）：折叠只应用 acceptedAt <= 里程碑创建时刻 的记录，
+   * 即「该版本交付时刻」的宪法投影。参数为里程碑 id。
+   */
+  async getConstitutionAsOfMilestone(milestoneId: string): Promise<CurrentConstitution> {
+    const db = await ensureDb();
+    const ms = await db.query.milestones.findFirst({ where: eq(milestones.id, milestoneId) });
+    if (!ms) throw new Error(`Milestone ${milestoneId} not found`);
+    const records = await this.listByProject(ms.projectId);
+    const folded: AdrRecord[] = [];
+    for (const r of records) {
+      if (r.changes === undefined) continue;
+      const at = await this.acceptedAt(r.id, r);
+      if (at === null || at > ms.createdAt) continue;
       folded.push(r);
     }
     return foldConstitution(folded);
