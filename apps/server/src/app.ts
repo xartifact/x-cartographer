@@ -13,6 +13,7 @@ import { storiesRoutes } from './routes/stories';
 import { devTasksRoutes } from './routes/dev-tasks';
 import { milestonesRoutes } from './routes/milestones';
 import { statusChangesRoutes } from './routes/status-changes';
+import { adrRecordsRoutes } from './routes/adr-records';
 import { settingsRoutes } from './routes/settings';
 import type { MiddlewareHandler } from 'hono';
 import { createLogger } from '@x-cartographer/db';
@@ -63,6 +64,7 @@ export const app = new Hono()
   .use('/stories/*', apiTokenAuth)
   .use('/dev-tasks/*', apiTokenAuth)
   .use('/status-changes/*', apiTokenAuth)
+  .use('/adr-records/*', apiTokenAuth)
   .route('/products', productsRoutes)
   .route('/user-activities', userActivitiesRoutes)
   .route('/user-tasks', userTasksRoutes)
@@ -70,6 +72,7 @@ export const app = new Hono()
   .route('/stories', storiesRoutes)
   .route('/dev-tasks', devTasksRoutes)
   .route('/status-changes', statusChangesRoutes)
+  .route('/adr-records', adrRecordsRoutes)
   .route('/settings', settingsRoutes)
 
   // ── 旧路由兼容（一个版本周期）──
