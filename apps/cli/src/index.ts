@@ -343,6 +343,9 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const id = reqId(ctx.positional.slice(1), 'story status <id> <status>');
       const status = ctx.positional[2];
       if (!status) throw new Error('用法: xcart story status <id> <status> [--reason]');
+      if (status === 'cancelled' && !opt(f, 'reason')) {
+        throw new Error('取消（cancelled）必须提供 --reason（记录放弃依据）');
+      }
       const res = await api(`/api/stories/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
       console.log(render(res, ctx.format));
       break;
@@ -447,14 +450,17 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       const id = reqId(ctx.positional.slice(1), 'task status <id> <status>');
       const status = ctx.positional[2];
       if (!status) throw new Error('用法: xcart task status <id> <status> [--reason]');
+      if (status === 'cancelled' && !opt(f, 'reason')) {
+        throw new Error('取消（cancelled）必须提供 --reason（记录放弃依据）');
+      }
       const res = await api(`/api/dev-tasks/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
       console.log(render(res, ctx.format));
       break;
     }
     case 'delete': {
       const id = reqId(ctx.positional.slice(1), 'task delete');
-      const res = await api(`/api/dev-tasks/${id}`, 'DELETE');
-      console.log(render(res, ctx.format));
+      await api(`/api/dev-tasks/${id}`, 'DELETE');
+      console.log(render({ success: true, id }, ctx.format));
       break;
     }
     case 'next': {
