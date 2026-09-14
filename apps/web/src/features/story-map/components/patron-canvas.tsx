@@ -30,8 +30,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, Button, Input, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@x-cartographer/ui';
 import { createLogger } from '@/lib/logger';
 import { useStoryMapStore, filterStories } from '../stores/story-map-store';
-import { useCreateStory, useUpdateStory, useDeleteStory, useCreateActivity, useUpdateActivity, useDeleteActivity, useUpdateUserTask, useUpdateMilestone, useDeleteMilestone } from '@/lib/api/hooks';
-import { useMilestonesByProduct } from '@/lib/api/hooks';
+import { useCreateStory, useUpdateStory, useDeleteStory, useCreateActivity, useUpdateActivity, useDeleteActivity, useUpdateUserTask, useUpdateMilestone, useDeleteMilestone, useCreateMilestone, useMilestonesByProduct } from '@/lib/api/hooks';
 import {
   computePatronLayout,
   resolveStoryDrop,
@@ -44,6 +43,7 @@ import {
   STORY_TOP,
   CARD_GAP,
 } from '../lib/patron-layout';
+import { MilestoneDialog } from '@/features/roadmap/components/milestone-dialog';
 import { StoryDetailPanel } from './story-detail-panel';
 import { StoryEditDialog } from './story-edit-dialog';
 import { ActivityCreateDialog } from './activity-create-dialog';
@@ -52,7 +52,7 @@ import { StoryCreateDialog } from './story-create-dialog';
 import { FilterPanel } from './filter-panel';
 import { priorityLeftBorderCls } from '@/components/common/priority-badge';
 import { StoryCardBody } from '@/components/common/story-card-body';
-import type { UserActivity, UserStory, Priority } from '@/types';
+import type { UserActivity, UserStory, Priority, MilestoneStatus } from '@/types';
 
 const log = createLogger('patronCanvas');
 
@@ -204,7 +204,13 @@ function PatronStoryNode({ data }: { data: {
         className={cn(
           'w-full cursor-pointer bg-background transition-all duration-150',
           'hover:-translate-y-0.5 hover:shadow-md',
-          selected || isSelected ? 'shadow-md ring-2 ring-primary' : unassigned ? 'border-dashed shadow-none opacity-75' : 'shadow-sm',
+          selected || isSelected
+            ? 'shadow-md ring-2 ring-primary'
+            : story.status === 'cancelled'
+              ? 'border-dashed opacity-60 shadow-none'
+              : unassigned
+                ? 'border-dashed shadow-none opacity-75'
+                : 'shadow-sm',
           priorityLeftBorderCls(story.priority),
           'border-l-4 pl-5'
         )}
@@ -267,6 +273,7 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
   const deleteActivityMutation = useDeleteActivity();
   const updateUserTaskMutation = useUpdateUserTask();
   const updateMilestoneMutation = useUpdateMilestone();
+  const createMilestoneMutation = useCreateMilestone();
   const deleteMilestoneMutation = useDeleteMilestone();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -281,6 +288,8 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
   // 切片线编辑（重命名 / 删除 = 编辑 milestone）
   const [editingMilestone, setEditingMilestone] = useState<{ id: string; name: string } | null>(null);
   const [msNameDraft, setMsNameDraft] = useState('');
+  // 新建切片
+  const [sliceCreateOpen, setSliceCreateOpen] = useState(false);
 
   const filteredActivities = useMemo(
     () => filterStories(activities, filter).sort((a, b) => a.order - b.order),
@@ -666,6 +675,17 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
     setDeleteConfirm(null);
   }, [project, deleteConfirm, deleteActivityMutation, deleteStoryMutation, selectedStory, setSelectedStory]);
 
+  async function handleCreateSlice(data: { name: string; goal: string; target_date?: string; status?: MilestoneStatus }) {
+    await createMilestoneMutation.mutateAsync({
+      product_id: productId,
+      name: data.name,
+      goal: data.goal,
+      target_date: data.target_date,
+      status: data.status ?? 'planned',
+    });
+    setSliceCreateOpen(false);
+  }
+
   async function handleSaveMilestone() {
     if (!editingMilestone || !msNameDraft.trim()) return;
     await updateMilestoneMutation.mutateAsync({ id: editingMilestone.id, productId, name: msNameDraft.trim() });
@@ -713,12 +733,17 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="hsl(var(--border))" />
         <Panel position="top-right">
-          <div className="rounded-lg border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 gap-1 text-xs bg-background/80 backdrop-blur-sm" onClick={() => setSliceCreateOpen(true)}>
+              <Plus className="h-3 w-3" /> 新建切片
+            </Button>
+            <div className="rounded-lg border bg-background/80 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm">
             经典模式（Patton）· <span className="font-medium text-foreground">{filteredActivities.length}</span> 活动 ·{' '}
             <span className="font-medium text-foreground">
               {filteredActivities.reduce((acc, j) => acc + (j.stories?.length || 0), 0)}
             </span>{' '}
             故事
+          </div>
           </div>
         </Panel>
         <Panel position="top-left">
@@ -758,6 +783,14 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
         onSave={handleCreateStory}
       />
       <ActivityEditDialog open={activityEditOpen} activity={editingActivity} onOpenChange={setActivityEditOpen} onSave={handleSaveActivity} />
+
+      {/* 新建切片对话框 */}
+      <MilestoneDialog
+        open={sliceCreateOpen}
+        onOpenChange={setSliceCreateOpen}
+        initial={null}
+        onSave={handleCreateSlice}
+      />
 
       {/* 切片线编辑对话框 */}
       <Dialog open={!!editingMilestone} onOpenChange={(open) => { if (!open) setEditingMilestone(null); }}>
