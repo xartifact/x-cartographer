@@ -6,6 +6,9 @@
 > - `apps/cli` 已实现嵌套子命令 + GNU flag 风格 + 写操作对齐 REST 路由；`skills/` 目录已落地三份 SKILL.md；`xcart skill install` 可一键安装。
 >
 > 本文档的 CLI 命令树、skills 目录结构、agentskills 多平台安装等为其权威参考。
+>
+> **⚠️ 2026-09-10 需求管理重设计**：实体体系正在迁移至用户故事地图语义（Project→Product、Journey 退役→UserActivity/UserTask、Task→DevTask）。
+> 迁移期间本文档的 journey/task 相关命令与路由描述以 `story-map-redesign.md` 为准，迁移完成后本文档整体更新。
 
 ## 1. 愿景
 
