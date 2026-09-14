@@ -38,6 +38,7 @@ const updateDevTaskSchema = z.object({
   assignee: z.string().optional(),
   productId: z.string().optional(),
   storyId: z.string().nullable().optional(),
+  affectedModules: z.array(z.string()).optional(),
 });
 
 const updateStatusSchema = z.object({

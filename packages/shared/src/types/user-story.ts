@@ -117,6 +117,7 @@ export interface UpdateUserStoryDTO {
   tags?: string[];
   activityId?: string;
   userTaskId?: string | null;
+  affected_modules?: string[];
   order?: number;
   position?: Position;
   milestoneId?: string | null;

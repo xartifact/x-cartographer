@@ -59,6 +59,7 @@ function dbRowToDevTask(row: typeof devTasks.$inferSelect): DevTask {
     story_id: row.storyId,
     product_id: row.productId ?? '',
     tags: (row.tags ?? []) as string[],
+    affected_modules: (row.affectedModules ?? []) as string[],
     assignee: row.assignee ?? undefined,
     started_at: row.startedAt?.toISOString(),
     completed_at: row.completedAt?.toISOString(),
@@ -87,6 +88,7 @@ function dbRowToStory(
     position: row.position as UserStory['position'],
     milestone_id: row.milestoneId ?? undefined,
     user_task_id: row.userTaskId ?? undefined,
+    affected_modules: (row.affectedModules ?? []) as string[],
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };

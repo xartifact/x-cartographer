@@ -48,6 +48,7 @@ export class DevTaskRepository {
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.dependencies !== undefined) updateData.dependencies = dto.dependencies;
     if (dto.tags !== undefined) updateData.tags = dto.tags;
+    if (dto.affected_modules !== undefined) updateData.affectedModules = dto.affected_modules;
     if (dto.assignee !== undefined) updateData.assignee = dto.assignee;
     if (dto.product_id !== undefined) updateData.productId = dto.product_id;
 

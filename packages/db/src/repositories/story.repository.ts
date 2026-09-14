@@ -53,6 +53,7 @@ export class StoryRepository {
     if (dto.milestoneId !== undefined) updateData.milestoneId = dto.milestoneId;
     if (dto.activityId !== undefined) updateData.activityId = dto.activityId;
     if (dto.userTaskId !== undefined) updateData.userTaskId = dto.userTaskId;
+    if (dto.affected_modules !== undefined) updateData.affectedModules = dto.affected_modules;
 
     await db.update(userStories).set(updateData).where(eq(userStories.id, id));
   }

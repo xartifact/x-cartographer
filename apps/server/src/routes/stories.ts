@@ -30,6 +30,7 @@ const updateStorySchema = z.object({
   milestoneId: z.string().nullable().optional(),
   activityId: z.string().optional(),
   userTaskId: z.string().nullable().optional(),
+  affectedModules: z.array(z.string()).optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -81,6 +82,7 @@ export const storiesRoutes = new Hono()
     if (input.milestoneId !== undefined) dto.milestoneId = input.milestoneId;
     if (input.activityId !== undefined) dto.activityId = input.activityId;
     if (input.userTaskId !== undefined) dto.userTaskId = input.userTaskId;
+    if (input.affectedModules !== undefined) dto.affected_modules = input.affectedModules;
     await storyRepo.update(c.req.param('id'), dto);
     return c.json({ success: true });
   })

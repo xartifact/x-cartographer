@@ -87,4 +87,5 @@ export interface UpdateDevTaskDTO {
   tags?: string[];
   assignee?: string;
   product_id?: string;
+  affected_modules?: string[];
 }
