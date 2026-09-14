@@ -11,7 +11,6 @@ import {
   Search,
   FolderOpen,
   Calendar,
-  MapPin,
   MoreHorizontal,
   Trash2,
   Edit2,
@@ -96,7 +95,6 @@ function ProjectCard({
   onDelete: () => void;
   onEdit: () => void;
 }) {
-  const stats = formatProjectStats(project);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -171,16 +169,7 @@ function ProjectCard({
           )}
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* 统计信息 */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
-              <span>{stats.activityCount} 活动</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span>{stats.storyCount} 故事</span>
-            </div>
-          </div>
+          {/* 产品卡片保持简洁：不显示旅程/故事统计（sXCmRZo） */}
 
           {/* 标签 */}
           {project.metadata?.tags && project.metadata.tags.length > 0 && (
