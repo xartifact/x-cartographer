@@ -2,27 +2,27 @@ import { useParams } from '@tanstack/react-router';
 import { useCallback, useMemo } from 'react';
 import { FileText } from 'lucide-react';
 import { Button } from '@x-cartographer/ui';
-import { useProject } from '@/lib/api/hooks';
+import { useProduct } from '@/lib/api/hooks';
 import { TaskStatus } from '@/types';
 
 /**
- * 项目概览页（/projects/:id）
+ * 产品概览页（/projects/:id）
  */
 export function ProjectOverviewPage() {
-  const { projectId } = useParams({ strict: false });
-  const { data: project, isLoading } = useProject(projectId);
+  const { productId } = useParams({ strict: false });
+  const { data: project, isLoading } = useProduct(productId);
 
-  // 从 user_journeys 计算统计信息
+  // 从 user_activities 计算统计信息
   const stats = useMemo(() => {
-    const journeys = project?.user_journeys ?? [];
+    const activities = project?.user_activities ?? [];
     let storyCount = 0;
     let taskCount = 0;
     let doneTaskCount = 0;
 
-    for (const journey of journeys) {
-      for (const story of journey.stories ?? []) {
+    for (const activity of activities) {
+      for (const story of activity.stories ?? []) {
         storyCount += 1;
-        for (const task of story.tasks ?? []) {
+        for (const task of story.dev_tasks ?? []) {
           taskCount += 1;
           if (task.status === TaskStatus.DONE) {
             doneTaskCount += 1;
@@ -32,7 +32,7 @@ export function ProjectOverviewPage() {
     }
 
     return {
-      journeyCount: journeys.length,
+      activityCount: activities.length,
       storyCount,
       taskCount,
       doneTaskCount,
@@ -41,38 +41,38 @@ export function ProjectOverviewPage() {
     };
   }, [project]);
 
-  // 导出项目全景 AI 上下文（Markdown，可直接粘贴给 LLM）
+  // 导出产品全景 AI 上下文（Markdown，可直接粘贴给 LLM）
   const handleExportContext = useCallback(async () => {
     if (!project) return;
     try {
-      const journeys = project.user_journeys ?? [];
-      const stories = journeys.flatMap((j) => j.stories ?? []);
-      const tasks = stories.flatMap((s) => s.tasks ?? []);
-      const totalEst = tasks.reduce((a, t) => a + (t.estimation || 0), 0);
+      const activities = project.user_activities ?? [];
+      const stories = activities.flatMap((a) => a.stories ?? []);
+      const tasks = stories.flatMap((s) => s.dev_tasks ?? []);
+      const totalEst = tasks.reduce((a: number, t) => a + (t.estimation || 0), 0);
       const doneTasks = tasks.filter((t) => t.status === TaskStatus.DONE).length;
       const progress = tasks.length > 0 ? Math.round((doneTasks / tasks.length) * 100) : 0;
 
       const lines: string[] = [];
-      lines.push(`# ${project.name} — 项目全景`);
+      lines.push(`# ${project.name} — 产品全景`);
       lines.push('');
       lines.push(`> 描述：${project.description ?? '（无）'}`);
       lines.push('');
       lines.push('## 概览');
       lines.push('');
-      lines.push(`- 用户旅程：${journeys.length} 个`);
+      lines.push(`- 用户活动：${activities.length} 个`);
       lines.push(`- 用户故事：${stories.length} 个`);
       lines.push(`- 任务总数：${tasks.length} 个（已完成 ${doneTasks}，${progress}%）`);
       lines.push(`- 总估算工时：${totalEst} 小时`);
       lines.push('');
-      lines.push('## 用户旅程与故事');
+      lines.push('## 用户活动与故事');
       lines.push('');
-      for (const j of journeys) {
-        lines.push(`### ${j.name}（persona: ${j.persona}）`);
+      for (const a of activities) {
+        lines.push(`### ${a.name}`);
         lines.push('');
-        for (const s of j.stories ?? []) {
+        for (const s of a.stories ?? []) {
           lines.push(`- **[${s.id}] ${s.title}**（${s.priority}优先级 · ${s.estimation}h · ${s.status ?? 'backlog'}）`);
-          if ((s.tasks ?? []).length > 0) {
-            lines.push(`  - 任务（${s.tasks!.length}）：${s.tasks!.map((t) => `[${t.status}] ${t.title}`).join('；')}`);
+          if ((s.dev_tasks ?? []).length > 0) {
+            lines.push(`  - 任务（${s.dev_tasks!.length}）：${s.dev_tasks!.map((t: { status: unknown; title: string }) => `[${t.status}] ${t.title}`).join('；')}`);
           }
         }
         lines.push('');
@@ -109,7 +109,7 @@ export function ProjectOverviewPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="rounded-xl border bg-muted/30 p-12 text-center text-muted-foreground">
-          项目不存在或未加载
+          产品不存在或未加载
         </div>
       </div>
     );
@@ -117,7 +117,7 @@ export function ProjectOverviewPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* 项目概览标题区域 */}
+      {/* 产品概览标题区域 */}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">{project.name}</h1>
@@ -135,10 +135,10 @@ export function ProjectOverviewPage() {
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border p-6">
-            <h3 className="mb-2 font-semibold">项目信息</h3>
+            <h3 className="mb-2 font-semibold">产品信息</h3>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">项目 ID</dt>
+                <dt className="text-muted-foreground">产品 ID</dt>
                 <dd className="font-mono text-xs">{project.id}</dd>
               </div>
               <div className="flex justify-between">
@@ -168,8 +168,8 @@ export function ProjectOverviewPage() {
             <h3 className="mb-2 font-semibold">统计信息</h3>
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">用户旅程</dt>
-                <dd>{stats.journeyCount}</dd>
+                <dt className="text-muted-foreground">用户活动</dt>
+                <dd>{stats.activityCount}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">用户故事</dt>

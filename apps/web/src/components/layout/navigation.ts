@@ -32,8 +32,8 @@ export const mainNavItems: NavItem[] = [
   },
   {
     id: 'projects',
-    label: '项目列表',
-    href: '/projects',
+    label: '产品列表',
+    href: '/products',
     icon: FolderKanban,
   },
   {
@@ -51,25 +51,25 @@ export const projectNavItems: NavItem[] = [
   {
     id: 'overview',
     label: '概览',
-    href: '/projects/[id]',
+    href: '/products/[id]',
     icon: LayoutDashboard,
   },
   {
     id: 'story-map',
     label: '故事地图',
-    href: '/projects/[id]/story-map',
+    href: '/products/[id]/story-map',
     icon: Map,
   },
   {
     id: 'tasks',
     label: '任务',
-    href: '/projects/[id]/tasks',
+    href: '/products/[id]/tasks',
     icon: CheckSquare,
   },
   {
     id: 'data',
     label: '数据浏览器',
-    href: '/projects/[id]/data',
+    href: '/products/[id]/data',
     icon: ChevronRight,
   },
 ];

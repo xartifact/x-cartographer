@@ -28,7 +28,7 @@ export function SettingsPage() {
         <div>
           <h2 className="text-sm font-semibold">快速入门</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            重新查看产品使用引导与示例项目
+            重新查看产品使用引导与示例产品
           </p>
         </div>
         <Button

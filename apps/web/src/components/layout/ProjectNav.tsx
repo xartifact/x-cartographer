@@ -9,6 +9,7 @@ import {
   Calendar,
   Database,
   Users,
+  Footprints,
   FileText,
 } from 'lucide-react';
 import { Button } from '@x-cartographer/ui';
@@ -21,59 +22,65 @@ import {
   TooltipTrigger,
 } from '@x-cartographer/ui';
 
-// 默认项目内导航项配置
+// 默认产品内导航项配置
 const defaultProjectNavItems: ProjectNavProps['items'] = [
   {
     id: 'overview',
     label: '概览',
-    href: '/projects/[id]',
+    href: '/products/[id]',
     icon: LayoutDashboard,
   },
   {
     id: 'story-map',
     label: '故事地图',
-    href: '/projects/[id]/story-map',
+    href: '/products/[id]/story-map',
     icon: Map,
   },
   {
     id: 'journeys',
-    label: '旅程管理',
-    href: '/projects/[id]/journeys',
+    label: '活动管理',
+    href: '/products/[id]/journeys',
     icon: Users,
+  },
+  {
+    id: 'user-tasks',
+    label: '用户任务',
+    href: '/products/[id]/user-tasks',
+    icon: Footprints,
   },
   {
     id: 'stories',
     label: '故事管理',
-    href: '/projects/[id]/stories',
+    href: '/products/[id]/stories',
     icon: FileText,
   },
   {
     id: 'tasks',
     label: '任务',
-    href: '/projects/[id]/tasks',
+    href: '/products/[id]/tasks',
     icon: CheckSquare,
   },
   {
     id: 'roadmap',
     label: '排期',
-    href: '/projects/[id]/roadmap',
+    href: '/products/[id]/roadmap',
     icon: Calendar,
   },
   {
     id: 'data',
     label: '数据',
-    href: '/projects/[id]/data',
+    href: '/products/[id]/data',
     icon: Database,
   },
 ];
 
 /**
- * 项目内导航组件
+ * 产品内导航组件
  *
- * 提供项目详情页面的标签页式导航，包括：
- * - 返回项目列表按钮
- * - 项目名称显示
- * - 项目内各功能页面的标签页导航
+ * 提供产品详情页面的标签页式导航，包括：
+ * - 返回产品列表按钮
+ * - 产品名称显示
+ * - 产品内各功能页面的标签页导航
  * - 额外操作按钮
  */
 export function ProjectNav({
@@ -81,7 +88,7 @@ export function ProjectNav({
   projectName,
   currentPath,
   items = defaultProjectNavItems,
-  backHref = '/projects',
+  backHref = '/products',
   actions,
 }: ProjectNavProps) {
   const pathname = (useLocation().pathname || currentPath || '');
@@ -98,7 +105,7 @@ export function ProjectNav({
     if (!normalizedHref) return false;
 
     // 概览页面（无子路径）需要精确匹配
-    const isOverview = !normalizedHref.includes('/', '/projects/'.length + 1);
+    const isOverview = !normalizedHref.includes('/', '/products/'.length + 1);
 
     if (isOverview) {
       // 概览：精确匹配 /projects/xxx，不匹配子路径
@@ -111,7 +118,7 @@ export function ProjectNav({
 
   return (
     <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* 返回按钮和项目名称 */}
+      {/* 返回按钮和产品名称 */}
       <div className="flex items-center gap-2 px-4 py-3 border-b">
         <TooltipProvider>
           <Tooltip>
@@ -122,22 +129,22 @@ export function ProjectNav({
                 asChild
                 className="h-8 w-8"
               >
-                <Link to={backHref} aria-label="返回项目列表">
+                <Link to={backHref} aria-label="返回产品列表">
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>返回项目列表</TooltipContent>
+            <TooltipContent>返回产品列表</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm text-muted-foreground hidden sm:inline">
-            项目
+            产品
           </span>
           <span className="text-muted-foreground hidden sm:inline">/</span>
           <h1 className="text-lg font-semibold truncate">
-            {projectName || `项目 ${projectId}`}
+            {projectName || `产品 ${projectId}`}
           </h1>
         </div>
 

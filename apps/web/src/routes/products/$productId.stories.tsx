@@ -1,17 +1,15 @@
 import { useParams } from '@tanstack/react-router';
-import { useProject } from '@/lib/api/hooks';
-import { TasksPage } from '@/features/tasks/components/tasks-page';
+import { useProduct } from '@/lib/api/hooks';
+import { StoriesPage } from '@/features/user-stories/components/stories-page';
 
-
-
-export function TasksRoutePage() {
-  const { projectId } = useParams({ strict: false });
-  const { data: project, isLoading } = useProject(projectId);
+export function StoriesRoutePage() {
+  const { productId } = useParams({ strict: false });
+  const { data: project, isLoading } = useProduct(productId);
 
   if (isLoading) {
     return (
       <div className="container py-6">
-        <h1 className="text-2xl font-bold mb-6">任务管理</h1>
+        <h1 className="text-2xl font-bold mb-6">故事管理</h1>
         <div className="rounded-xl border bg-muted/30 p-12 text-center text-muted-foreground">
           加载中…
         </div>
@@ -22,9 +20,9 @@ export function TasksRoutePage() {
   if (!project) {
     return (
       <div className="container py-6">
-        <h1 className="text-2xl font-bold mb-6">任务管理</h1>
+        <h1 className="text-2xl font-bold mb-6">故事管理</h1>
         <div className="rounded-xl border bg-muted/30 p-12 text-center text-muted-foreground">
-          项目不存在或未加载
+          产品不存在或未加载
         </div>
       </div>
     );
@@ -32,8 +30,8 @@ export function TasksRoutePage() {
 
   return (
     <div className="container py-6">
-      <h1 className="text-2xl font-bold mb-6">任务管理</h1>
-      <TasksPage project={project} />
+      <h1 className="text-2xl font-bold mb-6">故事管理</h1>
+      <StoriesPage project={project} />
     </div>
   );
 }

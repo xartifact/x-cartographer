@@ -1,5 +1,5 @@
 import { useParams } from '@tanstack/react-router';
-import { useProject } from '@/lib/api/hooks';
+import { useProduct } from '@/lib/api/hooks';
 import { DataBrowserPage } from '@/features/data-browser';
 
 
@@ -8,15 +8,15 @@ import { DataBrowserPage } from '@/features/data-browser';
  * 数据浏览器页（/projects/:id/data）
  */
 export function DataRoutePage() {
-  const { projectId } = useParams({ strict: false });
-  const { data: project, isLoading } = useProject(projectId);
+  const { productId } = useParams({ strict: false });
+  const { data: project, isLoading } = useProduct(productId);
 
   if (isLoading) {
     return (
       <div className="container py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">数据浏览器</h1>
-          <p className="text-muted-foreground">查看和管理项目的所有数据</p>
+          <p className="text-muted-foreground">查看和管理产品的所有数据</p>
         </div>
         <div className="rounded-xl border bg-muted/30 p-12 text-center text-muted-foreground">
           加载中…
@@ -30,10 +30,10 @@ export function DataRoutePage() {
       <div className="container py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">数据浏览器</h1>
-          <p className="text-muted-foreground">查看和管理项目的所有数据</p>
+          <p className="text-muted-foreground">查看和管理产品的所有数据</p>
         </div>
         <div className="rounded-xl border bg-muted/30 p-12 text-center text-muted-foreground">
-          项目不存在或未加载
+          产品不存在或未加载
         </div>
       </div>
     );
@@ -44,11 +44,11 @@ export function DataRoutePage() {
       {/* 页面标题 */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold">数据浏览器</h1>
-        <p className="text-muted-foreground">查看和管理项目的所有数据</p>
+        <p className="text-muted-foreground">查看和管理产品的所有数据</p>
       </div>
 
       {/* 数据浏览器页面 */}
-      <DataBrowserPage journeys={project.user_journeys ?? []} />
+      <DataBrowserPage activities={project.user_activities ?? []} />
     </div>
   );
 }

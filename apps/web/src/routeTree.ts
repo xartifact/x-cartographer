@@ -11,15 +11,16 @@ import { RootComponent } from './routes/__root';
 import { HomePage } from './routes/index';
 import { ActiveRoutePage } from './routes/active';
 import { SettingsPage } from './routes/settings';
-import { ProjectsPage } from './routes/projects/index';
-import { ProjectDetailLayout } from './routes/projects/$projectId._layout';
-import { ProjectOverviewPage } from './routes/projects/$projectId.index';
-import { StoryMapRoutePage } from './routes/projects/$projectId.story-map';
-import { TasksRoutePage } from './routes/projects/$projectId.tasks';
-import { RoadmapRoutePage } from './routes/projects/$projectId.roadmap';
-import { DataRoutePage } from './routes/projects/$projectId.data';
-import { JourneysRoutePage } from './routes/projects/$projectId.journeys';
-import { StoriesRoutePage } from './routes/projects/$projectId.stories';
+import { ProjectsPage } from './routes/products/index';
+import { ProjectDetailLayout } from './routes/products/$productId._layout';
+import { ProjectOverviewPage } from './routes/products/$productId.index';
+import { StoryMapRoutePage } from './routes/products/$productId.story-map';
+import { TasksRoutePage } from './routes/products/$productId.tasks';
+import { RoadmapRoutePage } from './routes/products/$productId.roadmap';
+import { DataRoutePage } from './routes/products/$productId.data';
+import { JourneysRoutePage } from './routes/products/$productId.journeys';
+import { StoriesRoutePage } from './routes/products/$productId.stories';
+import { UserTasksRoutePage } from './routes/products/$productId.user-tasks';
 export interface RouterContext {
   queryClient: QueryClient;
 }
@@ -49,14 +50,14 @@ const activeRoute = createRoute({
 
 const projectsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/projects',
+  path: '/products',
   component: ProjectsPage,
 });
 
 // ─── 项目嵌套路由（layout + 子页）────────────────────────
 const projectLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/projects/$projectId',
+  path: '/products/$productId',
   component: ProjectDetailLayout,
 });
 
@@ -96,11 +97,18 @@ const projectJourneysRoute = createRoute({
   component: JourneysRoutePage,
 });
 
+const projectUserTasksRoute = createRoute({
+  getParentRoute: () => projectLayoutRoute,
+  path: '/user-tasks',
+  component: UserTasksRoutePage,
+});
+
 const projectStoriesRoute = createRoute({
   getParentRoute: () => projectLayoutRoute,
   path: '/stories',
   component: StoriesRoutePage,
 });
+
 
 // ─── 路由树 ──────────────────────────────────────────────
 const routeTree = rootRoute.addChildren([
@@ -116,6 +124,7 @@ const routeTree = rootRoute.addChildren([
     projectDataRoute,
     projectJourneysRoute,
     projectStoriesRoute,
+    projectUserTasksRoute,
   ]),
 ]);
 
