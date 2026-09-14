@@ -717,6 +717,11 @@ async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
   const proj = await api(`/api/products/${projectId}`);
   if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${projectId}`);
   const milestones = await api(`/api/milestones?productId=${encodeURIComponent(projectId)}`).catch(() => []);
+  // 技术宪法摘要（容错：无 ADR 时降级空宪法，不得让 context export 整体失败）
+  const constitution = await api(`/api/adr-records/current?projectId=${encodeURIComponent(projectId)}`).catch(() => ({
+    tech_stack: [], architecture_principles: [], modules: [],
+  }));
+  const constObj = isObj(constitution) ? constitution : { tech_stack: [], architecture_principles: [], modules: [] };
   const { activities: treeActivities, storyCount, taskCount, doneTasks } = summarizeTree(proj);
   const activityBlocks: string[] = [];
   for (const j of treeActivities) {
@@ -727,24 +732,42 @@ async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
       + (devTasks.length ? ` — ${devTasks.length} 研发任务` : '')
       + `\n  ${(String(s.description ?? '')).split('\n')[0] || ''}`;
     });
-    activityBlocks.push(`### ${j.name} (${j.id})\n${storyBlocks.join('\n')}`);
+    activityBlocks.push(`### ${j.name} (${j.id})\n${storyBlocks.join('\n\n')}`);
   }
+  const principleLines = (Array.isArray(constObj.architecture_principles) ? constObj.architecture_principles : [])
+    .map((p: Record<string, unknown>) => `- [${p.strength}] ${p.statement} (${p.id})`);
+  const moduleLines = (Array.isArray(constObj.modules) ? constObj.modules : [])
+    .map((m: Record<string, unknown>) => `- **${m.name}** (${m.id}) — ${m.path}`);
+  const techLines = (Array.isArray(constObj.tech_stack) ? constObj.tech_stack : [])
+    .map((t: Record<string, unknown>) => `- ${t.choice}（${t.layer}）`);
+  const constitutionSection = `## 技术宪法\n
+### 技术栈\n${techLines.join('\n') || '-（暂无）'}\n
+### 架构原则\n${principleLines.join('\n') || '-（暂无）'}\n
+### 模块目录\n${moduleLines.join('\n') || '-（暂无）'}\n`;
   const md = `# ${proj.name} — 全景上下文\n
 > 产品: ${proj.id} | 描述: ${proj.description ?? '-'}\n
 ## 统计\n
 - 用户活动: ${treeActivities.length} | 故事: ${storyCount} | 研发任务: ${taskCount}（完成 ${doneTasks}）\n
 - 发布: ${(Array.isArray(milestones) ? milestones : []).map((m) => `${m.name}(${m.status})`).join(', ') || '-'}\n
+${constitutionSection}
 ## 故事地图（用户活动 × 用户故事）\n
 ${activityBlocks.join('\n\n')}\n`;
   if (fmt === 'markdown') console.log(md);
-  else if (fmt === 'json') console.log(JSON.stringify({ product: { id: proj.id, name: proj.name, description: proj.description }, milestones, activities: treeActivities }, null, 2));
+  else if (fmt === 'json') console.log(JSON.stringify({ product: { id: proj.id, name: proj.name, description: proj.description }, milestones, constitution: constObj, activities: treeActivities }, null, 2));
   else console.log(JSON.stringify(md, null, 2));
 }
+
 
 async function cmdOverview(ctx: Ctx): Promise<void> {
   const projectId = req(ctx.flags, 'project', 'projectId');
   const proj = await api(`/api/products/${projectId}`);
   if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${projectId}`);
+  const constitution = await api(`/api/adr-records/current?projectId=${encodeURIComponent(projectId)}`).catch(() => ({
+    tech_stack: [], architecture_principles: [], modules: [],
+  }));
+  const constObj = isObj(constitution) ? constitution : { tech_stack: [], architecture_principles: [], modules: [] };
+  const principles = Array.isArray(constObj.architecture_principles) ? constObj.architecture_principles : [];
+  const mustPrinciples = principles.filter((p: Record<string, unknown>) => p.strength === 'MUST').length;
   const { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus } = summarizeTree(proj);
   if (ctx.format === 'json') {
     console.log(JSON.stringify({
@@ -752,14 +775,19 @@ async function cmdOverview(ctx: Ctx): Promise<void> {
       activities: activities.length, stories: storyCount, done_stories: doneStories,
       tasks: taskCount, done_tasks: doneTasks,
       task_status: taskStatus, story_status: storyStatus,
+      constitution: {
+        tech_stack_count: Array.isArray(constObj.tech_stack) ? constObj.tech_stack.length : 0,
+        principles_count: principles.length,
+        must_principles_count: mustPrinciples,
+        modules_count: Array.isArray(constObj.modules) ? constObj.modules.length : 0,
+      },
     }, null, 2));
     return;
   }
   const md = `# ${proj.name} — 产品总览\n
-- 用户活动: ${activities.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 研发任务: ${taskCount}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n`;
+- 用户活动: ${activities.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 研发任务: ${taskCount}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n- 技术宪法: ${principles.length} 原则（MUST ${mustPrinciples}）/ ${Array.isArray(constObj.tech_stack) ? constObj.tech_stack.length : 0} 技术栈 / ${Array.isArray(constObj.modules) ? constObj.modules.length : 0} 模块\n`;
   console.log(md);
 }
-
 
 // ---------- skill ----------
 async function cmdSkill(ctx: Ctx): Promise<void> {
@@ -777,13 +805,13 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       break;
     }
     case 'install': {
-      const { cpSync, existsSync, mkdirSync } = await import('node:fs');
+      const { cpSync, existsSync, mkdirSync, readdirSync } = await import('node:fs');
       const explicit = opt(f, 'dir');
       const targets = explicit
         ? [explicit]
         : [`${repoRoot}.claude/skills`];
       if (!existsSync(skillsDir)) throw new Error(`skills 目录不存在: ${skillsDir}`);
-      const dirs = (await import('node:fs')).readdirSync(skillsDir).filter((d) => !d.startsWith('.'));
+      const dirs = readdirSync(skillsDir).filter((d) => !d.startsWith('.'));
       const installed: string[] = [];
       for (const t of targets) {
         for (const d of dirs) {
