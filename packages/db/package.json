@@ -20,7 +20,7 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.4.3",
     "@x-cartographer/shared": "workspace:*",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.3",
     "pino": "^8.17.2"
   }

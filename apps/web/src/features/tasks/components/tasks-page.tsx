@@ -7,7 +7,7 @@
 'use client';
 
 import * as React from 'react';
-import { Plus, Download } from 'lucide-react';
+import { Plus, Download, Network } from 'lucide-react';
 import {
   Button,
   Input,
@@ -30,6 +30,7 @@ import {
 import type { ViewType, FilterConditions } from '@/features/tasks/components';
 import { TaskCreateDialog, type NewDevTaskDraft } from './task-create-dialog';
 import { TaskDetailSheet } from './task-detail-sheet';
+import { TaskDependencyGraph } from '@/features/task-graph/components/task-dependency-graph';
 import {
   useUpdateDevTaskStatus,
   useCreateDevTask,
@@ -406,7 +407,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         <ViewSwitcher
           currentView={view}
           onViewChange={setView}
-          availableViews={['list', 'kanban', 'board']}
+          availableViews={['list', 'kanban', 'board', 'dependencies']}
         />
         <BulkActionToolbar
           selectedCount={{ tasks: selectedTaskIds.length, stories: 0 }}
@@ -526,6 +527,32 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
               </Card>
             ))}
         </div>
+      )}
+
+      {/* 依赖图视图（DAG）：以选中任务为中心 N 跳邻域。
+          未选中任务时给出引导——全量渲染 190+ 节点会缩成一团不可读。 */}
+      {view === 'dependencies' && (
+        <Card>
+          <CardContent className="pt-6">
+            {detailTask ? (
+              <TaskDependencyGraph
+                tasks={allTasks}
+                focusTaskId={detailTask.id}
+                filterStoryId={detailTask.story_id}
+                className="h-[560px]"
+              />
+            ) : (
+              <div className="flex h-[560px] items-center justify-center text-center">
+                <div className="space-y-2">
+                  <Network className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    请先点击一个任务打开详情，依赖图将以该任务为中心展示 1 跳邻域
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* 批量更新确认弹窗 */}

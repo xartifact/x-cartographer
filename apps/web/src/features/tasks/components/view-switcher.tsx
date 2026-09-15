@@ -1,5 +1,5 @@
 /**
- * 视图切换组件
+ * 视图切换器
  *
  * 支持预设状态视图的快速切换
  */
@@ -7,7 +7,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, LayoutGrid, List, Kanban, Calendar } from 'lucide-react';
+import { Check, LayoutGrid, List, Kanban, Calendar, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@x-cartographer/ui';
 import {
@@ -20,7 +20,7 @@ import {
 } from '@x-cartographer/ui';
 import { Checkbox as _Checkbox } from '@x-cartographer/ui';
 
-export type ViewType = 'list' | 'board' | 'timeline' | 'kanban';
+export type ViewType = 'list' | 'board' | 'timeline' | 'kanban' | 'dependencies';
 
 export interface ViewSwitcherProps {
   /** 当前视图 */
@@ -47,6 +47,7 @@ const VIEW_ICONS: Record<ViewType, React.ElementType> = {
   board: LayoutGrid,
   timeline: Calendar,
   kanban: Kanban,
+  dependencies: Network,
 };
 
 /**
@@ -57,6 +58,7 @@ const VIEW_LABELS: Record<ViewType, string> = {
   board: '看板视图',
   timeline: '时间线',
   kanban: 'Kanban',
+  dependencies: '依赖图',
 };
 
 /**

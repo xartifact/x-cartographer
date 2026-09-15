@@ -77,6 +77,9 @@ export function TaskDependencyGraph({
     const depOf = new Map<string, string[]>(); // taskId → 前置依赖 ids
     for (const t of tasks) {
       for (const d of (t as unknown as { dependencies?: string[] }).dependencies ?? []) {
+        // 悬空引用（依赖指向已删除任务）直接丢弃：它既无节点可连，
+        // 又会污染截断计数（把不存在的任务算成"外部依赖"）
+        if (!byId.has(d)) continue;
         depOf.set(t.id, [...(depOf.get(t.id) ?? []), d]);
       }
     }
