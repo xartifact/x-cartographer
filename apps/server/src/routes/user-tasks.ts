@@ -4,8 +4,8 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { nanoid } from 'nanoid';
 import { ensureDb } from '@x-cartographer/db';
+import { generateShortId } from '@x-cartographer/db';
 import { userTasks, userActivities } from '@x-cartographer/db';
 import { eq, asc } from 'drizzle-orm';
 
@@ -67,7 +67,7 @@ export const userTasksRoutes = new Hono()
   // POST /api/user-tasks
   .post('/', zValidator('json', createUserTaskSchema), async (c) => {
     const input = c.req.valid('json');
-    const id = nanoid();
+    const id = await generateShortId('userTask');
     const db = await ensureDb();
     const now = new Date();
     await db.insert(userTasks).values({

@@ -28,14 +28,15 @@ import {
   PresetManager,
 } from '@/features/tasks/components';
 import type { ViewType, FilterConditions } from '@/features/tasks/components';
-import { TaskCreateDialog } from './task-create-dialog';
+import { TaskCreateDialog, type NewDevTaskDraft } from './task-create-dialog';
 import { TaskDetailSheet } from './task-detail-sheet';
 import {
   useUpdateDevTaskStatus,
   useCreateDevTask,
   useUpdateDevTask,
 } from '@/lib/api/hooks';
-import type { DevTask, TaskStatus, StoryStatus, Product } from '@/types';
+import { TaskStatus } from '@/types';
+import type { DevTask, StoryStatus, Product } from '@/types';
 import { serializeKanbanMarkdown } from '@/lib/markdown';
 import { useHotkeys } from '@/lib/hooks/use-hotkeys';
 
@@ -274,26 +275,42 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   const progress =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   // 处理新建任务（绑定到指定故事）
-  const handleCreateTask = async (storyId: string, task: DevTask) => {
+  // 用服务端返回的 ID 构造乐观项——前端不得伪造主键（曾用本地 nanoid，
+  // 导致乐观项 ID 与库里真实 ID 不符，后续按 ID 的操作全部落空）。
+  const handleCreateTask = async (draft: NewDevTaskDraft) => {
     try {
-      await createTask.mutateAsync({
-        storyId,
+      const created = await createTask.mutateAsync({
+        storyId: draft.storyId,
         productId: project.id,
-        title: task.title,
-        description: task.description,
-        priority: task.priority,
-        estimation: task.estimation,
-        dependencies: task.dependencies ?? [],
-        tags: task.tags ?? [],
+        title: draft.title,
+        description: draft.description,
+        priority: draft.priority,
+        estimation: draft.estimation,
+        dependencies: draft.dependencies,
+        tags: draft.tags,
       });
-      // 乐观更新本地产品状态
+      const now = new Date().toISOString();
+      const optimistic: DevTask = {
+        id: created.id,
+        story_id: draft.storyId,
+        product_id: project.id,
+        title: draft.title,
+        description: draft.description,
+        priority: draft.priority,
+        estimation: draft.estimation,
+        status: TaskStatus.BACKLOG,
+        dependencies: draft.dependencies,
+        tags: draft.tags,
+        created_at: now,
+        updated_at: now,
+      };
       setProject((prev) => ({
         ...prev,
         user_activities: prev.user_activities?.map((activity) => ({
           ...activity,
           stories: activity.stories?.map((story) =>
-            story.id === storyId
-              ? { ...story, dev_tasks: [...(story.dev_tasks ?? []), task] }
+            story.id === draft.storyId
+              ? { ...story, dev_tasks: [...(story.dev_tasks ?? []), optimistic] }
               : story
           ),
         })),

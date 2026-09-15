@@ -46,7 +46,7 @@ This project is indexed by GitNexus as **x-cartographer** (2346 symbols, 4367 re
 <!-- xcart:start -->
 # X-Cartographer 任务板自管理
 
-本仓库自身以 **xcart** 项目（`X-Cartographer-Dev`，id `69hKGAjvxjf6QVQu6DtZx`）管理研发任务。开发/修 bug/加功能前，先查任务板认领与跟进对应任务，完成或失败后更新状态（带 `--reason`）。
+本仓库自身以 **xcart** 产品（`X-Cartographer-Dev`，id `PROD-002`）管理研发任务。开发/修 bug/加功能前，先查任务板认领与跟进对应任务，完成或失败后更新状态（带 `--reason`）。
 
 ## 前置
 
@@ -58,15 +58,19 @@ This project is indexed by GitNexus as **x-cartographer** (2346 symbols, 4367 re
 
 ## 常用操作（注意：板命令走生产网关，部署新 server 前用 `task` 而非 `dev-task`）
 
+> **部署状态**：上表 ID（`PROD-002`）与 `dev-task` 命令树对应**新代码**。生产网关
+> （`100.80.110.125:8787`）尚未部署，仍返回旧 ID 与旧命令树——部署前板命令请用旧
+> 形态（`xcart task ... --project 69hKGAjvxjf6QVQu6DtZx`）。
+
 ```bash
-xcart dev-task summary --product 69hKGAjvxjf6QVQu6DtZx     # 进度总览（task 为 deprecated alias）
-xcart dev-task next --product 69hKGAjvxjf6QVQu6DtZx       # 下一个可执行任务
+xcart dev-task summary --product PROD-002     # 进度总览（task 为 deprecated alias）
+xcart dev-task next --product PROD-002       # 下一个可执行任务
 xcart dev-task info <taskId>
 xcart dev-task status <taskId> in_progress --reason "认领"
 xcart dev-task status <taskId> done --reason "实现完成"
 xcart status history <taskId>
-xcart overview --product 69hKGAjvxjf6QVQu6DtZx
-xcart context export 69hKGAjvxjf6QVQu6DtZx                # 全景 Markdown 供 LLM
+xcart overview --product PROD-002
+xcart context export PROD-002                # 全景 Markdown 供 LLM
 ```
 
 ## 状态事实（以任务板实时数据为准）

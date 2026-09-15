@@ -3,7 +3,6 @@
 import { FileText, MapPin, ChevronRight } from 'lucide-react';
 import type { ActiveStory } from '../active-workbench';
 import { STORY_PRIORITY_CLS, STORY_STATUS_LABEL } from './card-meta';
-import { shortStoryId } from '@/components/common/story-card-body';
 
 interface StoryCardProps {
   story: ActiveStory;
@@ -21,7 +20,7 @@ export function StoryCard({ story, onOpen }: StoryCardProps) {
         <div className="min-w-0">
           <p className="line-clamp-2 font-medium leading-snug">{story.title}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="text-muted-foreground" title={story.id}>{shortStoryId(story.id)}</span>
+            <span className="text-muted-foreground" title={story.id}>{story.id}</span>
             <span className={STORY_PRIORITY_CLS[story.priority] ?? ''}>{story.priority}</span>
             <span className="rounded bg-muted px-1 py-0.5 text-muted-foreground">
               {STORY_STATUS_LABEL[story.status ?? ''] ?? story.status}

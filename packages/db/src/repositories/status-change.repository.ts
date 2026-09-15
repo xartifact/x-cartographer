@@ -1,6 +1,7 @@
 import { eq, desc } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { statusChanges } from '../db/schema/status-changes';
+import { generateShortId } from '../lib/short-id';
 import type { StatusChangeRecord } from '@x-cartographer/shared';
 
 export class StatusChangeRepository {
@@ -25,10 +26,14 @@ export class StatusChangeRepository {
     return rows.map(this.toRecord);
   }
 
+  /**
+   * 写入账本。id 由调用方传入时沿用（迁移/回放需要稳定 ID）；
+   * 传空串则自动分配 `SC-xxx`（序列原子分配，并发安全）。
+   */
   async create(record: StatusChangeRecord): Promise<void> {
     const db = await ensureDb();
     await db.insert(statusChanges).values({
-      id: record.id,
+      id: record.id || (await generateShortId('statusChange')),
       entityId: record.entity_id,
       entityType: record.entity_type,
       previousStatus: record.previous_status,
@@ -42,9 +47,12 @@ export class StatusChangeRepository {
   async createMany(records: StatusChangeRecord[]): Promise<void> {
     if (records.length === 0) return;
     const db = await ensureDb();
+    const ids = await Promise.all(
+      records.map((r) => (r.id ? Promise.resolve(r.id) : generateShortId('statusChange')))
+    );
     await db.insert(statusChanges).values(
-      records.map((r) => ({
-        id: r.id,
+      records.map((r, i) => ({
+        id: ids[i],
         entityId: r.entity_id,
         entityType: r.entity_type,
         previousStatus: r.previous_status,

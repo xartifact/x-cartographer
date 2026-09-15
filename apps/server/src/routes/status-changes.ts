@@ -4,7 +4,6 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { nanoid } from 'nanoid';
 import { StatusChangeRepository } from '@x-cartographer/db';
 
 const createStatusChangeSchema = z.object({
@@ -29,7 +28,7 @@ export const statusChangesRoutes = new Hono()
   .post('/', zValidator('json', createStatusChangeSchema), async (c) => {
     const input = c.req.valid('json');
     await statusChangeRepo.create({
-      id: nanoid(),
+      id: '',
       entity_id: input.entityId,
       entity_type: input.entityType,
       previous_status: input.previousStatus,

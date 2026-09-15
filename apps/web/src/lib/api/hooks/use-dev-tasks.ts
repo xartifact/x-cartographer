@@ -99,13 +99,19 @@ export function useNextDevTask(productId: string) {
 
 // ─── Mutation Hooks ────────────────────────────────────────────
 
+/** 服务端创建响应：携带序列分配的主键 */
+export interface CreateDevTaskResult {
+  success: boolean;
+  id: string;
+}
+
 export function useCreateDevTask() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (variables: CreateDevTaskVariables) => {
+  return useMutation<CreateDevTaskResult, Error, CreateDevTaskVariables>({
+    mutationFn: async (variables) => {
       const res = await api.api['dev-tasks'].$post({ json: variables });
-      return res.json();
+      return (await res.json()) as CreateDevTaskResult;
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['dev-tasks', 'story', variables.storyId] });

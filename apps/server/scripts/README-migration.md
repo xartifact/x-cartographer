@@ -33,6 +33,25 @@ XPR_DB_DIR=/tmp/restore-db bun scripts/run-migrate-story-map.ts            # 正
 # [人工] 清单 = 规则表未覆盖的 story，按产品语义手动 UPDATE user_stories SET activity_id=...
 ```
 
+## 3.5 全库实体 ID 归一化（可选，但生产建议执行）
+
+历史数据里实体 ID 混用三种形态（人工 `US-015` / 服务端 nanoid 21 字符 / ADR 的 UUID）。
+本步骤把 8 类实体统一为 `<PREFIX>-<序号>`（`PROD-` / `UA-` / `UT-` / `MS-` / `US-` /
+`TASK-` / `ADR-` / `SC-`），使画布窄列可完整显示、ID 可人工引用。
+
+```bash
+cd apps/server
+XPR_DB_DIR=<生产库> bun scripts/rename-entity-ids.ts --dry-run   # 先看映射
+XPR_DB_DIR=<生产库> bun scripts/rename-entity-ids.ts             # 正式
+# 期望: ID 归一化 PASS + 断言（8 表行数守恒、引用无悬空、主键无重复、全部规范形态）
+```
+
+**保留既有号段**：已是规范形态的号段原地不动（如板产品的 `US-000..047` /
+`TASK-001..145`），只有非规范行分配新号——代码注释与文档里 100+ 处 `TASK-xxx`
+引用继续有效。幂等，重跑无操作。
+
+**执行前必须备份数据目录**：该步骤重写主键，不可逆（回滚 = 还原备份目录）。
+
 ## 4. 验证
 
 ```bash
@@ -50,3 +69,7 @@ curl localhost:8787/api/journeys -o /dev/null -w '%{http_code}\n'   # 期望 410
   否则新建故事接口 500）。
 - 步骤 4 末推进短 ID 序列（user_story_id_seq / dev_task_id_seq）越过历史号段，
   确保新建实体生成 US-0xx / TASK-0xx 不与历史 ID 冲突。
+- 新建实体一律走 PostgreSQL 序列分配短 ID（`packages/db/src/lib/short-id.ts` 的
+  `ID_SPECS` 是唯一权威声明，8 类实体同源）；序号全局单调、不按产品重置。
+- 依赖悬空（`dev_tasks.dependencies` 指向已删除任务）是迁移前既有的历史脏数据，
+  `rename-entity-ids.ts` 的断言比对基线而非要求归零，不会误判为本次回归。

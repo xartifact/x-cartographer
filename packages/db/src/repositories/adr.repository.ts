@@ -1,5 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
+import { generateShortId } from '../lib/short-id';
 import { adrRecords } from '../db/schema/adr-records';
 import { statusChanges } from '../db/schema/status-changes';
 import { milestones } from '../db/schema/milestones';
@@ -77,7 +78,8 @@ export class AdrRepository {
    */
   async create(dto: CreateAdrRecordDTO): Promise<AdrRecord> {
     const db = await ensureDb();
-    const id = crypto.randomUUID(); // packages/db 无 nanoid 依赖，改用标准库（见偏差报告）
+    // 短 ID（ADR-001 形态）：与其余实体统一，可读、可人工引用
+    const id = await generateShortId('adr');
     await db.insert(adrRecords).values({
       id,
       projectId: dto.product_id,
@@ -148,7 +150,7 @@ export class AdrRepository {
     }
     // 1) 审计账本：entity_type 'adr'（shared 类型已拓宽，common.ts）
     await db.insert(statusChanges).values({
-      id: crypto.randomUUID(),
+      id: await generateShortId('statusChange'),
       entityId: id,
       entityType: 'adr',
       previousStatus: current.status,

@@ -4,10 +4,9 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { nanoid } from 'nanoid';
 import { StoryRepository, StatusChangeRepository } from '@x-cartographer/db';
 import { Priority } from '@x-cartographer/shared';
-import { generateShortId } from '../lib/short-id';
+import { generateShortId } from '@x-cartographer/db';
 
 const createStorySchema = z.object({
   activityId: z.string(),
@@ -104,7 +103,7 @@ export const storiesRoutes = new Hono()
     }
 
     await statusChangeRepo.create({
-      id: nanoid(),
+      id: '',
       entity_id: id,
       entity_type: 'story',
       previous_status: existing.status ?? 'backlog',

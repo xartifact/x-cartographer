@@ -3,4 +3,3 @@
  */
 
 export * from './format';
-export * from './id-generator';

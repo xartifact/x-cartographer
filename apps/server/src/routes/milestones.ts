@@ -4,7 +4,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { nanoid } from 'nanoid';
+import { generateShortId } from '@x-cartographer/db';
 import { MilestoneRepository } from '@x-cartographer/db';
 
 const milestoneStatusSchema = z.enum(['planned', 'active', 'completed']);
@@ -63,7 +63,7 @@ export const milestonesRoutes = new Hono()
   // POST /api/milestones
   .post('/', zValidator('json', createMilestoneSchema), async (c) => {
     const input = c.req.valid('json');
-    const id = nanoid();
+    const id = await generateShortId('milestone');
     await milestoneRepo.create(id, input);
     return c.json({ success: true, id }, 201);
   })

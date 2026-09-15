@@ -4,8 +4,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { nanoid } from 'nanoid';
-import { generateShortId } from '../lib/short-id';
+import { generateShortId } from '@x-cartographer/db';
 import {
   DevTaskRepository,
   StatusChangeRepository,
@@ -204,7 +203,7 @@ export const devTasksRoutes = new Hono()
     }
 
     await statusChangeRepo.create({
-      id: nanoid(),
+      id: '',
       entity_id: id,
       entity_type: 'task',
       previous_status: existing.status,

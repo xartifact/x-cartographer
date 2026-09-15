@@ -6,7 +6,13 @@
  * 回滚：旧表 _legacy_* 保留 + stories.legacy_journey_id 列保留；数据层只写 activity_id/order。
  */
 import { sql, type SQL } from 'drizzle-orm';
-import { ensureDb, type DbInstance } from '@x-cartographer/db';
+import {
+  ensureDb,
+  bumpSequenceTo,
+  ID_SPECS,
+  parseShortId,
+  type DbInstance,
+} from '@x-cartographer/db';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 let db: DbInstance;
@@ -159,22 +165,23 @@ async function main(): Promise<void> {
       }
     }
     console.log('  骨架行重排完成');
-    // 短 ID 序列推进：跳过历史已占用号段，避免新建实体（US-/TASK- 形态）撞已有 ID
-    const {
-      bumpSequenceTo,
-    } = await import('../src/lib/short-id');
-    const seqOf = async (table: string, prefix: string): Promise<number> => {
-      const rows: any = await db.execute(sql.raw(`SELECT id FROM ${table} WHERE id LIKE '${prefix}-%'`));
+    // 短 ID 序列推进：跳过历史已占用号段，避免新建实体撞已有 ID。
+    // 注：全库 ID 归一化由独立脚本 rename-entity-ids.ts 负责（8 类实体统一形态）；
+    // 此处只保证序列水位不低于当前最大值，重跑安全。
+    for (const kind of ['story', 'devTask'] as const) {
+      const spec = ID_SPECS[kind];
+      const got: any = await db.execute(sql.raw(`SELECT id FROM "${spec.table}"`));
       let max = 0;
-      for (const row of (rows as unknown as { rows: Array<{ id: string }> }).rows) {
-        const suffix = String(row.id).slice(prefix.length + 1);
-        if (/^\d+$/.test(suffix)) max = Math.max(max, Number(suffix));
+      for (const row of (got as unknown as { rows: Array<{ id: string }> }).rows) {
+        const n = parseShortId(kind, String(row.id));
+        if (n !== null) max = Math.max(max, n);
       }
-      return max;
-    };
-    await bumpSequenceTo('story', await seqOf('user_stories', 'US'));
-    await bumpSequenceTo('devTask', await seqOf('dev_tasks', 'TASK'));
+      await bumpSequenceTo(kind, max);
+    }
     console.log('  短 ID 序列已推进（跳过历史号段）');
+    // 全库 ID 归一化（8 类实体统一为 <PREFIX>-<序号>）是独立脚本：它要重写主键并
+    // 临时改造外键为可延迟，与结构迁移混在一起会放大失败面。此处只提示不代跑。
+    console.log('  [提示] 全库 ID 归一化请执行 bun scripts/rename-entity-ids.ts');
   }
 
   console.log('=== 步骤 5：后置断言 ===');

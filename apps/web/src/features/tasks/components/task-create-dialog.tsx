@@ -7,7 +7,6 @@
  */
 
 import { useState, useMemo } from 'react';
-import { nanoid } from 'nanoid';
 import { Loader2 } from 'lucide-react';
 import {
   Dialog,
@@ -19,14 +18,25 @@ import {
 import { Button } from '@x-cartographer/ui';
 import { Input } from '@x-cartographer/ui';
 import { Label } from '@x-cartographer/ui';
-import type { DevTask, TaskPriority, Product } from '@/types';
+import type { TaskPriority, Product } from '@/types';
 import { TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
+
+/** 新建任务草稿：ID 由服务端序列分配（禁止前端伪造主键） */
+export interface NewDevTaskDraft {
+  storyId: string;
+  title: string;
+  description: string;
+  priority: TaskPriority;
+  estimation: number;
+  dependencies: string[];
+  tags: string[];
+}
 
 interface TaskCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Product;
-  onSave: (storyId: string, task: DevTask) => Promise<void>;
+  onSave: (draft: NewDevTaskDraft) => Promise<void>;
 }
 
 const TASK_PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
@@ -68,25 +78,20 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
   async function handleSave() {
     if (!title.trim() || !selectedStoryId) return;
 
-    const now = new Date().toISOString();
-    const task: DevTask = {
-      id: `TASK-${nanoid(8)}`,
-      story_id: selectedStoryId,
-      product_id: project.id,
+    // 主键由服务端分配（TASK-xxx 序列），前端只提交内容字段
+    const draft: NewDevTaskDraft = {
+      storyId: selectedStoryId,
       title: title.trim(),
       description: '',
       priority,
       estimation,
-      status: TaskStatus.BACKLOG,
       dependencies: [],
       tags: [],
-      created_at: now,
-      updated_at: now,
     };
 
     setSaving(true);
     try {
-      await onSave(selectedStoryId, task);
+      await onSave(draft);
       handleClose();
     } finally {
       setSaving(false);

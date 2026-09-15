@@ -4,7 +4,6 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { nanoid } from 'nanoid';
 import { UserActivityRepository } from '@x-cartographer/db';
 
 const createUserActivitySchema = z.object({
@@ -19,6 +18,8 @@ const updateUserActivitySchema = z.object({
   description: z.string().optional(),
   order: z.number().optional(),
 });
+
+import { generateShortId } from '@x-cartographer/db';
 
 const userActivityRepo = new UserActivityRepository();
 
@@ -36,7 +37,7 @@ export const userActivitiesRoutes = new Hono()
   // POST /api/user-activities
   .post('/', zValidator('json', createUserActivitySchema), async (c) => {
     const input = c.req.valid('json');
-    const id = nanoid();
+    const id = await generateShortId('userActivity');
     await userActivityRepo.create(id, {
       product_id: input.productId,
       name: input.name,
