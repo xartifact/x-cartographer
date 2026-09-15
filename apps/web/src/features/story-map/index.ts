@@ -3,7 +3,7 @@
  */
 
 // 组件
-export { StoryMapCanvas } from './components/story-map-canvas';
+export { PatronCanvas } from './components/patron-canvas';
 export { StoryNode, ActivityHeaderNode, EmptyNode } from './components/story-node';
 
 export { StoryDetailPanel } from './components/story-detail-panel';

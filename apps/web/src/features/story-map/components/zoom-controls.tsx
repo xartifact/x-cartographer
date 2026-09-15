@@ -49,7 +49,7 @@ export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
   }, [fitView]);
 
   const handleFullscreen = useCallback(() => {
-    const canvas = document.querySelector('[data-story-map-canvas]');
+    const canvas = document.querySelector('[data-patron-canvas]');
     if (!canvas) return;
     if (document.fullscreenElement) {
       document.exitFullscreen();

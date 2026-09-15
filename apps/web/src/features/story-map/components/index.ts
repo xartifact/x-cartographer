@@ -2,7 +2,7 @@
  * 故事地图组件导出
  */
 
-export { StoryMapCanvas } from './story-map-canvas';
+export { PatronCanvas } from './patron-canvas';
 export { StoryNode, ActivityHeaderNode, EmptyNode } from './story-node';
 export { StoryEditDialog } from './story-edit-dialog';
 export { StoryCreateDialog } from './story-create-dialog';
