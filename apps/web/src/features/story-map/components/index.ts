@@ -3,7 +3,6 @@
  */
 
 export { PatronCanvas } from './patron-canvas';
-export { StoryNode, ActivityHeaderNode, EmptyNode } from './story-node';
 export { StoryEditDialog } from './story-edit-dialog';
 export { StoryCreateDialog } from './story-create-dialog';
 export { StoryDetailPanel } from './story-detail-panel';

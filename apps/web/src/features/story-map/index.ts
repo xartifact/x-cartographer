@@ -4,7 +4,6 @@
 
 // 组件
 export { PatronCanvas } from './components/patron-canvas';
-export { StoryNode, ActivityHeaderNode, EmptyNode } from './components/story-node';
 
 export { StoryDetailPanel } from './components/story-detail-panel';
 export { ActivityCreateDialog } from './components/activity-create-dialog';

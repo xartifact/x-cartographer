@@ -30,20 +30,6 @@ export interface ActivityColumnData {
 }
 
 /**
- * 故事节点数据
- */
-export interface StoryNodeData {
-  story: UserStory;
-  activityName: string;
-  /** 所归属用户任务名（空 = 未挂任务） */
-  userTaskName?: string;
-  /** Patton 纵向重要性层级：head=走查线大步故事，body=主要实现，tail=渐进细化 */
-  tier: 'head' | 'body' | 'tail';
-  isSelected: boolean;
-  onSelect?: (story: UserStory) => void;
-}
-
-/**
  * 活动头节点数据
  */
 export interface ActivityHeaderNodeData {

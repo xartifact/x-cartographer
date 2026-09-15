@@ -7,6 +7,9 @@ import { Toaster } from 'sonner';
 import { routeTree } from './routeTree';
 import { ErrorBoundary } from './components/common/error-boundary';
 import './styles/globals.css';
+// React Flow 基础样式（节点定位/连线/画布容器）：全项目唯一样式来源，
+// 原先由 story-map-canvas 局部 import，该组件删除后上提到应用入口。
+import '@xyflow/react/dist/style.css';
 
 // QueryClient 配置（对齐原 query-client.ts：30s staleTime）
 // 全局错误处理：查询失败时输出可读错误信息（TASK-088）

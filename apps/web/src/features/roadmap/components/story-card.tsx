@@ -3,8 +3,8 @@
 /**
  * 共享用户故事卡片（排期规划 / 故事地图统一用）
  *
- * 内容体见 StoryCardBody（与 story-map 的 StoryNode 共用）。
- * - story-map 的 StoryNode 深度耦合 xyflow（Handle/NodeProps），无法直接复用整个卡片，
+ * 内容体见 StoryCardBody（与 story-map 的 PatronStoryNode 共用同一渲染体）。
+ * - story-map 的节点深度耦合 xyflow（Handle/NodeProps），无法直接复用整个卡片，
  *   故这里只包一层纯展示的 Card 外壳，Roadmap 泳道/待规划池接入。
  * - onClick 可选：传入则整卡可点，配合外层 StoryDetailPanel 打开详情。
  */

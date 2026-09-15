@@ -29,8 +29,9 @@ import { Plus, Map as MapIcon, MoreHorizontal, Pencil, Trash2, GripVertical, Che
 import { cn } from '@/lib/utils';
 import { Card, CardContent, Button, Input, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@x-cartographer/ui';
 import { createLogger } from '@/lib/logger';
+import { toast } from 'sonner';
 import { useStoryMapStore, filterStories } from '../stores/story-map-store';
-import { useCreateStory, useUpdateStory, useDeleteStory, useCreateActivity, useUpdateActivity, useDeleteActivity, useUpdateUserTask, useUpdateMilestone, useDeleteMilestone, useCreateMilestone, useMilestonesByProduct } from '@/lib/api/hooks';
+import { useCreateStory, useUpdateStory, useUpdateStoryStatus, useDeleteStory, useCreateActivity, useUpdateActivity, useDeleteActivity, useUpdateUserTask, useUpdateMilestone, useDeleteMilestone, useCreateMilestone, useMilestonesByProduct } from '@/lib/api/hooks';
 import {
   computePatronLayout,
   resolveStoryDrop,
@@ -50,9 +51,11 @@ import { ActivityCreateDialog } from './activity-create-dialog';
 import { ActivityEditDialog } from './activity-edit-dialog';
 import { StoryCreateDialog } from './story-create-dialog';
 import { FilterPanel } from './filter-panel';
+import { StoryBulkBar } from './story-bulk-bar';
 import { priorityLeftBorderCls } from '@/components/common/priority-badge';
 import { StoryCardBody } from '@/components/common/story-card-body';
 import type { UserActivity, UserStory, Priority, MilestoneStatus } from '@/types';
+import type { StoryStatus } from '@x-cartographer/shared';
 
 const log = createLogger('patronCanvas');
 
@@ -186,13 +189,13 @@ function PatronStoryNode({ data }: { data: {
   story: UserStory;
   milestoneName?: string;
   isSelected: boolean;
+  /** 批量模式下是否被勾选（US-006） */
+  isBulkSelected?: boolean;
   unassigned?: boolean;
   /** 预计算卡高（px）——来自布局，勿在组件内再测 */
   height: number;
-  onSelect: (s: UserStory) => void;
 } }) {
-  const { story, milestoneName, isSelected, unassigned, height } = data;
-  const selected = false;
+  const { story, milestoneName, isSelected, isBulkSelected, unassigned, height } = data;
   return (
     <>
       <Handle type="target" position={Position.Top} className="!h-1.5 !w-1.5 !bg-transparent !border-0" />
@@ -200,17 +203,20 @@ function PatronStoryNode({ data }: { data: {
         <GripVertical className="h-3.5 w-3.5" />
       </div>
       <Card
-        onClick={() => data.onSelect(story)}
+        // 点击由 React Flow 的 onNodeClick 统一处理（卡片自带 onClick 会与它
+        // 双重触发：批量模式下 toggle 两次 = 取消选择）
         className={cn(
           'w-full cursor-pointer bg-background transition-all duration-150',
           'hover:-translate-y-0.5 hover:shadow-md',
-          selected || isSelected
-            ? 'shadow-md ring-2 ring-primary'
-            : story.status === 'cancelled'
-              ? 'border-dashed opacity-60 shadow-none'
-              : unassigned
-                ? 'border-dashed shadow-none opacity-75'
-                : 'shadow-sm',
+          isBulkSelected
+            ? 'shadow-md ring-2 ring-blue-500 bg-blue-500/5'
+            : isSelected
+              ? 'shadow-md ring-2 ring-primary'
+              : story.status === 'cancelled'
+                ? 'border-dashed opacity-60 shadow-none'
+                : unassigned
+                  ? 'border-dashed shadow-none opacity-75'
+                  : 'shadow-sm',
           priorityLeftBorderCls(story.priority),
           'border-l-4 pl-5'
         )}
@@ -267,6 +273,7 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
 
   const createStoryMutation = useCreateStory();
   const updateStoryMutation = useUpdateStory();
+  const updateStoryStatusMutation = useUpdateStoryStatus();
   const deleteStoryMutation = useDeleteStory();
   const createActivityMutation = useCreateActivity();
   const updateActivityMutation = useUpdateActivity();
@@ -285,6 +292,9 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
   const [storyCreateOpen, setStoryCreateOpen] = useState(false);
   const [storyCreateTarget, setStoryCreateTarget] = useState<{ activityId: string; activityName: string }>({ activityId: '', activityName: '' });
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  // US-006 批量编辑模式（cutover 时从旧画布迁移补回）
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<string[]>([]);
   // 切片线编辑（重命名 / 删除 = 编辑 milestone）
   const [editingMilestone, setEditingMilestone] = useState<{ id: string; name: string } | null>(null);
   const [msNameDraft, setMsNameDraft] = useState('');
@@ -353,6 +363,74 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
     },
     [filteredActivities, updateUserTaskMutation]
   );
+
+  // ── US-006 批量编辑（cutover 迁移补回）──
+  /** 当前批量选中的故事对象 */
+  const bulkSelectedStories = useMemo(() => {
+    const all: UserStory[] = [];
+    for (const activity of activities) {
+      for (const story of activity.stories ?? []) {
+        if (bulkSelectedIds.includes(story.id)) all.push(story);
+      }
+    }
+    return all;
+  }, [activities, bulkSelectedIds]);
+
+  const toggleBulkSelect = useCallback((storyId: string) => {
+    setBulkSelectedIds((prev) =>
+      prev.includes(storyId) ? prev.filter((id) => id !== storyId) : [...prev, storyId]
+    );
+  }, []);
+
+  const applyBulkPriority = useCallback(
+    async (storyIds: string[], priority: string) => {
+      await Promise.all(
+        storyIds.map((id) => updateStoryMutation.mutateAsync({ id, priority: priority as Priority }))
+      );
+      toast.success('批量修改完成', { description: `已更新 ${storyIds.length} 个故事优先级` });
+    },
+    [updateStoryMutation]
+  );
+
+  const applyBulkTags = useCallback(
+    async (storyIds: string[], tags: string[]) => {
+      await Promise.all(
+        storyIds.map((id) => {
+          const story = bulkSelectedStories.find((s) => s.id === id);
+          const merged = [...new Set([...(story?.tags ?? []), ...tags])];
+          return updateStoryMutation.mutateAsync({ id, tags: merged });
+        })
+      );
+      toast.success('批量添加完成', { description: `已为 ${storyIds.length} 个故事添加标签` });
+    },
+    [updateStoryMutation, bulkSelectedStories]
+  );
+
+  const applyBulkStatus = useCallback(
+    async (storyIds: string[], status: StoryStatus) => {
+      await Promise.all(storyIds.map((id) => updateStoryStatusMutation.mutateAsync({ id, status })));
+      toast.success('批量状态更新完成', { description: `已更新 ${storyIds.length} 个故事状态` });
+    },
+    [updateStoryStatusMutation]
+  );
+
+  /** 节点点击：批量模式切换选择，否则打开详情 */
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      if (node.type === 'patronStory') {
+        const story = (node.data as { story?: UserStory }).story;
+        if (!story) return;
+        if (bulkMode) toggleBulkSelect(story.id);
+        else setSelectedStory(story);
+      }
+    },
+    [bulkMode, toggleBulkSelect, setSelectedStory]
+  );
+
+  /** 画布点击：批量模式保留选择，普通模式清空 */
+  const onPaneClick = useCallback(() => {
+    if (!bulkMode) setSelectedStory(null);
+  }, [bulkMode, setSelectedStory]);
 
   // ── 布局（经典模式核心） ──
   // 变高卡片：卡高由文本测量预算（computePatronLayout → storyCardHeight），
@@ -431,9 +509,9 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
           story: p.story,
           milestoneName: p.story.milestone_id ? msName.get(p.story.milestone_id) : undefined,
           isSelected: selectedStory?.id === p.story.id,
+          isBulkSelected: bulkMode && bulkSelectedIds.includes(p.story.id),
           unassigned: p.colKey === '__unassigned__',
           height: p.height,
-          onSelect: (s: UserStory) => setSelectedStory(s),
         },
         draggable: true,
         dragHandle: '.drag-handle',
@@ -721,7 +799,8 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
         edges={edges}
         nodeTypes={nodeTypes}
         onNodeDragStop={onNodeDragStop}
-        onPaneClick={() => setSelectedStory(null)}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         minZoom={0.2}
         maxZoom={2}
         panOnScroll
@@ -747,11 +826,38 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
           </div>
         </Panel>
         <Panel position="top-left">
-          <Button size="sm" variant="outline" className="h-8 gap-1 bg-background/80" onClick={() => setFilterPanelOpen((v) => !v)}>
-            筛选
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-8 gap-1 bg-background/80" onClick={() => setFilterPanelOpen((v) => !v)}>
+              筛选
+            </Button>
+            <Button
+              size="sm"
+              variant={bulkMode ? 'default' : 'outline'}
+              className="h-8 gap-1 bg-background/80"
+              onClick={() => {
+                setBulkMode((v) => !v);
+                setBulkSelectedIds([]);
+              }}
+              title="批量编辑：点击卡片多选后批量改优先级/标签/状态"
+            >
+              {bulkMode ? `批量中（${bulkSelectedIds.length}）` : '批量编辑'}
+            </Button>
+          </div>
         </Panel>
       </ReactFlow>
+
+      {/* US-006 批量编辑工具栏（批量模式且有选中时出现） */}
+      {bulkMode && bulkSelectedStories.length > 0 && (
+        <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
+          <StoryBulkBar
+            selectedStories={bulkSelectedStories}
+            onClearSelection={() => setBulkSelectedIds([])}
+            onUpdatePriority={applyBulkPriority}
+            onAddTags={applyBulkTags}
+            onUpdateStatus={applyBulkStatus}
+          />
+        </div>
+      )}
 
       {filterPanelOpen && (
         <div className="absolute bottom-4 left-4 top-4 z-10 overflow-y-auto rounded-lg shadow-lg">
