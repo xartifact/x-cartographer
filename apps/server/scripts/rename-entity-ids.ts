@@ -44,6 +44,11 @@ const exec = async (q: string): Promise<void> => {
   await runner.execute(sql.raw(q));
 };
 
+/** 值走参数绑定（sql`` 模板），不拼字符串——旧 ID 来自库，属不可信输入 */
+const execValues = async (q: SQL): Promise<void> => {
+  await runner.execute(q);
+};
+
 interface Ref {
   table: string;
   column: string;
@@ -76,12 +81,16 @@ async function collectTargets(kind: ShortIdKind): Promise<Array<{ old: string; n
  * 表名带实体前缀，且用 ON COMMIT DROP —— 事务提交即自动消失。
  */
 async function buildMapTable(kind: string, pairs: Array<{ old: string; new: string }>): Promise<string> {
+  // 表名只来自 ID_SPECS 的字面量键，不含外部输入
   const t = `_idmap_${kind}`;
   await exec(`DROP TABLE IF EXISTS ${t}`);
   await exec(`CREATE TEMP TABLE ${t} (old_id text PRIMARY KEY, new_id text NOT NULL) ON COMMIT DROP`);
   if (pairs.length > 0) {
-    const values = pairs.map((p) => `('${p.old}','${p.new}')`).join(',');
-    await exec(`INSERT INTO ${t} (old_id, new_id) VALUES ${values}`);
+    // 逐行参数化插入：p.old 是数据库里的既有 ID（可能含引号等字符），
+    // 绝不能用模板字符串拼接（注入面 + 引号转义漏洞）
+    for (const p of pairs) {
+      await execValues(sql`INSERT INTO ${sql.raw(t)} (old_id, new_id) VALUES (${p.old}, ${p.new})`);
+    }
   }
   return t;
 }
