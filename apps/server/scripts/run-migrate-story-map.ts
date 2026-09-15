@@ -106,6 +106,9 @@ async function main(): Promise<void> {
   await exec(`ALTER TABLE "milestones" ADD CONSTRAINT milestones_product_id_fkey FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE`, true);
   await exec(`ALTER TABLE "dev_tasks" DROP CONSTRAINT IF EXISTS dev_tasks_product_id_fkey`);
   await exec(`ALTER TABLE "dev_tasks" ADD CONSTRAINT dev_tasks_product_id_fkey FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE`, true);
+  // 0004：退役列 legacy_journey_id 解除 NOT NULL —— 0003 只 rename 未解约束，
+  // 导致新建故事（不写该退役列）必然 500。幂等：对已可空列是无操作。
+  await exec(`ALTER TABLE "user_stories" ALTER COLUMN "legacy_journey_id" DROP NOT NULL`);
   console.log('  完成');
 
   console.log('=== 步骤 4：数据归位 ===');
@@ -156,6 +159,22 @@ async function main(): Promise<void> {
       }
     }
     console.log('  骨架行重排完成');
+    // 短 ID 序列推进：跳过历史已占用号段，避免新建实体（US-/TASK- 形态）撞已有 ID
+    const {
+      bumpSequenceTo,
+    } = await import('../src/lib/short-id');
+    const seqOf = async (table: string, prefix: string): Promise<number> => {
+      const rows: any = await db.execute(sql.raw(`SELECT id FROM ${table} WHERE id LIKE '${prefix}-%'`));
+      let max = 0;
+      for (const row of (rows as unknown as { rows: Array<{ id: string }> }).rows) {
+        const suffix = String(row.id).slice(prefix.length + 1);
+        if (/^\d+$/.test(suffix)) max = Math.max(max, Number(suffix));
+      }
+      return max;
+    };
+    await bumpSequenceTo('story', await seqOf('user_stories', 'US'));
+    await bumpSequenceTo('devTask', await seqOf('dev_tasks', 'TASK'));
+    console.log('  短 ID 序列已推进（跳过历史号段）');
   }
 
   console.log('=== 步骤 5：后置断言 ===');

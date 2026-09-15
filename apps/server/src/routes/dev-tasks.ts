@@ -5,6 +5,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
+import { generateShortId } from '../lib/short-id';
 import {
   DevTaskRepository,
   StatusChangeRepository,
@@ -155,7 +156,7 @@ export const devTasksRoutes = new Hono()
   // POST /api/dev-tasks
   .post('/', zValidator('json', createDevTaskSchema), async (c) => {
     const input = c.req.valid('json');
-    const id = nanoid();
+    const id = await generateShortId('devTask');
     await taskRepo.create(id, {
       story_id: input.storyId,
       product_id: input.productId,

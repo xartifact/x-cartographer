@@ -46,3 +46,7 @@ curl localhost:8787/api/journeys -o /dev/null -w '%{http_code}\n'   # 期望 410
   Web 地图上出现在"未归位"区，可手动拖入活动列或补充分流正则后重跑（脚本幂等）。
 - 回滚：_legacy_user_journeys 表 + user_stories.legacy_journey_id 列保留；
   数据层回滚 UPDATE user_stories SET activity_id = NULL。
+- 步骤 3 含 0004 修复：解除 legacy_journey_id 的 NOT NULL（0003 只 rename 未解约束，
+  否则新建故事接口 500）。
+- 步骤 4 末推进短 ID 序列（user_story_id_seq / dev_task_id_seq）越过历史号段，
+  确保新建实体生成 US-0xx / TASK-0xx 不与历史 ID 冲突。

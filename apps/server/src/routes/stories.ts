@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { StoryRepository, StatusChangeRepository } from '@x-cartographer/db';
 import { Priority } from '@x-cartographer/shared';
+import { generateShortId } from '../lib/short-id';
 
 const createStorySchema = z.object({
   activityId: z.string(),
@@ -55,7 +56,8 @@ export const storiesRoutes = new Hono()
   // POST /api/stories
   .post('/', zValidator('json', createStorySchema), async (c) => {
     const input = c.req.valid('json');
-    const id = nanoid();
+    // 短 ID（US-001 形态）：故事地图窄列里可完整显示，且便于人工引用
+    const id = await generateShortId('story');
     await storyRepo.create(id, {
       activity_id: input.activityId,
       title: input.title,
