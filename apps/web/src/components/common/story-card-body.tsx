@@ -12,6 +12,14 @@ import { StatusBadge } from '@/features/tasks/components/status-badge';
 import { PriorityText } from '@/components/common/priority-badge';
 import type { UserStory } from '@/types';
 
+/**
+ * 卡片上的 ID 展示形式：短标识（如 US-015）原样保留；
+ * 长 nanoid（21 字符，历史数据）截为前 8 位 + 省略号，完整值由 title 提供。
+ */
+export function shortStoryId(id: string): string {
+  return id.length <= 12 ? id : `${id.slice(0, 8)}…`;
+}
+
 export function StoryCardBody({
   story,
   activityName,
@@ -33,8 +41,15 @@ export function StoryCardBody({
     <div className="space-y-2">
       {/* 行 1：ID + 优先级标签 + 状态 */}
       <div className="flex items-center justify-between gap-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{story.id}</span>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          {/* ID 展示：短 ID（US-015）原样；长 nanoid（21 字符）显示前 8 位——
+              完整值悬浮可见，避免随机串截断成无意义碎片又遮挡状态徽章 */}
+          <span
+            className="min-w-0 truncate font-mono text-[10px] text-muted-foreground"
+            title={story.id}
+          >
+            {shortStoryId(story.id)}
+          </span>
           <PriorityText value={story.priority} className="shrink-0 text-[10px]" />
         </div>
         {story.status && (
