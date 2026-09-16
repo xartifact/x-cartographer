@@ -54,7 +54,8 @@ export const spaStaticMiddleware = (): MiddlewareHandler => {
   return async (c: Context, next) => {
     const p = c.req.path;
     // 跳过 API 路由 + 系统端点（health/metrics 属服务级，交给上游路由处理）
-    if (p.startsWith('/api/') || p === '/health' || p === '/metrics' || p.startsWith('/.well-known/')) return next();
+    // 用前缀匹配而非等值：/health/ready 这类子路径同样不该被 SPA fallback 吃掉
+    if (p.startsWith('/api/') || p === '/health' || p.startsWith('/health/') || p === '/metrics' || p.startsWith('/.well-known/')) return next();
 
     const reqPath = decodeURIComponent(c.req.path);
     const filePath = normalize(join(SPA_DIST, reqPath));
