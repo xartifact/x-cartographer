@@ -17,6 +17,8 @@ export const userTasks = pgTable('user_tasks', {
   description: text('description').notNull().default(''),
   /** 活动内排序 */
   order: integer('order').notNull().default(0),
+  /** 主张来源（domain-model.md §3；约束空间实体必带） */
+  provenance: text('provenance').$type<'human_asserted' | 'agent_inferred' | 'imported'>().notNull().default('agent_inferred'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

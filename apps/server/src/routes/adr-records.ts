@@ -47,6 +47,7 @@ const createAdrSchema = z.object({
   milestone_id: z.string().nullable().optional(),
   module_ids: z.array(z.string()).optional(),
   changes: changesSchema.nullable().optional(),
+  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
 });
 
 const transitionStatusSchema = z.object({

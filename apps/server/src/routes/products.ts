@@ -12,6 +12,7 @@ const createProductSchema = z.object({
   description: z.string().optional(),
   tech_stack: z.array(z.string()).optional(),
   workspace_dir: z.string().optional(),
+  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
 });
 
 const updateProductSchema = z.object({

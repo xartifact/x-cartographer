@@ -4,7 +4,7 @@
  * 原 UserJourney 退役（语义分流见 docs/design/story-map-redesign.md §4.2）。
  */
 
-import { Timestamp } from './common';
+import { Timestamp, type Provenance } from './common';
 import { UserStory } from './user-story';
 import { UserTask } from './user-task';
 
@@ -48,6 +48,7 @@ export interface CreateUserActivityDTO {
   description?: string;
   product_id: string;
   order?: number;
+  provenance?: Provenance;
 }
 
 /**

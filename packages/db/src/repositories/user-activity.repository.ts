@@ -69,6 +69,7 @@ export class UserActivityRepository {
       name: dto.name,
       description: dto.description ?? '',
       order: dto.order ?? 0,
+      provenance: dto.provenance ?? 'agent_inferred',
       createdAt: now,
       updatedAt: now,
     });

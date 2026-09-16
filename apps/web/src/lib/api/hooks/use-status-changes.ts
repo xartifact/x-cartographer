@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { StatusChangeRecord } from '@x-cartographer/shared';
 import { api } from '@/lib/api/client';
 
 /**
@@ -10,7 +11,7 @@ import { api } from '@/lib/api/client';
 
 export interface CreateStatusChangeVariables {
   entityId: string;
-  entityType: 'task' | 'story' | 'adr';
+  entityType: StatusChangeRecord['entity_type'];
   previousStatus: string;
   newStatus: string;
   reason?: string;

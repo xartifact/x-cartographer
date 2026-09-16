@@ -14,6 +14,7 @@ const createUserTaskSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   order: z.number().optional(),
+  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
 });
 
 const updateUserTaskSchema = z.object({
@@ -21,6 +22,7 @@ const updateUserTaskSchema = z.object({
   description: z.string().optional(),
   order: z.number().optional(),
   activityId: z.string().optional(),
+  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
 });
 
 export const userTasksRoutes = new Hono()
@@ -76,6 +78,7 @@ export const userTasksRoutes = new Hono()
       name: input.name,
       description: input.description ?? '',
       order: input.order ?? 0,
+      provenance: input.provenance ?? 'agent_inferred',
       createdAt: now,
       updatedAt: now,
     });
@@ -90,6 +93,7 @@ export const userTasksRoutes = new Hono()
     if (input.description !== undefined) updateData.description = input.description;
     if (input.order !== undefined) updateData.order = input.order;
     if (input.activityId !== undefined) updateData.activityId = input.activityId;
+    if (input.provenance !== undefined) updateData.provenance = input.provenance;
     await db.update(userTasks).set(updateData).where(eq(userTasks.id, c.req.param('id')));
     return c.json({ success: true });
   })

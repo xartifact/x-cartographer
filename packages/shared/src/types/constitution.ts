@@ -6,7 +6,7 @@
  * "当前态"是按 seq 折叠 changes 得到的投影，不单独维护（§3.3）。
  */
 
-import { Timestamp } from './common';
+import { Timestamp, type Provenance } from './common';
 
 /**
  * ADR 状态（文档/叙事层面的标签，不影响折叠结果，§3.1）
@@ -156,6 +156,7 @@ export interface CreateAdrRecordDTO {
   milestone_id?: string;
   module_ids?: string[];
   changes?: AdrChanges;
+  provenance?: Provenance;
 }
 
 /**

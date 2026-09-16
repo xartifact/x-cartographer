@@ -16,6 +16,7 @@ const createStorySchema = z.object({
   estimation: z.number().default(0),
   acceptanceCriteria: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
+  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).default('agent_inferred'),
 });
 
 const updateStorySchema = z.object({
@@ -65,6 +66,7 @@ export const storiesRoutes = new Hono()
       estimation: input.estimation,
       acceptance_criteria: input.acceptanceCriteria,
       tags: input.tags,
+      provenance: input.provenance,
     });
     return c.json({ success: true, id }, 201);
   })

@@ -83,7 +83,7 @@ export class StatusChangeRepository {
     return {
       id: row.id,
       entity_id: row.entityId,
-      entity_type: row.entityType as 'task' | 'story',
+      entity_type: row.entityType as StatusChangeRecord['entity_type'],
       previous_status: row.previousStatus,
       new_status: row.newStatus,
       reason: row.reason ?? undefined,

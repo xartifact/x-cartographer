@@ -14,6 +14,8 @@ export const milestones = pgTable('milestones', {
   status: text('status').notNull().default('planned'), // planned | active | completed
   /** 锚定的 ADR id（§3.7：可空纯字段，无 DB 外键，仓库层校验归属；seq 折叠的时间锚点） */
   adrId: text('adr_id'),
+  /** 主张来源（domain-model.md §3；约束空间实体必带） */
+  provenance: text('provenance').$type<'human_asserted' | 'agent_inferred' | 'imported'>().notNull().default('agent_inferred'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

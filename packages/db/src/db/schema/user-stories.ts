@@ -31,6 +31,8 @@ export const userStories = pgTable('user_stories', {
   position: jsonb('position').$type<{ x: number; y: number } | null>(),
   /** 同列内叙事深度序（骨架行在上，深化行向下） */
   order: integer('order').notNull().default(0),
+  /** 主张来源（domain-model.md §3；约束空间实体必带） */
+  provenance: text('provenance').$type<'human_asserted' | 'agent_inferred' | 'imported'>().notNull().default('agent_inferred'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

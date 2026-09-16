@@ -205,6 +205,7 @@ export class ProductRepository {
         tags: [],
       },
       settings: getDefaultSettings(),
+      provenance: dto.provenance ?? 'agent_inferred',
       createdAt: now,
       updatedAt: now,
     });

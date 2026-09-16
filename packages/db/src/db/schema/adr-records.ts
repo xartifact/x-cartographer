@@ -30,6 +30,8 @@ export const adrRecords = pgTable('adr_records', {
   moduleIds: jsonb('module_ids').$type<string[]>().notNull().default([]),
   /** 状态变更差异（§3.2）——记差异不记全量；无 changes 的 ADR 不参与折叠（§3.3） */
   changes: jsonb('changes').$type<AdrChanges>(),
+  /** 主张来源（domain-model.md §3/§4.4：高影响 agent_inferred 写入落 proposed） */
+  provenance: text('provenance').$type<'human_asserted' | 'agent_inferred' | 'imported'>().notNull().default('agent_inferred'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   /**
    * DB 生成的严格单调序号，折叠排序的唯一权威依据（§3.3）——

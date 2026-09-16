@@ -125,6 +125,13 @@ async function main(): Promise<void> {
   // 0004：退役列 legacy_journey_id 解除 NOT NULL —— 0003 只 rename 未解约束，
   // 导致新建故事（不写该退役列）必然 500。幂等：对已可空列是无操作。
   await exec(`ALTER TABLE "user_stories" ALTER COLUMN "legacy_journey_id" DROP NOT NULL`);
+  // 0005：约束空间六实体加 provenance（domain-model.md §3 约束写入协议）
+  await exec(`ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "provenance" text DEFAULT 'agent_inferred' NOT NULL`);
+  await exec(`ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "provenance" text DEFAULT 'agent_inferred' NOT NULL`);
+  await exec(`ALTER TABLE "user_activities" ADD COLUMN IF NOT EXISTS "provenance" text DEFAULT 'agent_inferred' NOT NULL`);
+  await exec(`ALTER TABLE "user_tasks" ADD COLUMN IF NOT EXISTS "provenance" text DEFAULT 'agent_inferred' NOT NULL`);
+  await exec(`ALTER TABLE "user_stories" ADD COLUMN IF NOT EXISTS "provenance" text DEFAULT 'agent_inferred' NOT NULL`);
+  await exec(`ALTER TABLE "adr_records" ADD COLUMN IF NOT EXISTS "provenance" text DEFAULT 'agent_inferred' NOT NULL`);
   console.log('  完成');
 
   const prods = await query('SELECT id FROM products');

@@ -292,16 +292,32 @@ provenance: 'human_asserted' | 'agent_inferred' | 'imported'
 
 ## 8. 实施阶段
 
-| 阶段 | 内容 | 前置 |
-|---|---|---|
-| **A** | 本文档定稿；`story-map-redesign.md` §2 改为引用本文档 | — |
-| **B** | 诚实化 schema：删死列（§6.1/6.5）、删死文件、修 `affected_modules` 写入 bug | A |
-| **C** | 恢复任务可见性（§6.2）：补归位 + 「未分配」一等状态 | A |
-| **D** | 补 `UserTask` 层的**录入能力**（Q3）：CLI `user-task` 命令 + 故事地图内"新建任务列"入口；存量归纳仅作辅助 | A |
-| **E** | `provenance` + 约束写入协议（§3/§4.4） | A |
-| **F** | `SystemModule` 落表（§6.4）+ `affected_modules` 强校验 | B, E |
-| **G** | `Milestone` 接入账本（Q2）：补状态流转基线，消除"改了不入账" | A |
-| **H** | `story.status` 更名（§6.3）：`done` → 与 DevTask 状态可辨（如 `accepted`） | A |
+| 阶段 | 内容 | 前置 | 状态 |
+|---|---|---|---|
+| **A** | 本文档定稿；`story-map-redesign.md` §2 改为引用本文档 | — | ✅ 完成 |
+| **B** | 诚实化 schema：删死列（§6.1/6.5）、删死文件、修 `affected_modules` 写入 bug | A | 部分（死文件已删；死列与写入 bug 待做） |
+| **C** | 恢复任务可见性（§6.2）：补归位 + 「未分配」一等状态 | A | ✅ 完成（归位 108/108；「未分配」兜底待做） |
+| **D** | 补 `UserTask` 层的**录入能力**（Q3）：CLI `user-task` 命令 + 故事地图内"新建任务列"入口；存量归纳仅作辅助 | A | 部分（CLI 已就绪；地图内入口待做） |
+| **E** | `provenance` + 约束写入协议（§3/§4.4） | A | ✅ 完成（六实体列 + 全链透传 + CLI flag；高影响落 proposed 待做） |
+| **F** | `SystemModule` 落表（§6.4）+ `affected_modules` 强校验 | B, E | 待做 |
+| **G** | `Milestone` 接入账本（Q2）：补状态流转基线，消除"改了不入账" | A | ✅ 完成 |
+| **H** | `story.status` 更名（§6.3）：`done` → 与 DevTask 状态可辨（如 `accepted`） | A | ✅ 完成 |
+
+### 阶段 E 实现说明（2026-09-16）
+
+`provenance` 已覆盖约束空间**全部六实体**（Product/Milestone/UserActivity/UserTask/UserStory/ADR；SystemModule 随 F 落表时同步）：
+
+| 层 | 落点 |
+|---|---|
+| 迁移 | `0005_provenance.sql`（幂等 `ADD COLUMN IF NOT EXISTS`），并接入 `run-migrate-story-map.ts` 步骤 3 |
+| schema | 六实体 `.ts` 各加 `provenance` 列；`client.ts` 运行时建表 SQL 同步 |
+| 类型 | `packages/shared` 定义 `Provenance` 联合类型 + `PROVENANCE_VALUES` + `ProvenanceAware` |
+| API | 六路由 zod 接受 `provenance`（create + update），仓库层 `dto.provenance ?? 'agent_inferred'` |
+| CLI | 六个 `create` 命令透传 `--provenance` |
+
+**默认值落在 schema 层**（`DEFAULT 'agent_inferred'`），失败安全：误标推断只多一次确认；误标人类主张则污染可信度且不可逆。
+
+**待做**：§4.4 的"高影响写入落 `proposed`"判定（需要"高影响"分类器：改 ADR / 增删 SystemModule / 增删 UserStory / 改 activity 结构）。
 
 ### 决策记录（2026-09-15 全部定案）
 

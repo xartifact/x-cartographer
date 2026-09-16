@@ -2,7 +2,7 @@
  * 用户故事相关类型定义
  */
 
-import { Priority, Timestamp, Position, StoryStatus } from './common';
+import { Priority, Timestamp, Position, StoryStatus, type Provenance } from './common';
 import { DevTask } from './dev-task';
 
 /**
@@ -103,6 +103,7 @@ export interface CreateUserStoryDTO {
   estimation: number;
   acceptance_criteria: string[];
   tags: string[];
+  provenance?: Provenance;
 }
 
 /**

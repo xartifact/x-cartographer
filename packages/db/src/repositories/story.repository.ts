@@ -32,6 +32,7 @@ export class StoryRepository {
       estimation: dto.estimation,
       acceptanceCriteria: dto.acceptance_criteria,
       tags: dto.tags,
+      provenance: dto.provenance ?? 'agent_inferred',
       status: 'backlog',
       order: 0,
       createdAt: now,

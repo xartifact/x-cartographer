@@ -2,7 +2,7 @@
  * 里程碑（版本）类型定义 —— 排期模型的核心实体
  */
 
-import { Timestamp } from './common';
+import { Timestamp, type Provenance } from './common';
 
 /**
  * 里程碑状态
@@ -51,6 +51,7 @@ export interface CreateMilestoneDTO {
   target_date?: string;
   status?: MilestoneStatus;
   adr_id?: string | null;
+  provenance?: Provenance;
 }
 
 /**
@@ -62,4 +63,5 @@ export interface UpdateMilestoneDTO {
   target_date?: string | null;
   status?: MilestoneStatus;
   adr_id?: string | null;
+  provenance?: Provenance;
 }

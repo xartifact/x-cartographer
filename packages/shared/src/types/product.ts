@@ -4,7 +4,7 @@
  * 见 docs/design/story-map-redesign.md §3.1。
  */
 
-import { Timestamp } from './common';
+import { Timestamp, type Provenance } from './common';
 import { UserActivity } from './user-activity';
 
 /**
@@ -95,6 +95,7 @@ export interface CreateProductDTO {
   description?: string;
   tech_stack?: string[];
   workspace_dir?: string;
+  provenance?: Provenance;
 }
 
 /**

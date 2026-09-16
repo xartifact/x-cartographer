@@ -11,6 +11,7 @@ const createUserActivitySchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   order: z.number().optional(),
+  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
 });
 
 const updateUserActivitySchema = z.object({

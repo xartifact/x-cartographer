@@ -4,7 +4,7 @@
  * 见 docs/design/story-map-redesign.md §3.2。
  */
 
-import { Timestamp } from './common';
+import { Timestamp, type Provenance } from './common';
 
 /**
  * 用户任务接口
@@ -40,6 +40,7 @@ export interface CreateUserTaskDTO {
   name: string;
   description?: string;
   order?: number;
+  provenance?: Provenance;
 }
 
 /**

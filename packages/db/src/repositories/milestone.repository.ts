@@ -30,6 +30,7 @@ export class MilestoneRepository {
       targetDate: dto.target_date ? new Date(dto.target_date) : null,
       status: dto.status ?? 'planned',
       adrId: dto.adr_id ?? null,
+      provenance: dto.provenance ?? 'agent_inferred',
       createdAt: now,
       updatedAt: now,
     });
@@ -45,6 +46,7 @@ export class MilestoneRepository {
     }
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.adr_id !== undefined) updateData.adrId = dto.adr_id;
+    if (dto.provenance !== undefined) updateData.provenance = dto.provenance;
 
     await db.update(milestones).set(updateData).where(eq(milestones.id, id));
   }

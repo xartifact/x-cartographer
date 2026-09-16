@@ -93,6 +93,7 @@ export class AdrRepository {
       milestoneId: dto.milestone_id ?? null,
       moduleIds: dto.module_ids ?? [],
       changes: dto.changes ?? null,
+      provenance: dto.provenance ?? 'agent_inferred',
       createdAt: new Date(),
     });
 

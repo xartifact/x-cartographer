@@ -131,6 +131,22 @@ export interface Position {
 }
 
 /**
+ * 约束空间实体的主张来源（domain-model.md §3）。
+ * 调和"人-权威 + Agent-写入"：人是权威源，Agent 是操作界面。
+ * 默认 agent_inferred（失败安全：误标推断只多一次确认，误标人类主张则污染可信度且不可逆）。
+ */
+export type Provenance = 'human_asserted' | 'agent_inferred' | 'imported';
+
+export const PROVENANCE_VALUES: readonly Provenance[] = ['human_asserted', 'agent_inferred', 'imported'];
+
+/**
+ * 约束空间实体的公共字段（六实体：Product/Activity/UserTask/Story/Milestone/ADR/SystemModule）
+ */
+export interface ProvenanceAware {
+  /** 主张来源；缺省视为 agent_inferred（读取端兜底，写入端显式落列） */
+  provenance?: Provenance;
+}
+/**
  * 用户故事状态（约束空间·意图：验收判断——"需求被接受了"）
  * 与 DevTask 的 TaskStatus（工作空间：执行进度——"活干完了"）是不同语义，永不用同词。
  * done → accepted 更名见 docs/design/domain-model.md §6.3 / §8-H。
@@ -153,7 +169,7 @@ export interface StatusChangeRecord {
   entity_id: string;
 
   /** 实体类型：'task' | 'story' | 'adr' */
-  entity_type: 'task' | 'story' | 'adr';
+  entity_type: 'task' | 'story' | 'adr' | 'milestone';
 
   /** 变更前的状态 */
   previous_status: string;

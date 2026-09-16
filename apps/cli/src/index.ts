@@ -206,6 +206,7 @@ async function cmdProduct(ctx: Ctx): Promise<void> {
       const desc = opt(f, 'description'); if (desc !== undefined) body.description = desc;
       const tech = splitList(opt(f, 'tech-stack', 'techStack')); if (tech) body.tech_stack = tech;
       const wd = opt(f, 'workspace-dir', 'workspaceDir'); if (wd !== undefined) body.workspace_dir = wd;
+      const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api('/api/products', 'POST', body);
       console.log(render(data, ctx.format));
       break;
@@ -250,11 +251,12 @@ async function cmdUserActivity(ctx: Ctx): Promise<void> {
       break;
     }
     case 'create': {
-      const body = {
+      const body: Record<string, unknown> = {
         productId: req(f, 'product', 'project'),
         name: req(f, 'name'),
         description: opt(f, 'description') ?? '',
       };
+      const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api('/api/user-activities', 'POST', body);
       console.log(render(data, ctx.format));
       break;
@@ -297,12 +299,13 @@ async function cmdUserTask(ctx: Ctx): Promise<void> {
       break;
     }
     case 'create': {
-      const body = {
+      const body: Record<string, unknown> = {
         activityId: req(f, 'activity'),
         name: req(f, 'name'),
         description: opt(f, 'description') ?? '',
       };
       const order = opt(f, 'order'); if (order !== undefined) Object.assign(body, { order: Number(order) });
+      const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api('/api/user-tasks', 'POST', body);
       console.log(render(data, ctx.format));
       break;
@@ -360,6 +363,7 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const est = opt(f, 'estimation'); if (est !== undefined) body.estimation = Number(est);
       const ac = splitList(opt(f, 'ac', 'acceptance')); if (ac) body.acceptanceCriteria = ac;
       const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
+      const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api('/api/stories', 'POST', body);
       console.log(render(data, ctx.format));
       break;
@@ -591,6 +595,7 @@ async function cmdMilestone(ctx: Ctx): Promise<void> {
       const goal = opt(f, 'goal'); if (goal !== undefined) body.goal = goal;
       const date = opt(f, 'date', 'target-date'); if (date !== undefined) body.target_date = date;
       const status = opt(f, 'status'); if (status !== undefined) body.status = status;
+      const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api('/api/milestones', 'POST', body);
       console.log(render(data, ctx.format));
       break;
@@ -661,6 +666,7 @@ async function cmdAdr(ctx: Ctx): Promise<void> {
       const status = opt(f, 'status'); if (status !== undefined) body.status = status;
       const file = opt(f, 'file');
       if (file !== undefined) body.changes = JSON.parse(readFileSync(file, 'utf-8'));
+      const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api('/api/adr-records', 'POST', body);
       console.log(render(data, ctx.format));
       break;

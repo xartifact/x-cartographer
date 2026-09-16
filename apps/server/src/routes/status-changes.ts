@@ -8,7 +8,7 @@ import { StatusChangeRepository } from '@x-cartographer/db';
 
 const createStatusChangeSchema = z.object({
   entityId: z.string(),
-  entityType: z.enum(['task', 'story', 'adr']),
+  entityType: z.enum(['task', 'story', 'adr', 'milestone']),
   previousStatus: z.string(),
   newStatus: z.string(),
   reason: z.string().optional(),

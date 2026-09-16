@@ -26,6 +26,7 @@ const TABLE_SQLS = [
     "persona" text DEFAULT '' NOT NULL,
     "metadata" jsonb DEFAULT '{"tech_stack":[],"version":"1.0.0","tags":[]}'::jsonb NOT NULL,
     "settings" jsonb NOT NULL,
+    "provenance" text DEFAULT 'agent_inferred' NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
@@ -48,6 +49,7 @@ const TABLE_SQLS = [
     "target_date" timestamp with time zone,
     "status" text DEFAULT 'planned' NOT NULL,
     "adr_id" text,
+    "provenance" text DEFAULT 'agent_inferred' NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
@@ -58,6 +60,7 @@ const TABLE_SQLS = [
     "name" text NOT NULL,
     "description" text DEFAULT '' NOT NULL,
     "order" integer DEFAULT 0 NOT NULL,
+    "provenance" text DEFAULT 'agent_inferred' NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
@@ -67,6 +70,7 @@ const TABLE_SQLS = [
     "name" text NOT NULL,
     "description" text DEFAULT '' NOT NULL,
     "order" integer DEFAULT 0 NOT NULL,
+    "provenance" text DEFAULT 'agent_inferred' NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
@@ -86,6 +90,7 @@ const TABLE_SQLS = [
     "status" text DEFAULT 'backlog',
     "position" jsonb,
     "order" integer DEFAULT 0 NOT NULL,
+    "provenance" text DEFAULT 'agent_inferred' NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
   )`,
@@ -122,6 +127,7 @@ const TABLE_SQLS = [
     "milestone_id" text REFERENCES "milestones"("id") ON DELETE SET NULL,
     "module_ids" jsonb DEFAULT '[]'::jsonb NOT NULL,
     "changes" jsonb,
+    "provenance" text DEFAULT 'agent_inferred' NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "seq" bigserial NOT NULL
   )`,

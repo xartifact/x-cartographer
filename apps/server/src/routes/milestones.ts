@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { generateShortId } from '@x-cartographer/db';
-import { MilestoneRepository } from '@x-cartographer/db';
+import { MilestoneRepository, StatusChangeRepository } from '@x-cartographer/db';
 
 const milestoneStatusSchema = z.enum(['planned', 'active', 'completed']);
 
@@ -16,6 +16,7 @@ const createMilestoneSchema = z.object({
   target_date: z.string().optional(),
   status: milestoneStatusSchema.optional(),
   adr_id: z.string().nullable().optional(),
+  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
 });
 
 const updateMilestoneSchema = z.object({
@@ -24,9 +25,11 @@ const updateMilestoneSchema = z.object({
   target_date: z.string().nullable().optional(),
   status: milestoneStatusSchema.optional(),
   adr_id: z.string().nullable().optional(),
+  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
 });
 
 const milestoneRepo = new MilestoneRepository();
+const statusChangeRepo = new StatusChangeRepository();
 
 function toJson(m: {
   id: string;
@@ -69,8 +72,28 @@ export const milestonesRoutes = new Hono()
   })
   // PATCH /api/milestones/:id
   .patch('/:id', zValidator('json', updateMilestoneSchema), async (c) => {
+    const id = c.req.param('id');
     const input = c.req.valid('json');
-    await milestoneRepo.update(c.req.param('id'), input);
+    // 状态流转入账本（P4：每次变更可追溯；Q2 决策——Milestone 是实体，改动必须留痕）
+    let previousStatus: string | undefined;
+    if (input.status !== undefined) {
+      const existing = await milestoneRepo.findById(id);
+      if (!existing) return c.json({ error: 'milestone not found' }, 404);
+      previousStatus = existing.status;
+    }
+    await milestoneRepo.update(id, input);
+    if (input.status !== undefined && input.status !== previousStatus) {
+      await statusChangeRepo.create({
+        id: '',
+        entity_id: id,
+        entity_type: 'milestone',
+        previous_status: previousStatus ?? 'planned',
+        new_status: input.status,
+        reason: c.req.query('reason') ?? (input as { reason?: string }).reason,
+        changed_by: 'api',
+        changed_at: new Date().toISOString(),
+      });
+    }
     return c.json({ success: true });
   })
   // DELETE /api/milestones/:id
