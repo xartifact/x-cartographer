@@ -27,10 +27,6 @@ export const devTasksRelations = relations(devTasks, ({ one }) => ({
     fields: [devTasks.storyId],
     references: [userStories.id],
   }),
-  product: one(products, {
-    fields: [devTasks.productId],
-    references: [products.id],
-  }),
 }));
 
 export const userTasksRelations = relations(userTasks, ({ one }) => ({

@@ -43,7 +43,6 @@ const REQUIRED_COLUMNS: Array<{ table: string; column: string; since: string }> 
   { table: 'user_stories', column: 'user_task_id', since: '0003' },
   { table: 'user_stories', column: 'affected_modules', since: '0003' },
   { table: 'dev_tasks', column: 'affected_modules', since: '0003' },
-  { table: 'products', column: 'persona', since: '0003' },
   // 0005 provenance（约束写入协议）
   { table: 'products', column: 'provenance', since: '0005' },
   { table: 'milestones', column: 'provenance', since: '0005' },

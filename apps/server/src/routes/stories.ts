@@ -43,16 +43,64 @@ const updateStatusSchema = z.object({
 const storyRepo = new StoryRepository();
 const statusChangeRepo = new StatusChangeRepository();
 
+/**
+ * 统一 REST 输出形状（snake_case）——与 products/milestones/dev-tasks 一致。
+ * 此前直传 drizzle 行导致 /:id 与 / 返回**混合形状**（部分 camel 部分 snake），
+ * 调用方需同时处理两种键名。
+ */
+function toJson(s: {
+  id: string;
+  activityId: string | null;
+  userTaskId: string | null;
+  legacyJourneyId: string | null;
+  milestoneId: string | null;
+  title: string;
+  description: string;
+  priority: string;
+  estimation: number;
+  acceptanceCriteria: string[] | null;
+  tags: string[] | null;
+  affectedModules: string[] | null;
+  provenance?: string;
+  status: string | null;
+  position: unknown;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
+  dev_tasks?: unknown[];
+}) {
+  return {
+    id: s.id,
+    activity_id: s.activityId,
+    user_task_id: s.userTaskId,
+    milestone_id: s.milestoneId,
+    title: s.title,
+    description: s.description,
+    priority: s.priority,
+    estimation: s.estimation,
+    acceptance_criteria: s.acceptanceCriteria ?? [],
+    tags: s.tags ?? [],
+    affected_modules: s.affectedModules ?? [],
+    provenance: s.provenance,
+    status: s.status,
+    position: s.position,
+    order: s.order,
+    created_at: s.createdAt.toISOString(),
+    updated_at: s.updatedAt.toISOString(),
+  };
+}
+
 export const storiesRoutes = new Hono()
   // GET /api/stories?activityId=
   .get('/', async (c) => {
     const activityId = c.req.query('activityId');
     if (!activityId) return c.json({ error: 'activityId required' }, 400);
-    return c.json(await storyRepo.findByActivityId(activityId));
+    return c.json((await storyRepo.findByActivityId(activityId)).map(toJson));
   })
   // GET /api/stories/:id
   .get('/:id', async (c) => {
-    return c.json(await storyRepo.findById(c.req.param('id')));
+    const story = await storyRepo.findById(c.req.param('id'));
+    return c.json(story ? toJson(story) : undefined);
   })
   // POST /api/stories
   .post('/', zValidator('json', createStorySchema), async (c) => {

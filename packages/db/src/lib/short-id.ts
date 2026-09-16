@@ -31,7 +31,6 @@ export const ID_SPECS = {
     refs: [
       { table: 'user_activities', column: 'product_id', kind: 'column' },
       { table: 'milestones', column: 'product_id', kind: 'column' },
-      { table: 'dev_tasks', column: 'product_id', kind: 'column' },
       { table: 'adr_records', column: 'product_id', kind: 'column' },
       { table: '_legacy_user_journeys', column: 'project_id', kind: 'column' },
     ],
@@ -85,7 +84,6 @@ export const ID_SPECS = {
     table: 'adr_records',
     refs: [
       { table: 'status_changes', column: 'entity_id', kind: 'column', filter: "entity_type = 'adr'" },
-      { table: 'milestones', column: 'adr_id', kind: 'column' },
       { table: 'adr_records', column: 'supersedes', kind: 'column' },
     ],
   },

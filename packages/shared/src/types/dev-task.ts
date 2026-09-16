@@ -33,9 +33,6 @@ export interface DevTask {
   /** 所属用户故事 ID（产品级任务池任务可为空） */
   story_id: string | null;
 
-  /** 所属产品 ID */
-  product_id: string;
-
   /** 标签（承载交付性质：implementation / refactor / bug / infra 等） */
   tags: string[];
 
@@ -69,8 +66,6 @@ export interface CreateDevTaskDTO {
   dependencies?: string[];
   /** 所属用户故事（产品级任务池任务可省略） */
   story_id?: string;
-  /** 所属产品 ID（未关联故事的必需） */
-  product_id?: string;
   tags?: string[];
 }
 
@@ -86,6 +81,5 @@ export interface UpdateDevTaskDTO {
   dependencies?: string[];
   tags?: string[];
   assignee?: string;
-  product_id?: string;
   affected_modules?: string[];
 }

@@ -9,8 +9,6 @@ export const products = pgTable('products', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description'),
-  /** 产品服务的目标用户画像（原 journey.persona 上收至产品级） */
-  persona: text('persona').notNull().default(''),
   metadata: jsonb('metadata')
     .$type<{
       tech_stack: string[];

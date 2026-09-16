@@ -57,7 +57,6 @@ function dbRowToDevTask(row: typeof devTasks.$inferSelect): DevTask {
     status: row.status as DevTask['status'],
     dependencies: (row.dependencies ?? []) as string[],
     story_id: row.storyId,
-    product_id: row.productId ?? '',
     tags: (row.tags ?? []) as string[],
     affected_modules: (row.affectedModules ?? []) as string[],
     assignee: row.assignee ?? undefined,
@@ -353,7 +352,6 @@ export class ProductRepository {
             await tx.insert(devTasks).values({
               id: task.id,
               storyId: story.id,
-              productId: product.id,
               title: task.title,
               description: task.description,
               priority: task.priority,

@@ -334,7 +334,7 @@ describe('stories CRUD + status flow', () => {
       await app.request(`/api/stories/${storyId}`)
     ).json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
-    expect(body.activityId).toBe(journey2);
+    expect(body.activity_id).toBe(journey2);
     res = await app.request(`/api/stories?activityId=${journey2}`);
     const moved = (await res.json()) as Array<Record<string, unknown>>;
     expect(moved.some((s) => s.id === storyId)).toBe(true);
@@ -406,7 +406,7 @@ describe('dev-tasks CRUD + topological next', () => {
       Record<string, unknown>;
     expect(body).toHaveLength(1);
     expect(body[0].id).toBe(taskId);
-    expect(body[0].storyId).toBe(storyId);
+    expect(body[0].story_id).toBe(storyId);
 
     // 缺 storyId → 400
     res = await app.request('/api/dev-tasks');
@@ -588,7 +588,7 @@ describe('system modules 目录 + affected_modules 校验 (0006)', () => {
     // 值确实写入（告警不阻断）
     res = await jsonRequest('GET', `/api/stories/${storyId}`);
     const story = (await res.json()) as Record<string, unknown>;
-    expect(story.affectedModules).toEqual(['web-spa', 'nope']);
+    expect(story.affected_modules).toEqual(['web-spa', 'nope']);
 
     // dev-task 侧同样校验（此前 camelCase/snake_case 不匹配导致静默丢弃）
     const taskId = await createDevTask(storyId, '模块校验任务');
@@ -598,7 +598,7 @@ describe('system modules 目录 + affected_modules 校验 (0006)', () => {
     expect(res.status).toBe(200);
     res = await jsonRequest('GET', `/api/dev-tasks/${taskId}`);
     const task = (await res.json()) as Record<string, unknown>;
-    expect(task.affectedModules).toEqual(['web-spa']);
+    expect(task.affected_modules).toEqual(['web-spa']);
 
     // 当前态宪法含模块目录（0006 起由表提供，非折叠产物）
     res = await jsonRequest('GET', `/api/adr-records/current?projectId=${productId}`);

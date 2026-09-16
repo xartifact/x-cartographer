@@ -524,25 +524,20 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
     }
     case 'summary': {
       const productId = req(f, 'product', 'project');
+      // 深树一次取全（GET /api/products/:id 已含 activities→stories→dev_tasks），
+      // 此前逐 activity 拉 stories、再逐 story 拉 tasks 构成 N+1（违反 AGENTS.md
+      // 「深树一次取全…勿逐 story 拉 task list 凑数」）。
       const proj = await api(`/api/products/${productId}`);
-      const activities: unknown[] = Array.isArray(proj.user_activities) ? proj.user_activities : [];
-      let tasks: any[] = [];
-      for (const j of activities) {
-        const stories = await api(`/api/stories?activityId=${encodeURIComponent((j as any).id)}`).catch(() => []);
-        for (const s of Array.isArray(stories) ? stories : []) {
-          const ts = await api(`/api/dev-tasks?storyId=${encodeURIComponent((s as any).id)}`).catch(() => []);
-          if (Array.isArray(ts)) tasks = tasks.concat(ts);
-        }
-      }
-      const count = (s: string) => tasks.filter((t) => t.status === s).length;
+      const { taskCount, taskStatus } = summarizeTree(proj as Record<string, unknown>);
+      const count = (s: string) => taskStatus[s] ?? 0;
       const summary = {
         product_id: productId,
-        total: tasks.length,
+        total: taskCount,
         by_status: {
           backlog: count('backlog'), todo: count('todo'), in_progress: count('in_progress'),
           in_review: count('in_review'), testing: count('testing'), done: count('done'), cancelled: count('cancelled'),
         },
-        done_ratio: tasks.length ? Math.round((count('done') / tasks.length) * 100) : 0,
+        done_ratio: taskCount ? Math.round((count('done') / taskCount) * 100) : 0,
       };
       console.log(render(summary, ctx.format === 'table' ? 'json' : ctx.format));
       break;
@@ -738,7 +733,9 @@ async function cmdStatus(ctx: Ctx): Promise<void> {
 type TreeJourney = {
   id?: string; name?: string;
   stories?: Array<{ id?: string; title?: string; description?: string; status?: string;
-    priority?: string; estimation?: number; tasks?: Array<{ status?: string }> }>;
+    priority?: string; estimation?: number;
+    /** 深树字段名是 dev_tasks（product.repository 的映射），非 tasks */
+    dev_tasks?: Array<{ status?: string }> }>;
 };
 
 /** 从项目树汇总统计（journeys/stories/tasks 计数与状态分布） */
@@ -760,7 +757,7 @@ function summarizeTree(proj: Record<string, unknown>): {
       const ss = s.status ?? 'backlog';
       storyStatus[ss] = (storyStatus[ss] ?? 0) + 1;
       if (ss === 'accepted') doneStories++;
-      for (const t of Array.isArray(s.tasks) ? s.tasks : []) {
+      for (const t of Array.isArray(s.dev_tasks) ? s.dev_tasks : []) {
         taskCount++;
         const ts = t.status ?? 'backlog';
         taskStatus[ts] = (taskStatus[ts] ?? 0) + 1;

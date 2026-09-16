@@ -25,7 +25,6 @@ export class DevTaskRepository {
     await db.insert(devTasks).values({
       id,
       storyId: dto.story_id ?? null,
-      productId: dto.product_id ?? null,
       title: dto.title,
       description: dto.description,
       priority: dto.priority,
@@ -50,7 +49,6 @@ export class DevTaskRepository {
     if (dto.tags !== undefined) updateData.tags = dto.tags;
     if (dto.affected_modules !== undefined) updateData.affectedModules = dto.affected_modules;
     if (dto.assignee !== undefined) updateData.assignee = dto.assignee;
-    if (dto.product_id !== undefined) updateData.productId = dto.product_id;
 
     await db.update(devTasks).set(updateData).where(eq(devTasks.id, id));
   }
@@ -71,14 +69,6 @@ export class DevTaskRepository {
       .where(condition)
       .returning({ id: devTasks.id });
     return moved.length > 0;
-  }
-
-  /** 查询产品中所有任务（含产品级任务池） */
-  async findByProductId(productId: string) {
-    const db = await ensureDb();
-    return db.query.devTasks.findMany({
-      where: eq(devTasks.productId, productId),
-    });
   }
 
   async delete(id: string): Promise<void> {

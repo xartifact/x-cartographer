@@ -20,7 +20,6 @@ import {
 
 const createDevTaskSchema = z.object({
   storyId: z.string().optional(),
-  productId: z.string().optional(),
   title: z.string(),
   description: z.string(),
   priority: z.nativeEnum(TaskPriority),
@@ -38,7 +37,6 @@ const updateDevTaskSchema = z.object({
   dependencies: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   assignee: z.string().optional(),
-  productId: z.string().optional(),
   storyId: z.string().nullable().optional(),
   affectedModules: z.array(z.string()).optional(),
 });
@@ -59,12 +57,53 @@ const taskRepo = new DevTaskRepository();
 const storyRepo = new StoryRepository();
 const statusChangeRepo = new StatusChangeRepository();
 
+/**
+ * 统一 REST 输出形状（snake_case）——与 products/milestones/stories 一致。
+ * 此前 /:id 与 / 直接返回 drizzle 行（camelCase），与全站其余端点不一致；
+ * 调用方（CLI/web）不得不同时处理两种键名。
+ */
+function toJson(t: {
+  id: string;
+  storyId: string | null;
+  title: string;
+  description: string;
+  priority: string;
+  estimation: number;
+  status: string;
+  dependencies: string[] | null;
+  tags: string[] | null;
+  affectedModules: string[] | null;
+  assignee: string | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: t.id,
+    story_id: t.storyId,
+    title: t.title,
+    description: t.description,
+    priority: t.priority,
+    estimation: t.estimation,
+    status: t.status,
+    dependencies: t.dependencies ?? [],
+    tags: t.tags ?? [],
+    affected_modules: t.affectedModules ?? [],
+    assignee: t.assignee ?? undefined,
+    started_at: t.startedAt?.toISOString(),
+    completed_at: t.completedAt?.toISOString(),
+    created_at: t.createdAt.toISOString(),
+    updated_at: t.updatedAt.toISOString(),
+  };
+}
+
 export const devTasksRoutes = new Hono()
   // GET /api/dev-tasks?storyId=
   .get('/', async (c) => {
     const storyId = c.req.query('storyId');
     if (!storyId) return c.json({ error: 'storyId required' }, 400);
-    return c.json(await taskRepo.findByStoryId(storyId));
+    return c.json((await taskRepo.findByStoryId(storyId)).map(toJson));
   })
   // GET /api/dev-tasks/next?productId= (拓扑规则)
   .get('/next', async (c) => {
@@ -122,38 +161,15 @@ export const devTasksRoutes = new Hono()
           }
         }
       }
-      // 产品级任务池（story_id 为 null 的任务）
-      const poolTasks = await taskRepo.findByProductId(product.id);
-      for (const row of poolTasks) {
-        if (status && row.status !== status) continue;
-        if (priority && row.priority !== priority) continue;
-        result.push({
-          id: row.id,
-          title: row.title,
-          description: row.description,
-          priority: row.priority as DevTask['priority'],
-          estimation: row.estimation,
-          status: row.status as DevTask['status'],
-          dependencies: row.dependencies ?? [],
-          story_id: row.storyId,
-          product_id: row.productId ?? product.id,
-          tags: row.tags ?? [],
-          assignee: row.assignee ?? undefined,
-          started_at: row.startedAt?.toISOString(),
-          completed_at: row.completedAt?.toISOString(),
-          created_at: row.createdAt.toISOString(),
-          updated_at: row.updatedAt.toISOString(),
-          product: { id: product.id, name: product.name },
-          story: null,
-        });
-      }
     }
     return c.json(result);
   })
 
   // GET /api/dev-tasks/:id
   .get('/:id', async (c) => {
-    return c.json(await taskRepo.findById(c.req.param('id')));
+    const task = await taskRepo.findById(c.req.param('id'));
+    // 与 stories/:id 一致：不存在时 Hono 返回空 body（c.json(undefined)）
+    return c.json(task ? toJson(task) : undefined);
   })
   // POST /api/dev-tasks
   .post('/', zValidator('json', createDevTaskSchema), async (c) => {
@@ -161,7 +177,6 @@ export const devTasksRoutes = new Hono()
     const id = await generateShortId('devTask');
     await taskRepo.create(id, {
       story_id: input.storyId,
-      product_id: input.productId,
       title: input.title,
       description: input.description,
       priority: input.priority,
@@ -187,7 +202,6 @@ export const devTasksRoutes = new Hono()
     if (input.tags !== undefined) dto.tags = input.tags;
     if (input.assignee !== undefined) dto.assignee = input.assignee;
     if (input.affectedModules !== undefined) dto.affected_modules = input.affectedModules;
-    if (input.productId !== undefined) dto.product_id = input.productId;
     if (input.storyId !== undefined) dto.story_id = input.storyId;
     // 模块引用存在性校验（告警不阻断；产品上下文经 story→activity 解析）
     let moduleWarning: string[] = [];

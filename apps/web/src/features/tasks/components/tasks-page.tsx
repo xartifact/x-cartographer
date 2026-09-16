@@ -165,7 +165,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       backlog: 0,
       todo: 0,
       in_progress: 0,
-      done: 0,
+      accepted: 0,
     };
     project.user_activities?.forEach((activity) => {
       activity.stories?.forEach((story) => {
@@ -294,7 +294,6 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
       const optimistic: DevTask = {
         id: created.id,
         story_id: draft.storyId,
-        product_id: project.id,
         title: draft.title,
         description: draft.description,
         priority: draft.priority,

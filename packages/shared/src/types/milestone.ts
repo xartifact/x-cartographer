@@ -38,7 +38,6 @@ export interface Milestone {
   updated_at: Timestamp;
 
   /** 锚定的 ADR id；可空纯字段，无 DB 外键（§3.7），归属由仓库层校验 */
-  adr_id?: string;
 }
 
 /**
@@ -50,7 +49,6 @@ export interface CreateMilestoneDTO {
   goal?: string;
   target_date?: string;
   status?: MilestoneStatus;
-  adr_id?: string | null;
   provenance?: Provenance;
 }
 
@@ -62,6 +60,5 @@ export interface UpdateMilestoneDTO {
   goal?: string;
   target_date?: string | null;
   status?: MilestoneStatus;
-  adr_id?: string | null;
   provenance?: Provenance;
 }

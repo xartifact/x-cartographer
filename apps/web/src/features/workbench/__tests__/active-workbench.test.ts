@@ -45,8 +45,8 @@ function makeProduct(id: string, name: string): Product {
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
             dev_tasks: [
-              { id: `${id}-T-1`, title: '写解析器', description: '', priority: TaskPriorityEnum.P1, estimation: 3, status: TaskStatusEnum.IN_PROGRESS, dependencies: [], story_id: `${id}-US-01`, product_id: id, tags: [], created_at: '', updated_at: '' },
-              { id: `${id}-T-2`, title: '写 UI', description: '', priority: TaskPriorityEnum.P2, estimation: 2, status: TaskStatusEnum.BACKLOG, dependencies: [], story_id: `${id}-US-01`, product_id: id, tags: [], created_at: '', updated_at: '' },
+              { id: `${id}-T-1`, title: '写解析器', description: '', priority: TaskPriorityEnum.P1, estimation: 3, status: TaskStatusEnum.IN_PROGRESS, dependencies: [], story_id: `${id}-US-01`, tags: [], created_at: '', updated_at: '' },
+              { id: `${id}-T-2`, title: '写 UI', description: '', priority: TaskPriorityEnum.P2, estimation: 2, status: TaskStatusEnum.BACKLOG, dependencies: [], story_id: `${id}-US-01`, tags: [], created_at: '', updated_at: '' },
             ],
           },
           {
@@ -63,7 +63,7 @@ function makeProduct(id: string, name: string): Product {
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
             dev_tasks: [
-              { id: `${id}-T-3`, title: '调研', description: '', priority: TaskPriorityEnum.P3, estimation: 1, status: TaskStatusEnum.BACKLOG, dependencies: [], story_id: `${id}-US-02`, product_id: id, tags: [], created_at: '', updated_at: '' },
+              { id: `${id}-T-3`, title: '调研', description: '', priority: TaskPriorityEnum.P3, estimation: 1, status: TaskStatusEnum.BACKLOG, dependencies: [], story_id: `${id}-US-02`, tags: [], created_at: '', updated_at: '' },
             ],
           },
           {
@@ -80,7 +80,7 @@ function makeProduct(id: string, name: string): Product {
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
             dev_tasks: [
-              { id: `${id}-T-4`, title: '已完任务', description: '', priority: TaskPriorityEnum.P0, estimation: 1, status: TaskStatusEnum.DONE, dependencies: [], story_id: `${id}-US-03`, product_id: id, tags: [], created_at: '', updated_at: '' },
+              { id: `${id}-T-4`, title: '已完任务', description: '', priority: TaskPriorityEnum.P0, estimation: 1, status: TaskStatusEnum.DONE, dependencies: [], story_id: `${id}-US-03`, tags: [], created_at: '', updated_at: '' },
             ],
           },
         ],

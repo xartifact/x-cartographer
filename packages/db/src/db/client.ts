@@ -23,7 +23,6 @@ const TABLE_SQLS = [
     "id" text PRIMARY KEY NOT NULL,
     "name" text NOT NULL,
     "description" text,
-    "persona" text DEFAULT '' NOT NULL,
     "metadata" jsonb DEFAULT '{"tech_stack":[],"version":"1.0.0","tags":[]}'::jsonb NOT NULL,
     "settings" jsonb NOT NULL,
     "provenance" text DEFAULT 'agent_inferred' NOT NULL,
@@ -48,7 +47,6 @@ const TABLE_SQLS = [
     "goal" text DEFAULT '' NOT NULL,
     "target_date" timestamp with time zone,
     "status" text DEFAULT 'planned' NOT NULL,
-    "adr_id" text,
     "provenance" text DEFAULT 'agent_inferred' NOT NULL,
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -98,7 +96,6 @@ const TABLE_SQLS = [
   `CREATE TABLE IF NOT EXISTS "dev_tasks" (
     "id" text PRIMARY KEY NOT NULL,
     "story_id" text REFERENCES "user_stories"("id") ON DELETE CASCADE,
-    "product_id" text REFERENCES "products"("id") ON DELETE CASCADE,
     "title" text NOT NULL,
     "description" text DEFAULT '' NOT NULL,
     "priority" text DEFAULT 'P2' NOT NULL,

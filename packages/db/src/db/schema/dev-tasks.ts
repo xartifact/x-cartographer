@@ -1,6 +1,5 @@
 import { pgTable, text, real, jsonb, timestamp } from 'drizzle-orm/pg-core';
 import { userStories } from './user-stories';
-import { products } from './products';
 
 /**
  * 研发任务（DevTask）—— 原 Task 正名。
@@ -13,8 +12,6 @@ export const devTasks = pgTable('dev_tasks', {
   id: text('id').primaryKey(),
   /** 所属用户故事（产品级任务池任务可为空） */
   storyId: text('story_id').references(() => userStories.id, { onDelete: 'cascade' }),
-  /** 所属产品（任务池/跨产品查询用） */
-  productId: text('product_id').references(() => products.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description').notNull().default(''),
   priority: text('priority').notNull().default('P2'),
