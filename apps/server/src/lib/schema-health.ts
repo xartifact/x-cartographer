@@ -29,6 +29,7 @@ const REQUIRED_TABLES = [
   'dev_tasks',
   'status_changes',
   'adr_records',
+  'system_modules',
 ] as const;
 
 /**
@@ -50,6 +51,9 @@ const REQUIRED_COLUMNS: Array<{ table: string; column: string; since: string }> 
   { table: 'user_tasks', column: 'provenance', since: '0005' },
   { table: 'user_stories', column: 'provenance', since: '0005' },
   { table: 'adr_records', column: 'provenance', since: '0005' },
+  // 0006 system_modules（模块目录升为一等实体）
+  { table: 'system_modules', column: 'provenance', since: '0006' },
+  { table: 'system_modules', column: 'depends_on', since: '0006' },
 ];
 
 export interface SchemaHealth {
