@@ -9,7 +9,7 @@
  *   cd apps/server && bun scripts/sync-dev-db.ts <远端URL>
  * 前置：本地 gateway 必须已停止（PGlite 单实例）；脚本自身连本地库写入。
  */
-import { ensureDb, rowsOf, type DbInstance } from '@x-cartographer/db';
+import { ensureDb, rowsOf, bumpSequenceTo, type DbInstance } from '@x-cartographer/db';
 import { sql } from 'drizzle-orm';
 
 const remoteUrl = process.argv[2] ?? 'http://100.80.110.125:8787';
@@ -143,6 +143,15 @@ async function main(): Promise<void> {
               ${String(c.changed_at ?? new Date().toISOString())})`);
     scN++;
   }
+
+  // 短 ID 序列推进（关键）：同步进来的是远端既有 ID，本地序列水位可能是 0，
+  // 不推进则下一次 create 会分配到已被占用的号 → 主键冲突（曾实测踩坑）。
+  // 远端 ID 形态可能是旧格式（非 <PREFIX>-<n>），故用远端实体总数 + 余量作水位。
+  const seqFloor = Math.max(storyN, taskN, scN, actN) + 1000;
+  for (const kind of ['product', 'userActivity', 'userTask', 'story', 'devTask', 'milestone', 'adr', 'statusChange'] as const) {
+    try { await bumpSequenceTo(kind, seqFloor); } catch { /* 序列表按需创建，失败不致命 */ }
+  }
+  console.log(`  短 ID 序列推进至 >= ${seqFloor}`);
 
   const chk = await q<{ n: number }>('SELECT count(*)::int AS n FROM user_stories');
   console.log(`  产品=${products.length} 活动=${actN} 用户任务=${utN} 故事=${storyN} 任务=${taskN} 版本=${msN} 模块=${modN} 账本=${scN}`);
