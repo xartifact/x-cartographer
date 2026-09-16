@@ -5,6 +5,8 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { generateShortId } from '@x-cartographer/db';
+import { findDanglingModuleRefs, productIdOfActivity } from '../lib/module-refs';
+import { StoryRepository } from '@x-cartographer/db';
 import {
   DevTaskRepository,
   StatusChangeRepository,
@@ -54,6 +56,7 @@ const allTasksQuerySchema = z.object({
 });
 
 const taskRepo = new DevTaskRepository();
+const storyRepo = new StoryRepository();
 const statusChangeRepo = new StatusChangeRepository();
 
 export const devTasksRoutes = new Hono()
@@ -169,10 +172,38 @@ export const devTasksRoutes = new Hono()
     return c.json({ success: true, id }, 201);
   })
   // PATCH /api/dev-tasks/:id
+  // 显式映射 camelCase → snake_case DTO：仓库层按 `dto.affected_modules` 等读取，
+  // 直接透传 input 会让 affectedModules/productId/storyId 被静默丢弃（曾实测复现）。
+  // 范式与 stories.ts 的 PATCH 一致。
   .patch('/:id', zValidator('json', updateDevTaskSchema), async (c) => {
     const input = c.req.valid('json');
-    await taskRepo.update(c.req.param('id'), input);
-    return c.json({ success: true });
+    const dto: Record<string, unknown> = {};
+    if (input.title !== undefined) dto.title = input.title;
+    if (input.description !== undefined) dto.description = input.description;
+    if (input.priority !== undefined) dto.priority = input.priority;
+    if (input.estimation !== undefined) dto.estimation = input.estimation;
+    if (input.status !== undefined) dto.status = input.status;
+    if (input.dependencies !== undefined) dto.dependencies = input.dependencies;
+    if (input.tags !== undefined) dto.tags = input.tags;
+    if (input.assignee !== undefined) dto.assignee = input.assignee;
+    if (input.affectedModules !== undefined) dto.affected_modules = input.affectedModules;
+    if (input.productId !== undefined) dto.product_id = input.productId;
+    if (input.storyId !== undefined) dto.story_id = input.storyId;
+    // 模块引用存在性校验（告警不阻断；产品上下文经 story→activity 解析）
+    let moduleWarning: string[] = [];
+    if (input.affectedModules !== undefined) {
+      const task = await taskRepo.findById(c.req.param('id'));
+      const storyId = input.storyId ?? (task?.storyId as string | undefined);
+      const story = storyId ? await storyRepo.findById(storyId) : undefined;
+      const activityId = story?.activityId as string | undefined;
+      const productId = activityId ? await productIdOfActivity(activityId) : null;
+      moduleWarning = await findDanglingModuleRefs(productId, input.affectedModules);
+    }
+    await taskRepo.update(c.req.param('id'), dto);
+    return c.json({
+      success: true,
+      ...(moduleWarning.length ? { warnings: { unknown_modules: moduleWarning } } : {}),
+    });
   })
   // DELETE /api/dev-tasks/:id
   .delete('/:id', async (c) => {

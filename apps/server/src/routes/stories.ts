@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { StoryRepository, StatusChangeRepository } from '@x-cartographer/db';
 import { Priority } from '@x-cartographer/shared';
 import { generateShortId } from '@x-cartographer/db';
+import { findDanglingModuleRefs, productIdOfActivity } from '../lib/module-refs';
 
 const createStorySchema = z.object({
   activityId: z.string(),
@@ -86,8 +87,19 @@ export const storiesRoutes = new Hono()
     if (input.activityId !== undefined) dto.activityId = input.activityId;
     if (input.userTaskId !== undefined) dto.userTaskId = input.userTaskId;
     if (input.affectedModules !== undefined) dto.affected_modules = input.affectedModules;
+    // 模块引用存在性校验（告警不阻断——§3.5「纯信息，无服务端裁决」）
+    let moduleWarning: string[] = [];
+    if (input.affectedModules !== undefined) {
+      const existing = await storyRepo.findById(c.req.param('id'));
+      const activityId = input.activityId ?? (existing?.activityId as string | undefined);
+      const productId = activityId ? await productIdOfActivity(activityId) : null;
+      moduleWarning = await findDanglingModuleRefs(productId, input.affectedModules);
+    }
     await storyRepo.update(c.req.param('id'), dto);
-    return c.json({ success: true });
+    return c.json({
+      success: true,
+      ...(moduleWarning.length ? { warnings: { unknown_modules: moduleWarning } } : {}),
+    });
   })
   // DELETE /api/stories/:id
   .delete('/:id', async (c) => {

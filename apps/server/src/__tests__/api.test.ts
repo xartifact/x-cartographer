@@ -528,6 +528,85 @@ describe('dev-tasks CRUD + topological next', () => {
   });
 });
 
+describe('system modules 目录 + affected_modules 校验 (0006)', () => {
+  it('upsert 幂等、列表按 product 隔离、引用校验只告警不阻断', async () => {
+    const productId = await createProduct('模块目录产品');
+    const activityId = await createActivity(productId, '模块活动');
+    const storyId = await createStory(activityId, '模块校验故事');
+
+    // 目录初始为空
+    let res = await jsonRequest('GET', `/api/system-modules?productId=${productId}`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([]);
+
+    // upsert 两次（同 slug）→ 内容被整体替换，仍只有一条
+    const modBody = {
+      id: 'web-spa',
+      product_id: productId,
+      name: 'Web SPA',
+      path: 'apps/web',
+      responsibility: '前端应用',
+      depends_on: [],
+      provenance: 'human_asserted',
+    };
+    res = await jsonRequest('PUT', '/api/system-modules/web-spa', modBody);
+    expect(res.status).toBe(200);
+    res = await jsonRequest('PUT', '/api/system-modules/web-spa', modBody);
+    expect(res.status).toBe(200);
+
+    res = await jsonRequest('GET', `/api/system-modules?productId=${productId}`);
+    const mods = (await res.json()) as Array<Record<string, unknown>>;
+    expect(mods).toHaveLength(1);
+    expect(mods[0].id).toBe('web-spa');
+
+    // 非法 slug 被拒（id 规范例外：人可读 slug，不走短 ID 序列）
+    res = await jsonRequest('PUT', '/api/system-modules/Bad_Slug', {
+      ...modBody,
+      id: 'Bad_Slug',
+    });
+    expect(res.status).toBe(400);
+
+    // 引用存在的模块 → 无 warning
+    res = await jsonRequest('PATCH', `/api/stories/${storyId}`, {
+      affectedModules: ['web-spa'],
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true });
+
+    // 引用不存在的模块 → 写入成功 + 告警（§3.5 纯信息不裁决）
+    res = await jsonRequest('PATCH', `/api/stories/${storyId}`, {
+      affectedModules: ['web-spa', 'nope'],
+    });
+    expect(res.status).toBe(200);
+    const warned = (await res.json()) as {
+      success: boolean;
+      warnings?: { unknown_modules: string[] };
+    };
+    expect(warned.success).toBe(true);
+    expect(warned.warnings?.unknown_modules).toEqual(['nope']);
+
+    // 值确实写入（告警不阻断）
+    res = await jsonRequest('GET', `/api/stories/${storyId}`);
+    const story = (await res.json()) as Record<string, unknown>;
+    expect(story.affectedModules).toEqual(['web-spa', 'nope']);
+
+    // dev-task 侧同样校验（此前 camelCase/snake_case 不匹配导致静默丢弃）
+    const taskId = await createDevTask(storyId, '模块校验任务');
+    res = await jsonRequest('PATCH', `/api/dev-tasks/${taskId}`, {
+      affectedModules: ['web-spa'],
+    });
+    expect(res.status).toBe(200);
+    res = await jsonRequest('GET', `/api/dev-tasks/${taskId}`);
+    const task = (await res.json()) as Record<string, unknown>;
+    expect(task.affectedModules).toEqual(['web-spa']);
+
+    // 当前态宪法含模块目录（0006 起由表提供，非折叠产物）
+    res = await jsonRequest('GET', `/api/adr-records/current?projectId=${productId}`);
+    const constitution = (await res.json()) as { modules: Array<{ id: string }> };
+    expect(constitution.modules.map((m) => m.id)).toEqual(['web-spa']);
+  });
+});
+
 describe('PUT /api/products/full transaction', () => {
   it('writes the whole tree and replaces children on re-put', async () => {
     const now = new Date().toISOString();

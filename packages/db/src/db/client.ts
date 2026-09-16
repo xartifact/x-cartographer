@@ -131,6 +131,19 @@ const TABLE_SQLS = [
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "seq" bigserial NOT NULL
   )`,
+  // ── 模块目录（一等实体：结构认知，非 ADR 投影）──
+  `CREATE TABLE IF NOT EXISTS "system_modules" (
+    "id" text PRIMARY KEY NOT NULL,
+    "product_id" text NOT NULL REFERENCES "products"("id") ON DELETE CASCADE,
+    "name" text NOT NULL,
+    "path" text DEFAULT '' NOT NULL,
+    "responsibility" text DEFAULT '' NOT NULL,
+    "depends_on" jsonb DEFAULT '[]'::jsonb NOT NULL,
+    "provenance" text DEFAULT 'agent_inferred' NOT NULL,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS "system_modules_product_id_idx" ON "system_modules" ("product_id")`,
   `CREATE TABLE IF NOT EXISTS "app_settings" (
     "key" text PRIMARY KEY NOT NULL,
     "value" text NOT NULL,

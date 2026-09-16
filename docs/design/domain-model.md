@@ -96,9 +96,13 @@ graph TB
 | `UserTask` | `user_tasks` | 用户域 | 约束 | 归一 |
 | `UserStory` | `user_stories` | 用户域 | 约束 | 归一 |
 | `Milestone` | `milestones` | 平台域 | **约束** | ✅ 归位：发布范围 + 目标承诺，属"意图"（见 Q2 决策） |
-| `SystemModule` | `system_modules`（待建） | **无处** | **约束** | ✅ **首次有家** |
+| `SystemModule` | **`system_modules`** | 无处 | **约束** | ✅ **落表为独立实体**（0006）：结构认知，非 ADR 投影——见 §6.4 |
 | `DevTask` | `dev_tasks` | 执行域 | **工作** | 正名（原文「执行域」只含工作项，名不副实） |
 | `StatusChange` | `status_changes` | 平台域 | **证据** | 正名（横向切面，本不属任何域） |
+
+> `SystemModule` 是**第八个实体**。它与 `AdrRecord` 同属约束空间，但**独立于 ADR 日志**：
+> ADR 记录"何时决定了什么"（决策），模块表记录"系统由哪些部分构成"（结构认知）。
+> 单一真相：模块定义只在表，ADR 的 `changes.modules` 机制已移除（§6.4）。
 
 ### 2.3 约束空间内部的二分
 
@@ -267,9 +271,46 @@ provenance: 'human_asserted' | 'agent_inferred' | 'imported'
 
 **修法**：story 侧状态更名，使动作主体可辨（如 `accepted`），并消除 UI 同名并列（`tasks-page.tsx` 同屏展示两个「已完成」，语义不同）。
 
-### 6.4 悬空引用：`affected_modules` / `module_ids`
+**方案裁定（2026-09-16）**：`SystemModule` **落表为独立实体**（`system_modules`），不做 ADR 投影。
 
-三个字段（`user_stories` / `dev_tasks` / `adr_records`）注释均称「引用 `SystemModule.id`」，但该实体**无表**。详见 §1.2。
+判定依据——它是**结构认知**，不是**决策**：
+
+| | tech_stack / architecture_principles | system_modules |
+|---|---|---|
+| 性质 | **决策**：每次变更是"某时刻拍了什么板" | **结构认知**：描述"代码库现在有哪些模块" |
+| 变化节奏 | 低频、事件驱动 | 随代码演进持续更新 |
+| 归属 | ADR 日志（`changes` + 折叠） | 独立表（直接 CRUD） |
+| 场景 | 审计"谁在何时决定了什么" | **系统设计**：看全貌、画依赖、做规划 |
+
+**单一真相约定（关键）**：模块的**定义**只存在于 `system_modules` 表。为此 ADR 的 `changes.modules` 机制**已移除**——`foldConstitution()` 不再产出 modules（`adr.repository.ts`），改由 `SystemModuleRepository` 提供。ADR 保留 `module_ids`（标注"这条决策涉及哪些模块"），但不再定义模块。
+
+若两边都可写，即落入 `technical-constitution.md` §3.3 明确拒绝的模式：
+> 「检查点的地位必须明确是**日志的确定性缓存、可随时从头折叠重新验证**，不是独立维护、可能与日志脱节的第二份真相」
+
+### 6.4.1 实现要点
+
+| 项 | 落点 |
+|---|---|
+| 表 | `packages/db/src/db/schema/system-modules.ts`（+ `client.ts` 运行时建表 + 迁移 `0006_system_modules.sql`） |
+| 仓库 | `packages/db/src/repositories/system-module.repository.ts`（含 `findMissingIds` 批量存在性校验、幂等 `upsert`） |
+| REST | `apps/server/src/routes/system-modules.ts`（GET list/detail、PUT upsert、DELETE） |
+| 校验 | `apps/server/src/lib/module-refs.ts` —— story/dev-task 的 `affected_modules` 写入时校验引用存在性 |
+| 历史态 | `getConstitutionAsOfMilestone` **不**从表补 modules（该表无版本历史，掺进去会谎称"当时就有这些模块"）——宁可缺失，不撒谎 |
+
+**ID 规范例外**：`system_modules.id` 是人类可读稳定 slug（`gateway` / `web-spa`），**不走** `short-id.ts` 的 `<PREFIX>-<序号>` 规范。理由：它会被 `principles.module_ids` 与 Story/Task 的 `affected_modules` 反复引用，Agent 需要能直接拼出/记住。REST 层用 regex 强制 slug 形态。
+
+### 6.4.2 校验语义（勿扩大）
+
+校验**只做存在性检查，不做业务拦截**——技术宪法 §3.5 定调：「纯粹是信息，不产生任何服务端裁决」。
+
+| 情形 | 行为 |
+|---|---|
+| 引用存在的模块 | 正常写入，无提示 |
+| 引用不存在的模块 | **写入成功** + 响应带 `warnings.unknown_modules`（告警不阻断） |
+| 无产品上下文（story 未挂活动） | 跳过校验（无从判断，宁可放过不误报） |
+| **删除模块后既有引用** | **不清理**，残留为悬空——同上"不裁决"原则。需定期用 `findMissingIds` 扫描报告，而非自动改写用户数据 |
+
+**`SystemModule` 的归类**：属**约束空间 · 规矩（Doctrine）**实体（§2.2 表），与 `AdrRecord` 同空间——它登记的是"系统由哪些部分构成"这一规范性认知。
 
 ### 6.5 死列与死文件
 
@@ -299,7 +340,7 @@ provenance: 'human_asserted' | 'agent_inferred' | 'imported'
 | **C** | 恢复任务可见性（§6.2）：补归位 + 「未分配」一等状态 | A | ✅ 完成（归位 108/108；「未分配」兜底待做） |
 | **D** | 补 `UserTask` 层的**录入能力**（Q3）：CLI `user-task` 命令 + 故事地图内"新建任务列"入口；存量归纳仅作辅助 | A | 部分（CLI 已就绪；地图内入口待做） |
 | **E** | `provenance` + 约束写入协议（§3/§4.4） | A | ✅ 完成（六实体列 + 全链透传 + CLI flag；高影响落 proposed 待做） |
-| **F** | `SystemModule` 落表（§6.4）+ `affected_modules` 强校验 | B, E | 待做 |
+| **F** | `SystemModule` 落表（§6.4）+ `affected_modules` 强校验 | B, E | ✅ 完成（表+仓库+REST+校验已落地；`changes.modules` 机制移除，ADR bug 修复） |
 | **G** | `Milestone` 接入账本（Q2）：补状态流转基线，消除"改了不入账" | A | ✅ 完成 |
 | **H** | `story.status` 更名（§6.3）：`done` → 与 DevTask 状态可辨（如 `accepted`） | A | ✅ 完成 |
 

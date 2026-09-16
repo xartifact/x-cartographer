@@ -4,6 +4,7 @@ import { generateShortId } from '../lib/short-id';
 import { adrRecords } from '../db/schema/adr-records';
 import { statusChanges } from '../db/schema/status-changes';
 import { milestones } from '../db/schema/milestones';
+import { SystemModuleRepository } from './system-module.repository';
 import type {
   AdrRecord,
   AdrStatus,
@@ -12,12 +13,15 @@ import type {
 } from '@x-cartographer/shared';
 
 /**
- * 折叠后的"当前态"内部累积容器（§3.3）——三类 Map 按 id 定位做 upsert/remove。
+ * 折叠后的"当前态"内部累积容器（§3.3）——按 id 定位做 upsert/remove。
+ *
+ * 注意：**不含 modules**。模块目录自 0006 起是独立实体（system-modules.ts），
+ * 由 SystemModuleRepository 提供，不再参与 ADR 折叠——避免"两份真相"漂移
+ * （docs/design/domain-model.md §6.4）。ADR 仅通过 module_ids 标注涉及范围。
  */
 interface ConstitutionMaps {
   techStack: Map<string, CurrentConstitution['tech_stack'][number]>;
   principles: Map<string, CurrentConstitution['architecture_principles'][number]>;
-  modules: Map<string, CurrentConstitution['modules'][number]>;
 }
 
 /**
@@ -40,24 +44,18 @@ function applyChanges(maps: ConstitutionMaps, record: AdrRecord): void {
   for (const id of delta.architecture_principles?.remove ?? []) {
     maps.principles.delete(id);
   }
-  for (const entry of delta.modules?.upsert ?? []) {
-    maps.modules.set(entry.id, entry);
-  }
-  for (const id of delta.modules?.remove ?? []) {
-    maps.modules.delete(id);
-  }
+  // delta.modules 不再参与折叠（模块目录已独立成表，见上方注释）
 }
 
 /**
  * 折叠算法（纯函数，§3.3）：records 必须已按 seq 升序排列，
  * 依次应用每条 ADR 的 changes（upsert set / remove delete），
- * 返回三类条目数组组成的"当前态"投影。
+ * 返回"当前态"投影。modules 恒为空数组——调用方负责从 system_modules 表补齐。
  */
 export function foldConstitution(records: AdrRecord[]): CurrentConstitution {
   const maps: ConstitutionMaps = {
     techStack: new Map(),
     principles: new Map(),
-    modules: new Map(),
   };
   for (const record of records) {
     applyChanges(maps, record);
@@ -65,7 +63,7 @@ export function foldConstitution(records: AdrRecord[]): CurrentConstitution {
   return {
     tech_stack: [...maps.techStack.values()],
     architecture_principles: [...maps.principles.values()],
-    modules: [...maps.modules.values()],
+    modules: [], // 由调用方从 system_modules 表填充
   };
 }
 
@@ -213,12 +211,20 @@ export class AdrRepository {
       if ((await this.acceptedAt(r.id, r)) === null) continue;
       folded.push(r);
     }
-    return foldConstitution(folded);
+    const constitution = foldConstitution(folded);
+    // 模块目录自 0006 起是独立表（非折叠产物），当前态直接取表内容
+    constitution.modules = await new SystemModuleRepository().findByProductId(projectId);
+    return constitution;
   }
 
   /**
    * 历史态查询（§3.3）：折叠只应用 acceptedAt <= 里程碑创建时刻 的记录，
    * 即「该版本交付时刻」的宪法投影。参数为里程碑 id。
+   *
+   * 注意：**不从 system_modules 表补 modules**。该表只存当前态、无版本历史，
+   * 掺进历史查询会谎称"当时就有这些模块"。历史态的 modules 来自折叠结果
+   * （0006 之后新 ADR 不再写 changes.modules，故通常为空）——宁可缺失，
+   * 不撒谎（§3.3：「今天贴的文档标签，不能改写昨天已经生效的事实」）。
    */
   async getConstitutionAsOfMilestone(milestoneId: string): Promise<CurrentConstitution> {
     const db = await ensureDb();

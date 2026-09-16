@@ -14,6 +14,7 @@ import { devTasksRoutes } from './routes/dev-tasks';
 import { milestonesRoutes } from './routes/milestones';
 import { statusChangesRoutes } from './routes/status-changes';
 import { adrRecordsRoutes } from './routes/adr-records';
+import { systemModulesRoutes } from './routes/system-modules';
 import { settingsRoutes } from './routes/settings';
 import { checkSchemaHealth } from './lib/schema-health';
 import type { MiddlewareHandler } from 'hono';
@@ -94,6 +95,7 @@ export const app = new Hono()
   .use('/dev-tasks/*', apiTokenAuth)
   .use('/status-changes/*', apiTokenAuth)
   .use('/adr-records/*', apiTokenAuth)
+  .use('/system-modules/*', apiTokenAuth)
   .route('/products', productsRoutes)
   .route('/user-activities', userActivitiesRoutes)
   .route('/user-tasks', userTasksRoutes)
@@ -102,6 +104,7 @@ export const app = new Hono()
   .route('/dev-tasks', devTasksRoutes)
   .route('/status-changes', statusChangesRoutes)
   .route('/adr-records', adrRecordsRoutes)
+  .route('/system-modules', systemModulesRoutes)
   .route('/settings', settingsRoutes)
 
   // ── 旧路由兼容（一个版本周期）──

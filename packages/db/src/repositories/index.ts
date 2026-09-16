@@ -5,6 +5,8 @@ export { DevTaskRepository } from './dev-task.repository';
 export { MilestoneRepository } from './milestone.repository';
 export { StatusChangeRepository } from './status-change.repository';
 export { AdrRepository, foldConstitution } from './adr.repository';
+export { SystemModuleRepository } from './system-module.repository';
+export type { SystemModuleInput } from './system-module.repository';
 export { AppSettingsRepository } from './app-settings.repository';
 
 // 单例实例
