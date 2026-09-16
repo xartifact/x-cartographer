@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
+import { toApiError } from '@/lib/api/error';
 import type { Priority, StoryStatus } from '@x-cartographer/shared';
 
 /**
@@ -73,6 +74,7 @@ export function useCreateStory() {
   return useMutation({
     mutationFn: async (variables: CreateStoryVariables) => {
       const res = await api.api.stories.$post({ json: variables });
+      if (!res.ok) throw await toApiError(res, '创建故事失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -89,6 +91,7 @@ export function useUpdateStory() {
     mutationFn: async (variables: UpdateStoryVariables) => {
       const { id, ...dto } = variables;
       const res = await api.api.stories[':id'].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, '更新故事失败');
       return res.json();
     },
     onSuccess: () => {
@@ -103,6 +106,7 @@ export function useDeleteStory() {
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
       const res = await api.api.stories[':id'].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, '删除故事失败');
       return res.json();
     },
     onSuccess: () => {
@@ -118,6 +122,7 @@ export function useUpdateStoryStatus() {
     mutationFn: async (variables: UpdateStoryStatusVariables) => {
       const { id, ...body } = variables;
       const res = await api.api.stories[':id'].status.$post({ param: { id }, json: body });
+      if (!res.ok) throw await toApiError(res, '更新故事状态失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {

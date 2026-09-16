@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
+import { toApiError } from '@/lib/api/error';
 import type { Product, CreateProductDTO, UpdateProductDTO } from '@x-cartographer/shared';
 
 /**
@@ -51,6 +52,7 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: async (dto: CreateProductDTO) => {
       const res = await api.api.products.$post({ json: dto });
+      if (!res.ok) throw await toApiError(res, '创建产品失败');
       return res.json();
     },
     onSuccess: () => {
@@ -66,6 +68,7 @@ export function useUpdateProduct() {
     mutationFn: async (variables: { id: string } & UpdateProductDTO) => {
       const { id, ...dto } = variables;
       const res = await api.api.products[':id'].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, '更新产品失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -83,6 +86,7 @@ export function useDeleteProduct() {
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
       const res = await api.api.products[':id'].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, '删除产品失败');
       return res.json();
     },
     onSuccess: () => {
@@ -97,6 +101,7 @@ export function useSaveFullProduct() {
   return useMutation({
     mutationFn: async (variables: { product: Product }) => {
       const res = await api.api.products.full.$put({ json: variables });
+      if (!res.ok) throw await toApiError(res, '保存产品失败');
       return res.json();
     },
     onSuccess: () => {

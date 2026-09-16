@@ -4,9 +4,10 @@
  * 模块目录管理页面（约束空间·规矩，docs/design/domain-model.md §6.4.1）
  *
  * 用途是**系统设计**：看全貌、画依赖、做规划。因此本页的价值不在 CRUD 表单，
- * 而在把「谁依赖谁」摆到同一屏——
- * - 每行展示该模块依赖的模块（正向）
- * - 详情抽屉同时展示依赖它的模块（反向）——影响面在这里才看得见
+ * 而在把「谁依赖谁」摆到同一屏——两种视图是同一份数据的两个投影：
+ * - 列表（默认）：每行展示该模块依赖的模块（正向），适合逐条查阅/编辑
+ * - 依赖图（`module-dependency-graph.tsx`）：整目录一张分层图，看拓扑全貌
+ * 详情抽屉展示反向引用（依赖它的模块）——影响面在这里才看得见。
  *
  * 模块 id 是人类可读 slug（非随机 id），故列表以等宽字体突出 id，
  * 它是 principles.module_ids / Story-Task.affected_modules 的引用键。
@@ -14,7 +15,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Boxes, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Boxes, List, Network, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -32,6 +33,7 @@ import {
 import type { Product, SystemModule } from '@x-cartographer/shared';
 import { useDeleteSystemModule, useSystemModules, useUpsertSystemModule } from '@/lib/api/hooks';
 import { dependentsOf, moduleNameMap, type ModuleFormDraft } from '../lib/module-form';
+import { ModuleDependencyGraph } from './module-dependency-graph';
 import { ModuleFormDialog, resolveDraftDependencies } from './module-form-dialog';
 
 interface SystemModulesPageProps {
@@ -51,6 +53,9 @@ export function SystemModulesPage({ project }: SystemModulesPageProps) {
   const [detail, setDetail] = useState<SystemModule | null>(null);
   /** 最近一次写入失败原因（slug 非法 / 重名 / 网络失败），回填给对话框 */
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  /** 视图：列表（默认）/ 依赖图 */
+  const [view, setView] = useState<'list' | 'graph'>('list');
 
   const names = useMemo(() => moduleNameMap(modules), [modules]);
 
@@ -147,16 +152,43 @@ export function SystemModulesPage({ project }: SystemModulesPageProps) {
       {/* 顶部操作栏 */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="搜索模块..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-56 pl-9"
-            />
+          {/* 视图切换（分段控件，对齐 roadmap-page 范式） */}
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
+            <Button
+              variant={view === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('list')}
+              className="gap-1.5"
+            >
+              <List className="h-3.5 w-3.5" />
+              列表
+            </Button>
+            <Button
+              variant={view === 'graph' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('graph')}
+              className="gap-1.5"
+            >
+              <Network className="h-3.5 w-3.5" />
+              依赖图
+            </Button>
           </div>
-          <span className="text-sm text-muted-foreground">{filtered.length} 个模块</span>
+          {/* 搜索与计数只属于列表：依赖图刻意不按搜索词过滤——
+              滤掉中间节点会让"谁依赖谁"失真 */}
+          {view === 'list' && (
+            <>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="搜索模块..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-56 pl-9"
+                />
+              </div>
+              <span className="text-sm text-muted-foreground">{filtered.length} 个模块</span>
+            </>
+          )}
         </div>
         <Button size="sm" onClick={() => openForm(null)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -164,7 +196,6 @@ export function SystemModulesPage({ project }: SystemModulesPageProps) {
         </Button>
       </div>
 
-      {/* 列表 */}
       {isLoading ? (
         <Card>
           <CardContent className="flex h-40 items-center justify-center text-sm text-muted-foreground">
@@ -177,12 +208,25 @@ export function SystemModulesPage({ project }: SystemModulesPageProps) {
             加载模块目录失败：{error instanceof Error ? error.message : '未知错误'}
           </CardContent>
         </Card>
+      ) : modules.length === 0 ? (
+        /* 空态：图视图没有可渲染的节点，提示回列表创建（见下行文案） */
+        <Card>
+          <CardContent className="flex h-40 items-center justify-center px-8 text-center text-sm text-muted-foreground">
+            {view === 'graph'
+              ? '尚无模块记录——依赖图没有可渲染的节点。请切回「列表」视图创建模块。'
+              : '尚无模块记录。模块目录用于系统设计——登记代码库的模块划分与依赖关系。'}
+          </CardContent>
+        </Card>
+      ) : view === 'graph' ? (
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <ModuleDependencyGraph modules={modules} className="h-[600px]" />
+          </CardContent>
+        </Card>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="flex h-40 items-center justify-center px-8 text-center text-sm text-muted-foreground">
-            {modules.length === 0
-              ? '尚无模块记录。模块目录用于系统设计——登记代码库的模块划分与依赖关系。'
-              : '没有匹配的模块'}
+            没有匹配的模块
           </CardContent>
         </Card>
       ) : (

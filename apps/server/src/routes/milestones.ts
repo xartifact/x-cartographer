@@ -6,6 +6,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { generateShortId } from '@x-cartographer/db';
 import { MilestoneRepository, StatusChangeRepository } from '@x-cartographer/db';
+import { type CreateMilestoneDTO, type UpdateMilestoneDTO } from '@x-cartographer/shared';
 
 const milestoneStatusSchema = z.enum(['planned', 'active', 'completed']);
 
@@ -24,6 +25,11 @@ const updateMilestoneSchema = z.object({
   target_date: z.string().nullable().optional(),
   status: milestoneStatusSchema.optional(),
   provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
+  /**
+   * 状态流转理由（入账本）。此前 PATCH 用 `(input as {reason?}).reason` 读它，
+   * 但 zod 未声明该键 → 永远 undefined，账本 reason 恒为 null（静默丢弃）。
+   */
+  reason: z.string().optional(),
 });
 
 const milestoneRepo = new MilestoneRepository();
@@ -63,13 +69,31 @@ export const milestonesRoutes = new Hono()
   .post('/', zValidator('json', createMilestoneSchema), async (c) => {
     const input = c.req.valid('json');
     const id = await generateShortId('milestone');
-    await milestoneRepo.create(id, input);
+    // 显式映射到 snake_case DTO：仓库按 dto.product_id / dto.target_date 读取，
+    // 声明清楚契约，字段增删不再依赖 schema 与 DTO 同名（同 dev-tasks PATCH 范式）。
+    const dto: CreateMilestoneDTO = {
+      product_id: input.product_id,
+      name: input.name,
+      goal: input.goal,
+      target_date: input.target_date,
+      status: input.status,
+      provenance: input.provenance,
+    };
+    await milestoneRepo.create(id, dto);
     return c.json({ success: true, id }, 201);
   })
   // PATCH /api/milestones/:id
   .patch('/:id', zValidator('json', updateMilestoneSchema), async (c) => {
     const id = c.req.param('id');
     const input = c.req.valid('json');
+    // 显式映射到 snake_case DTO（reason 只入账本，不落 milestones 表）
+    const dto: UpdateMilestoneDTO = {
+      name: input.name,
+      goal: input.goal,
+      target_date: input.target_date,
+      status: input.status,
+      provenance: input.provenance,
+    };
     // 状态流转入账本（P4：每次变更可追溯；Q2 决策——Milestone 是实体，改动必须留痕）
     let previousStatus: string | undefined;
     if (input.status !== undefined) {
@@ -77,7 +101,7 @@ export const milestonesRoutes = new Hono()
       if (!existing) return c.json({ error: 'milestone not found' }, 404);
       previousStatus = existing.status;
     }
-    await milestoneRepo.update(id, input);
+    await milestoneRepo.update(id, dto);
     if (input.status !== undefined && input.status !== previousStatus) {
       await statusChangeRepo.create({
         id: '',
@@ -85,7 +109,7 @@ export const milestonesRoutes = new Hono()
         entity_type: 'milestone',
         previous_status: previousStatus ?? 'planned',
         new_status: input.status,
-        reason: c.req.query('reason') ?? (input as { reason?: string }).reason,
+        reason: c.req.query('reason') ?? input.reason,
         changed_by: 'api',
         changed_at: new Date().toISOString(),
       });

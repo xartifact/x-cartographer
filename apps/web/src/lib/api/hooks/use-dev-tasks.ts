@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
+import { toApiError } from '@/lib/api/error';
 import type {
   DevTask,
   TaskStatus,
@@ -111,6 +112,7 @@ export function useCreateDevTask() {
   return useMutation<CreateDevTaskResult, Error, CreateDevTaskVariables>({
     mutationFn: async (variables) => {
       const res = await api.api['dev-tasks'].$post({ json: variables });
+      if (!res.ok) throw await toApiError(res, '创建研发任务失败');
       return (await res.json()) as CreateDevTaskResult;
     },
     onSuccess: (_data, variables) => {
@@ -127,6 +129,7 @@ export function useUpdateDevTask() {
     mutationFn: async (variables: UpdateDevTaskVariables) => {
       const { id, ...dto } = variables;
       const res = await api.api['dev-tasks'][':id'].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, '更新研发任务失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -143,6 +146,7 @@ export function useUpdateDevTaskStatus() {
     mutationFn: async (variables: UpdateDevTaskStatusVariables) => {
       const { id, ...body } = variables;
       const res = await api.api['dev-tasks'][':id'].status.$post({ param: { id }, json: body });
+      if (!res.ok) throw await toApiError(res, '更新任务状态失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -165,6 +169,7 @@ export function useDeleteDevTask() {
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
       const res = await api.api['dev-tasks'][':id'].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, '删除研发任务失败');
       return res.json();
     },
     onSuccess: () => {

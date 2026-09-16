@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
+import { toApiError } from '@/lib/api/error';
 import type { CreateUserActivityDTO, UpdateUserActivityDTO } from '@x-cartographer/shared';
 
 /**
@@ -31,6 +32,7 @@ export function useCreateActivity() {
     mutationFn: async (variables: { productId: string } & Omit<CreateUserActivityDTO, 'product_id'>) => {
       const { productId, ...dto } = variables;
       const res = await api.api['user-activities'].$post({ json: { productId, ...dto } });
+      if (!res.ok) throw await toApiError(res, '创建活动失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -48,6 +50,7 @@ export function useUpdateActivity() {
     mutationFn: async (variables: { id: string } & UpdateUserActivityDTO) => {
       const { id, ...dto } = variables;
       const res = await api.api['user-activities'][':id'].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, '更新活动失败');
       return res.json();
     },
     onSuccess: () => {
@@ -62,6 +65,7 @@ export function useDeleteActivity() {
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
       const res = await api.api['user-activities'][':id'].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, '删除活动失败');
       return res.json();
     },
     onSuccess: () => {

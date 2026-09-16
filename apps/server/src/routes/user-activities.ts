@@ -44,13 +44,22 @@ export const userActivitiesRoutes = new Hono()
       name: input.name,
       description: input.description,
       order: input.order,
+      // provenance 此前被丢掉：schema 收了它，路由却没传给仓库，
+      // 人类显式登记的活动被静默记为 agent_inferred（同 ADR 路由曾有的 bug）。
+      provenance: input.provenance,
     });
     return c.json({ success: true, id }, 201);
   })
   // PATCH /api/user-activities/:id
   .patch('/:id', zValidator('json', updateUserActivitySchema), async (c) => {
     const input = c.req.valid('json');
-    await userActivityRepo.update(c.req.param('id'), input);
+    // 显式映射到 UpdateUserActivityDTO：不再直接透传 zod 输出，
+    // schema 增字段时不会绕过仓库的字段契约静默落到 updateData。
+    await userActivityRepo.update(c.req.param('id'), {
+      name: input.name,
+      description: input.description,
+      order: input.order,
+    });
     return c.json({ success: true });
   })
   // DELETE /api/user-activities/:id

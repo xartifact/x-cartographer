@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { StatusChangeRecord } from '@x-cartographer/shared';
+import { toApiError } from '@/lib/api/error';
 import { api } from '@/lib/api/client';
 
 /**
@@ -49,6 +50,7 @@ export function useCreateStatusChange() {
   return useMutation({
     mutationFn: async (variables: CreateStatusChangeVariables) => {
       const res = await api.api['status-changes'].$post({ json: variables });
+      if (!res.ok) throw await toApiError(res, '记录状态变更失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {

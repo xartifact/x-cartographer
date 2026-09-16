@@ -35,6 +35,11 @@
   --task-technical: 262 83% 58%;
   --task-bug-fix: 0 84% 60%;
   --task-spike: 38 92% 50%;
+
+  /* 卡片面上的强对比红（依赖图悬空引用的标红）。--destructive 在暗色下对卡片
+     只有 2:1 对比度，红字/红线在近黑卡片上几乎看不见。本变量保证两套主题下
+     都 ≥4.5:1（对比的是 10% 同色底）：亮色 red-700（5.4:1）/ 暗色 red-400（6.5:1）。 */
+  --destructive-strong: 0 74% 42%;
 }
 
 .dark {
@@ -54,6 +59,8 @@
   --accent-foreground: 210 40% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
+  /* 暗色下 --destructive 太暗（卡片上仅 2:1），标红用醒目的 red-400 */
+  --destructive-strong: 0 91% 71%;
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
   --ring: 212.7 26.8% 83.9%;
@@ -76,6 +83,7 @@
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-strong: hsl(var(--destructive-strong));
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));

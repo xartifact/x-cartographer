@@ -203,7 +203,12 @@ export class ProductRepository {
         version: '1.0.0',
         tags: [],
       },
-      settings: getDefaultSettings(),
+      // workspace_dir 此前被丢弃：DTO/路由都收它，仓库却没有落列，
+      // 前端「新建产品」填的路径静默消失（settings 只剩默认值）。
+      settings: {
+        ...getDefaultSettings(),
+        ...(dto.workspace_dir !== undefined ? { workspace_dir: dto.workspace_dir } : {}),
+      },
       provenance: dto.provenance ?? 'agent_inferred',
       createdAt: now,
       updatedAt: now,
@@ -218,15 +223,26 @@ export class ProductRepository {
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.description !== undefined) updateData.description = dto.description;
 
-    if (dto.settings !== undefined) {
+    // settings / metadata 都是 jsonb 部分更新：各自与库中现值合并。
+    // 合并基准取自同一次读取——只传其中一个不得清空另一个（两者是独立列）。
+    // metadata 此前被整个丢弃：产品编辑对话框改技术栈后 toast 报成功、库里无变化。
+    if (dto.settings !== undefined || dto.metadata !== undefined) {
       const existing = await db.query.products.findFirst({
         where: eq(products.id, id),
       });
       if (existing) {
-        updateData.settings = {
-          ...(existing.settings as object),
-          ...dto.settings,
-        };
+        if (dto.settings !== undefined) {
+          updateData.settings = {
+            ...(existing.settings as object),
+            ...dto.settings,
+          };
+        }
+        if (dto.metadata !== undefined) {
+          updateData.metadata = {
+            ...(existing.metadata as object),
+            ...dto.metadata,
+          };
+        }
       }
     }
 

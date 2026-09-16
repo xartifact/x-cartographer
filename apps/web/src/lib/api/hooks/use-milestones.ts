@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
+import { toApiError } from '@/lib/api/error';
 import type { CreateMilestoneDTO, Milestone, UpdateMilestoneDTO } from '@x-cartographer/shared';
 
 /**
@@ -32,6 +33,7 @@ export function useCreateMilestone() {
   return useMutation({
     mutationFn: async (dto: CreateMilestoneDTO) => {
       const res = await api.api.milestones.$post({ json: dto });
+      if (!res.ok) throw await toApiError(res, '创建版本失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -47,6 +49,7 @@ export function useUpdateMilestone() {
     mutationFn: async (variables: { id: string; productId: string } & UpdateMilestoneDTO) => {
       const { id, productId, ...dto } = variables;
       const res = await api.api.milestones[':id'].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, '更新版本失败');
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -62,6 +65,7 @@ export function useDeleteMilestone() {
     mutationFn: async (variables: { id: string; productId: string }) => {
       const { id, productId } = variables;
       const res = await api.api.milestones[':id'].$delete({ param: { id } });
+      if (!res.ok) throw await toApiError(res, '删除版本失败');
       return { res: res.json(), productId };
     },
     onSuccess: (_data, variables) => {
