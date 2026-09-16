@@ -15,6 +15,7 @@ import { milestonesRoutes } from './routes/milestones';
 import { statusChangesRoutes } from './routes/status-changes';
 import { adrRecordsRoutes } from './routes/adr-records';
 import { settingsRoutes } from './routes/settings';
+import { checkSchemaHealth } from './lib/schema-health';
 import type { MiddlewareHandler } from 'hono';
 import { createLogger } from '@x-cartographer/db';
 import { apiTokenAuth } from './middleware/auth';
@@ -48,7 +49,35 @@ export const app = new Hono()
   // 生产镜像托管 apps/web/dist；dev 下文件不存在，中间件透传所有请求
   .use('*', spaStaticMiddleware())
 
+  /**
+   * 存活探针：进程是否响应。
+   * **不查库**——容器编排的 liveness 语义是"要不要重启进程"，
+   * 数据库不可用属于依赖故障，重启应用无济于事（compose healthcheck 消费此端点）。
+   */
   .get('/health', (c) => c.json({ status: 'ok' }))
+
+  /**
+   * 就绪探针：数据库可达 **且** schema 与当前代码一致。
+   * CI 部署验证消费此端点——2026-09-15 事故正是"代码已升级、库未迁移"，
+   * 而 /health 硬编码 ok 使该状态被误判为部署成功。
+   * schema 不一致时返回 503，让部署流程立即失败而非把故障推给用户。
+   */
+  .get('/health/ready', async (c) => {
+    const schema = await checkSchemaHealth();
+    return c.json(
+      {
+        status: schema.ok ? 'ready' : 'not_ready',
+        database: { reachable: schema.reachable },
+        schema: {
+          ok: schema.ok,
+          missing_tables: schema.missingTables,
+          missing_columns: schema.missingColumns,
+        },
+        ...(schema.error ? { error: schema.error } : {}),
+      },
+      schema.ok ? 200 : 503
+    );
+  })
 
   .get('/metrics', async (c) => {
     c.header('Content-Type', register.contentType);

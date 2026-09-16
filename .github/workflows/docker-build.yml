@@ -113,11 +113,23 @@ jobs:
               exit 1
             fi
 
-            HTTP_CODE=$(docker exec x-cartographer bun -e "fetch('http://localhost:8787/health').then(r=>console.log(r.status)).catch(()=>console.log(0))" 2>/dev/null || echo "0")
+            # 就绪探针（非 liveness）：校验 DB 可达 + schema 与当前代码一致。
+            # 2026-09-15 事故：新代码部署但库未迁移，老 /health 硬编码 200 使该状态被误判成功，
+            # 结果是"部署通过、全站 API 500"。就绪探针让这类半迁移状态在部署阶段即失败。
+            READY_RESP=$(docker exec x-cartographer bun -e "fetch('http://localhost:8787/health/ready').then(async r=>console.log(r.status + ' ' + (await r.text()).slice(0,300))).catch(()=>console.log('0 unreachable'))" 2>/dev/null || echo "0 exec-failed")
+            HTTP_CODE=$(echo "$READY_RESP" | cut -d' ' -f1)
 
             if [ "$HTTP_CODE" = "200" ]; then
-              echo "✓ Service is healthy (HTTP 200)"
+              echo "✓ Service is ready (HTTP 200, schema verified)"
               break
+            fi
+
+            # 就绪失败但进程存活 = schema/DB 问题，直接暴露详情终止，不必耗尽重试
+            if [ "$HTTP_CODE" = "503" ]; then
+              echo "✗ Service is NOT ready (HTTP 503): $READY_RESP"
+              echo "  提示：多为数据库未迁移。执行 bun scripts/run-migrate-story-map.ts"
+              docker-compose logs --tail=50 x-cartographer
+              exit 1
             fi
 
             RETRY_COUNT=$((RETRY_COUNT + 1))

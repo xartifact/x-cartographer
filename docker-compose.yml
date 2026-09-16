@@ -18,6 +18,9 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-example}:${DB_PASSWORD:-example}@${DB_HOST:-100.80.110.125}:${DB_PORT:-5432}/${DB_NAME:-x_cartographer}
     ports:
       - '${HOST_PORT:-8787}:8787'
+    # liveness 语义：只探进程存活，**不探 schema**。
+    # 用 /health/ready 会让"库未迁移"触发容器反复重启，掩盖真实故障；
+    # schema 就绪由 CI 部署验证核查（见 .github/workflows/docker-build.yml）。
     healthcheck:
       test: ['CMD-SHELL', 'bun -e "fetch(\"http://localhost:8787/health\").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
       interval: 30s
