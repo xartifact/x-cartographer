@@ -338,8 +338,8 @@ provenance: 'human_asserted' | 'agent_inferred' | 'imported'
 | **A** | 本文档定稿；`story-map-redesign.md` §2 改为引用本文档 | — | ✅ 完成 |
 | **B** | 诚实化 schema：删死列（§6.1/6.5）、删死文件、修 `affected_modules` 写入 bug | A | 部分（死文件已删；死列与写入 bug 待做） |
 | **C** | 恢复任务可见性（§6.2）：补归位 + 「未分配」一等状态 | A | ✅ 完成（归位 108/108；「未分配」兜底待做） |
-| **D** | 补 `UserTask` 层的**录入能力**（Q3）：CLI `user-task` 命令 + 故事地图内"新建任务列"入口；存量归纳仅作辅助 | A | 部分（CLI 已就绪；地图内入口待做） |
-| **E** | `provenance` + 约束写入协议（§3/§4.4） | A | ✅ 完成（六实体列 + 全链透传 + CLI flag；高影响落 proposed 待做） |
+| **D** | 补 `UserTask` 层的**录入能力**（Q3）：CLI `user-task` 命令 + 故事地图内"新建任务列"入口；存量归纳仅作辅助 | A | ✅ 完成（CLI + 地图内入口均已就绪；存量 UserTask 正向补层待做） |
+| **E** | `provenance` + 约束写入协议（§3/§4.4） | A | ✅ 完成（六实体列 + 全链透传 + CLI flag + 高影响落 proposed 分类器） |
 | **F** | `SystemModule` 落表（§6.4）+ `affected_modules` 强校验 | B, E | ✅ 完成（表+仓库+REST+校验已落地；`changes.modules` 机制移除，ADR bug 修复） |
 | **G** | `Milestone` 接入账本（Q2）：补状态流转基线，消除"改了不入账" | A | ✅ 完成 |
 | **H** | `story.status` 更名（§6.3）：`done` → 与 DevTask 状态可辨（如 `accepted`） | A | ✅ 完成 |
@@ -358,7 +358,36 @@ provenance: 'human_asserted' | 'agent_inferred' | 'imported'
 
 **默认值落在 schema 层**（`DEFAULT 'agent_inferred'`），失败安全：误标推断只多一次确认；误标人类主张则污染可信度且不可逆。
 
-**待做**：§4.4 的"高影响写入落 `proposed`"判定（需要"高影响"分类器：改 ADR / 增删 SystemModule / 增删 UserStory / 改 activity 结构）。
+**高影响分类器（§4.1 第三行，2026-09-16 补齐）**：此前「高影响」只是散文描述，无可判定谓词，
+故无法被任何代码执行——高影响项与低影响项一样直接生效，§4.4 的落点规则形同不存在。
+
+| 层 | 落点 |
+|---|---|
+| 分类器 | `apps/server/src/lib/constraint-impact.ts`：`assessConstraintImpact({entity, action, fields})` → `'low' \| 'high'` |
+| 落点判定 | 同模块 `resolveAdrCreateStatus({provenance, status})`——`assessConstraintImpact` 的唯一消费点 |
+| 接入 | `routes/adr-records.ts` 的 create：非人主张未指定 status 时**强制 `proposed`** |
+| 测试 | `__tests__/constraint-impact.test.ts`（分类边界）+ `api.test.ts` ADR 落点组（端到端） |
+
+判定语义（**白名单式**，方向由 §3.2 失败安全规定——误判为高只多一次显式升格；误判为低会把
+Agent 的推断静默记成生效约束且不可逆）：
+
+| 输入 | 判定 |
+|---|---|
+| 任一约束实体的 `create` / `delete` | high（增删 = 增加/移除一条承诺） |
+| `adr` 的 `update` | high（改 ADR 即一次决策变更，与改动哪些字段无关） |
+| `update` 触及的字段全部属 §4.1 明列四项（描述 / 标签 / order / affected_modules） | low |
+| 其余（含改 `activityId` 换列、字段未给、不在枚举内的字段） | high |
+
+§4.1 原文正列举了高影响项与低影响项，未覆盖全部实体×动作组合（如「改 product 描述」）。
+实现取**白名单式**封口：低影响项封闭在原文四项，其余一律高。这是唯一不自相矛盾的选择——
+按原文低影响项反推补全「低影响清单」会与「增删/改 ADR 恒高」冲突，且新增字段时默认落低影响，
+方向与 §3.2 的失败安全相反。
+
+`entity` 联合**刻意不含 `devTask`**：DevTask 属工作空间，§2.4 明定「工作 → 约束」是禁止边，
+故工作项写入不参与本判定（其 `affected_modules` 由 `module-refs.ts` 做存在性校验）。
+
+**不做的事**：不引入权限模型、不设确认权（§4.4）——分类器只回答"落点在哪里"，`proposed → accepted`
+这个状态转换本身就是"确认"的载体，执行者不限，唯一要求是带 `--reason`。
 
 ### 决策记录（2026-09-15 全部定案）
 
@@ -385,8 +414,8 @@ provenance: 'human_asserted' | 'agent_inferred' | 'imported'
 | 数据层 | ✅ `product.repository.ts` 含 `user_tasks` 与 `user_task_id` 映射 |
 | 故事地图 | ✅ 任务列渲染 + 拖拽落列（`patron-canvas.tsx`） |
 | 前端页面 | ✅ `/products/:id/user-tasks` |
-| **CLI** | ❌ **无 `user-task` 命令**（Agent 无法创建——需补） |
-| **地图内创建入口** | ❌ 无"新建任务列"操作（需补） |
+| **CLI** | ✅ `xcart user-task` list/create/update/delete（`apps/cli/src/index.ts`） |
+| **地图内创建入口** | ✅ 活动宽头"新建任务列"（`patron-canvas.tsx` + `user-task-dialog.tsx`）；任务列头悬停可改名/删除 |
 
 **必须遵守的三条规则**（避免重演 `story.status` 漂移病）：
 

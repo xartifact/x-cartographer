@@ -1,13 +1,14 @@
 // Stories REST routes
 // 来源: storyRouter (tRPC) → Hono
+// 约束写入协议（§4.1）：story 增删与换列改变约束语义，写入路径经分类器判定。
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { StoryRepository, StatusChangeRepository } from '@x-cartographer/db';
+import { StoryRepository, StatusChangeRepository, generateShortId, createLogger } from '@x-cartographer/db';
 import { Priority } from '@x-cartographer/shared';
-import { generateShortId } from '@x-cartographer/db';
 import { findDanglingModuleRefs, productIdOfActivity } from '../lib/module-refs';
+import { assessConstraintImpact } from '../lib/constraint-impact';
 
 const createStorySchema = z.object({
   activityId: z.string(),
@@ -42,6 +43,7 @@ const updateStatusSchema = z.object({
 
 const storyRepo = new StoryRepository();
 const statusChangeRepo = new StatusChangeRepository();
+const log = createLogger('stories');
 
 /**
  * 统一 REST 输出形状（snake_case）——与 products/milestones/dev-tasks 一致。
@@ -135,6 +137,17 @@ export const storiesRoutes = new Hono()
     if (input.activityId !== undefined) dto.activityId = input.activityId;
     if (input.userTaskId !== undefined) dto.userTaskId = input.userTaskId;
     if (input.affectedModules !== undefined) dto.affected_modules = input.affectedModules;
+    // 约束影响判定（§4.1）。story 修改里只有「换列」（改 activityId）改变约束语义
+    // ——「改 activity 结构」；其余可改字段（补描述 / 加标签 / 调 order / 填
+    // affected_modules）属低影响明列项，故不判定（不播报正常事实，避免噪音响应）。
+    if (input.activityId !== undefined) {
+      const fields = ['activityId'];
+      log.info('story.constraint_impact', {
+        id: c.req.param('id'),
+        impact: assessConstraintImpact({ entity: 'story', action: 'update', fields }),
+        fields,
+      });
+    }
     // 模块引用存在性校验（告警不阻断——§3.5「纯信息，无服务端裁决」）
     let moduleWarning: string[] = [];
     if (input.affectedModules !== undefined) {

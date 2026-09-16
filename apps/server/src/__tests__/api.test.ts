@@ -726,6 +726,128 @@ describe('PUT /api/products/full transaction', () => {
   });
 });
 
+describe('ADR 创建落点：高影响非人主张落 proposed (§4.1/§4.4)', () => {
+  const adrBody = (productId: string, extra: Record<string, unknown> = {}) => ({
+    product_id: productId,
+    title: '网关不得引入 LLM 依赖',
+    context: '定位为纯存储/协调层',
+    decision: '禁止内置模型调用',
+    ...extra,
+  });
+
+  it('agent_inferred 且不传 status → 落库 proposed', async () => {
+    const productId = await createProduct('ADR 落点产品');
+    const res = await jsonRequest('POST', '/api/adr-records', adrBody(productId, {
+      provenance: 'agent_inferred',
+    }));
+    expect(res.status).toBe(201);
+    const created = (await res.json()) as {
+      success: boolean;
+      id: string;
+      status: string;
+      warnings?: Record<string, unknown>;
+    };
+    expect(created.status).toBe('proposed');
+    expect(created.warnings).toBeUndefined();
+
+    // 落库值（不只是响应回显）
+    const stored = (await (
+      await app.request(`/api/adr-records/${created.id}`)
+    ).json()) as Record<string, unknown>;
+    expect(stored.status).toBe('proposed');
+  });
+
+  it('缺省 provenance（即 agent_inferred）同样不自动 accepted', async () => {
+    const productId = await createProduct('ADR 缺省产品');
+    const res = await jsonRequest('POST', '/api/adr-records', adrBody(productId));
+    expect(res.status).toBe(201);
+    const created = (await res.json()) as { id: string; status: string };
+    expect(created.status).toBe('proposed');
+  });
+
+  it('human_asserted + accepted → 保持 accepted，无警告', async () => {
+    const productId = await createProduct('ADR 人主张产品');
+    const res = await jsonRequest('POST', '/api/adr-records', adrBody(productId, {
+      provenance: 'human_asserted',
+      status: 'accepted',
+    }));
+    expect(res.status).toBe(201);
+    const created = (await res.json()) as {
+      id: string;
+      status: string;
+      warnings?: Record<string, unknown>;
+    };
+    expect(created.status).toBe('accepted');
+    expect(created.warnings).toBeUndefined();
+
+    const stored = (await (
+      await app.request(`/api/adr-records/${created.id}`)
+    ).json()) as Record<string, unknown>;
+    expect(stored.status).toBe('accepted');
+    // §3.1「来源可见」：主张来源必须能被读回，否则无法检验落点判定是否被绕过
+    expect(stored.provenance).toBe('human_asserted');
+  });
+
+  it('agent_inferred 显式 accepted → 沿用请求值并记录警告（不静默改用户意图）', async () => {
+    const productId = await createProduct('ADR 绕过落点产品');
+    const res = await jsonRequest('POST', '/api/adr-records', adrBody(productId, {
+      provenance: 'agent_inferred',
+      status: 'accepted',
+    }));
+    expect(res.status).toBe(201);
+    const created = (await res.json()) as {
+      id: string;
+      status: string;
+      warnings?: { status_without_human_assertion?: string };
+    };
+    expect(created.status).toBe('accepted');
+    expect(created.warnings?.status_without_human_assertion).toBe('accepted');
+  });
+
+  it('agent_inferred 显式 proposed → 与落点一致，不报警告', async () => {
+    const productId = await createProduct('ADR 一致产品');
+    const res = await jsonRequest('POST', '/api/adr-records', adrBody(productId, {
+      provenance: 'agent_inferred',
+      status: 'proposed',
+    }));
+    expect(res.status).toBe(201);
+    const created = (await res.json()) as {
+      status: string;
+      warnings?: Record<string, unknown>;
+    };
+    expect(created.status).toBe('proposed');
+    expect(created.warnings).toBeUndefined();
+  });
+
+  it('落 proposed 的记录不进入当前态折叠（未升格即未生效）', async () => {
+    const productId = await createProduct('ADR 折叠产品');
+    const created = await jsonRequest('POST', '/api/adr-records', adrBody(productId, {
+      provenance: 'agent_inferred',
+      changes: {
+        architecture_principles: {
+          upsert: [{ id: 'no-llm', strength: 'MUST_NOT', statement: '网关不得引入 LLM' }],
+        },
+      },
+    }));
+    const { id: adrId } = (await created.json()) as { id: string };
+    const constitution = (await (
+      await app.request(`/api/adr-records/current?projectId=${productId}`)
+    ).json()) as { architecture_principles: unknown[] };
+    expect(constitution.architecture_principles).toEqual([]);
+
+    // 显式升格后（须带 reason）该原则才生效
+    const promote = await jsonRequest('POST', `/api/adr-records/${adrId}/status`, {
+      status: 'accepted',
+      reason: '人复核通过',
+    });
+    expect(promote.status).toBe(200);
+    const after = (await (
+      await app.request(`/api/adr-records/current?projectId=${productId}`)
+    ).json()) as { architecture_principles: Array<{ id: string }> };
+    expect(after.architecture_principles.map((p) => p.id)).toEqual(['no-llm']);
+  });
+});
+
 
 describe('validation failures return 400', () => {
   it('zValidator rejects invalid bodies', async () => {

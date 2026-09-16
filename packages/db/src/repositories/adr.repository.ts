@@ -255,6 +255,7 @@ export class AdrRepository {
       milestone_id: row.milestoneId ?? undefined,
       module_ids: row.moduleIds,
       changes: row.changes ?? undefined,
+      provenance: row.provenance,
       created_at: row.createdAt.toISOString(),
       seq: row.seq,
     };

@@ -59,3 +59,10 @@ export {
   useAllStatusChanges,
   useCreateStatusChange,
 } from './use-status-changes';
+
+export {
+  useSystemModules,
+  useUpsertSystemModule,
+  useDeleteSystemModule,
+} from './use-system-modules';
+export type { UpsertSystemModuleInput } from './use-system-modules';

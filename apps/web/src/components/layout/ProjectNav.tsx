@@ -11,6 +11,7 @@ import {
   Users,
   Footprints,
   FileText,
+  Boxes,
 } from 'lucide-react';
 import { Button } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
@@ -71,6 +72,12 @@ const defaultProjectNavItems: ProjectNavProps['items'] = [
     label: '数据',
     href: '/products/[id]/data',
     icon: Database,
+  },
+  {
+    id: 'modules',
+    label: '模块',
+    href: '/products/[id]/modules',
+    icon: Boxes,
   },
 ];
 

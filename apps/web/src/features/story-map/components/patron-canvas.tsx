@@ -31,7 +31,7 @@ import { Card, CardContent, Button, Input, DropdownMenu, DropdownMenuTrigger, Dr
 import { createLogger } from '@/lib/logger';
 import { toast } from 'sonner';
 import { useStoryMapStore, filterStories } from '../stores/story-map-store';
-import { useCreateStory, useUpdateStory, useUpdateStoryStatus, useDeleteStory, useCreateActivity, useUpdateActivity, useDeleteActivity, useUpdateUserTask, useUpdateMilestone, useDeleteMilestone, useCreateMilestone, useMilestonesByProduct } from '@/lib/api/hooks';
+import { useCreateStory, useUpdateStory, useUpdateStoryStatus, useDeleteStory, useCreateActivity, useUpdateActivity, useDeleteActivity, useUpdateUserTask, useCreateUserTask, useDeleteUserTask, useUpdateMilestone, useDeleteMilestone, useCreateMilestone, useMilestonesByProduct } from '@/lib/api/hooks';
 import {
   computePatronLayout,
   resolveStoryDrop,
@@ -49,12 +49,13 @@ import { StoryDetailPanel } from './story-detail-panel';
 import { StoryEditDialog } from './story-edit-dialog';
 import { ActivityCreateDialog } from './activity-create-dialog';
 import { ActivityEditDialog } from './activity-edit-dialog';
+import { UserTaskDialog, type UserTaskFormData } from './user-task-dialog';
 import { StoryCreateDialog } from './story-create-dialog';
 import { FilterPanel } from './filter-panel';
 import { StoryBulkBar } from './story-bulk-bar';
 import { priorityLeftBorderCls } from '@/components/common/priority-badge';
 import { StoryCardBody } from '@/components/common/story-card-body';
-import type { UserActivity, UserStory, Priority, MilestoneStatus } from '@/types';
+import type { UserActivity, UserStory, UserTask, Priority, MilestoneStatus } from '@/types';
 import type { StoryStatus } from '@x-cartographer/shared';
 
 const log = createLogger('patronCanvas');
@@ -76,6 +77,7 @@ function ActivityBandHeader({ data }: { data: {
   storyCount: number;
   taskCount: number;
   onAddStory?: (activityId: string, activityName: string) => void;
+  onAddTaskColumn?: (activityId: string, activityName: string) => void;
   onEditActivity?: (activityId: string) => void;
   onDeleteActivity?: (activityId: string, activityName: string) => void;
 } }) {
@@ -125,7 +127,7 @@ function ActivityBandHeader({ data }: { data: {
           )}
         </div>
       </div>
-      {/* 行 2：统计条（故事/任务 计数） */}
+      {/* 行 2：统计条（故事/任务 计数）+ 新建任务列（虚线框 = 空列占位语义） */}
       <div className="flex items-center gap-2 pl-4 text-[10px] text-muted-foreground">
         <span className="rounded-full bg-background/70 px-1.5 py-0.5">
           {data.storyCount} 故事
@@ -133,6 +135,13 @@ function ActivityBandHeader({ data }: { data: {
         <span className="rounded-full bg-background/70 px-1.5 py-0.5">
           {data.taskCount} 任务
         </span>
+        {data.onAddTaskColumn && (
+          <button type="button" title="新建任务列" aria-label="新建任务列"
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-dashed border-primary/40 text-primary/70 hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+            onClick={(e) => { e.stopPropagation(); data.onAddTaskColumn!(data.activityId, data.activityName); }}>
+            <Plus className="h-3 w-3" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -145,6 +154,8 @@ function TaskColHeader({ data }: { data: {
   storyCount: number;
   unassigned?: boolean;
   onMove?: (dir: -1 | 1) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 } }) {
   if (data.unassigned) {
     return (
@@ -171,6 +182,30 @@ function TaskColHeader({ data }: { data: {
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
+      {/* 编辑/删除（悬停显示，右上角） */}
+      {(data.onEdit || data.onDelete) && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" title="任务列操作"
+              className="absolute right-0.5 top-0.5 rounded-md p-0.5 text-muted-foreground/60 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
+              onClick={(e) => e.stopPropagation()}>
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-32">
+            {data.onEdit && (
+              <DropdownMenuItem onClick={data.onEdit}>
+                <Pencil className="mr-2 h-3 w-3" /> 编辑任务列
+              </DropdownMenuItem>
+            )}
+            {data.onDelete && (
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={data.onDelete}>
+                <Trash2 className="mr-2 h-3 w-3" /> 删除任务列
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       {/* 任务名 + 描述 */}
       <p className="col-drag-handle cursor-grab truncate text-center text-[11px] font-semibold text-foreground/85" title={data.description || data.name}>
         {data.name}
@@ -279,6 +314,8 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
   const updateActivityMutation = useUpdateActivity();
   const deleteActivityMutation = useDeleteActivity();
   const updateUserTaskMutation = useUpdateUserTask();
+  const createUserTaskMutation = useCreateUserTask();
+  const deleteUserTaskMutation = useDeleteUserTask();
   const updateMilestoneMutation = useUpdateMilestone();
   const createMilestoneMutation = useCreateMilestone();
   const deleteMilestoneMutation = useDeleteMilestone();
@@ -288,9 +325,14 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
   const [activityCreateOpen, setActivityCreateOpen] = useState(false);
   const [activityEditOpen, setActivityEditOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<UserActivity | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'activity' | 'story'; id: string; name: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'activity' | 'story' | 'userTask'; id: string; name: string } | null>(null);
   const [storyCreateOpen, setStoryCreateOpen] = useState(false);
   const [storyCreateTarget, setStoryCreateTarget] = useState<{ activityId: string; activityName: string }>({ activityId: '', activityName: '' });
+  // 任务列（UserTask）创建/编辑对话框。seed 在**打开时定格**：若改为渲染中现算对象，
+  // 父组件每次 re-render（后台 refetch 换 activities 身份）都会重置表单、清掉正在输入的内容。
+  const [taskDialog, setTaskDialog] = useState<
+    { activityId: string; activityName: string; taskId: string | null; seed: UserTaskFormData } | null
+  >(null);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   // US-006 批量编辑模式（cutover 时从旧画布迁移补回）
   const [bulkMode, setBulkMode] = useState(false);
@@ -463,6 +505,12 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
           storyCount: activity.stories?.length ?? 0,
           taskCount: activity.user_tasks?.length ?? 0,
           onAddStory: (aid: string, aname: string) => { setStoryCreateTarget({ activityId: aid, activityName: aname }); setStoryCreateOpen(true); },
+          onAddTaskColumn: (aid: string, aname: string) => setTaskDialog({
+            activityId: aid,
+            activityName: aname,
+            taskId: null,
+            seed: { name: '', description: '', order: nextTaskOrder(filteredActivities, aid) },
+          }),
           onEditActivity: (aid: string) => {
             const a = (project?.user_activities ?? []).find((x) => x.id === aid);
             if (a) { setEditingActivity(a); setActivityEditOpen(true); }
@@ -492,6 +540,17 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
           onMove: ch.unassigned || !activity ? undefined : (dir: -1 | 1) => {
             void handleMoveTask(ch.activityId, ch.key === '__unassigned__' ? null : ch.key, dir);
           },
+          onEdit: ch.unassigned || !activity ? undefined : () => {
+            const ut = (activity.user_tasks ?? []).find((t) => t.id === ch.key);
+            if (ut) setTaskDialog({
+              activityId: activity.id,
+              activityName: activity.name,
+              taskId: ut.id,
+              seed: { name: ut.name, description: ut.description, order: ut.order },
+            });
+          },
+          onDelete: ch.unassigned || !activity ? undefined : () =>
+            setDeleteConfirm({ type: 'userTask', id: ch.key, name: ch.name }),
         },
         draggable: !ch.unassigned,
         dragHandle: '.col-drag-handle',
@@ -736,6 +795,40 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
     [updateActivityMutation]
   );
 
+  /** 新建/编辑任务列（taskId 有值即编辑） */
+  const handleSaveUserTask = useCallback(
+    async (input: UserTaskFormData) => {
+      if (!taskDialog) return;
+      const isEdit = taskDialog.taskId !== null;
+      try {
+        if (isEdit) {
+          await updateUserTaskMutation.mutateAsync({
+            id: taskDialog.taskId!,
+            activityId: taskDialog.activityId,
+            name: input.name,
+            description: input.description,
+            order: input.order,
+          });
+        } else {
+          await createUserTaskMutation.mutateAsync({
+            activity_id: taskDialog.activityId,
+            name: input.name,
+            description: input.description,
+            order: input.order,
+          });
+        }
+        setTaskDialog(null);
+      } catch (err) {
+        log.error('userTask.save.failed', { err });
+        toast.error(isEdit ? '更新任务列失败' : '创建任务列失败', {
+          description: err instanceof Error ? err.message : '未知错误',
+        });
+        throw err;
+      }
+    },
+    [taskDialog, createUserTaskMutation, updateUserTaskMutation]
+  );
+
   const handleDeleteStory = useCallback(
     (id: string, title: string) => setDeleteConfirm({ type: 'story', id, name: title }),
     []
@@ -743,15 +836,22 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
 
   const handleConfirmDelete = useCallback(async () => {
     if (!project || !deleteConfirm) return;
-    if (deleteConfirm.type === 'activity') {
-      await deleteActivityMutation.mutateAsync({ id: deleteConfirm.id });
-      if (selectedStory && selectedStory.activity_id === deleteConfirm.id) setSelectedStory(null);
-    } else {
-      await deleteStoryMutation.mutateAsync({ id: deleteConfirm.id });
-      if (selectedStory?.id === deleteConfirm.id) setSelectedStory(null);
+    try {
+      if (deleteConfirm.type === 'activity') {
+        await deleteActivityMutation.mutateAsync({ id: deleteConfirm.id });
+        if (selectedStory && selectedStory.activity_id === deleteConfirm.id) setSelectedStory(null);
+      } else if (deleteConfirm.type === 'userTask') {
+        await deleteUserTaskMutation.mutateAsync({ id: deleteConfirm.id });
+      } else {
+        await deleteStoryMutation.mutateAsync({ id: deleteConfirm.id });
+        if (selectedStory?.id === deleteConfirm.id) setSelectedStory(null);
+      }
+      setDeleteConfirm(null);
+    } catch (err) {
+      log.error('delete.failed', { err, type: deleteConfirm.type });
+      toast.error('删除失败', { description: err instanceof Error ? err.message : '未知错误' });
     }
-    setDeleteConfirm(null);
-  }, [project, deleteConfirm, deleteActivityMutation, deleteStoryMutation, selectedStory, setSelectedStory]);
+  }, [project, deleteConfirm, deleteActivityMutation, deleteUserTaskMutation, deleteStoryMutation, selectedStory, setSelectedStory]);
 
   async function handleCreateSlice(data: { name: string; goal: string; target_date?: string; status?: MilestoneStatus }) {
     await createMilestoneMutation.mutateAsync({
@@ -889,6 +989,14 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
         onSave={handleCreateStory}
       />
       <ActivityEditDialog open={activityEditOpen} activity={editingActivity} onOpenChange={setActivityEditOpen} onSave={handleSaveActivity} />
+      <UserTaskDialog
+        open={taskDialog !== null}
+        onOpenChange={(open) => { if (!open) setTaskDialog(null); }}
+        seed={taskDialog?.seed ?? EMPTY_TASK_SEED}
+        mode={taskDialog?.taskId ? 'edit' : 'create'}
+        activityName={taskDialog?.activityName}
+        onSave={handleSaveUserTask}
+      />
 
       {/* 新建切片对话框 */}
       <MilestoneDialog
@@ -928,11 +1036,15 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
       <Dialog open={deleteConfirm !== null} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>确认删除{deleteConfirm?.type === 'activity' ? '活动' : '故事'}</DialogTitle>
+            <DialogTitle>
+              确认删除{deleteConfirm?.type === 'activity' ? '活动' : deleteConfirm?.type === 'userTask' ? '任务列' : '故事'}
+            </DialogTitle>
             <DialogDescription>
               {deleteConfirm?.type === 'activity'
                 ? `确定要删除活动「${deleteConfirm?.name}」及其所有故事吗？此操作不可撤销。`
-                : `确定要删除故事「${deleteConfirm?.name}」吗？此操作不可撤销。`}
+                : deleteConfirm?.type === 'userTask'
+                  ? `确定要删除任务列「${deleteConfirm?.name}」吗？该列下的故事将变为未分配。`
+                  : `确定要删除故事「${deleteConfirm?.name}」吗？此操作不可撤销。`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -948,4 +1060,16 @@ export function PatronCanvas({ activities, productId, className }: PatronCanvasP
 function useNavigateSafe() {
   // 经典模式画布内暂无路由跳转需求；保留钩位
   return null;
+}
+
+/** 对话框关闭时的占位种子（模块级常量 → 引用稳定，不会触发重置 effect） */
+const EMPTY_TASK_SEED: UserTaskFormData = { name: '', description: '', order: 0 };
+
+/**
+ * 新任务列的默认 order —— 该活动现有 order 的最大值 + 1。
+ * 不用 length：order 允许稀疏（CLI `--order` 可跳号），length 会与既有列撞序。
+ */
+function nextTaskOrder(activities: UserActivity[], activityId: string): number {
+  const tasks = activities.find((a) => a.id === activityId)?.user_tasks ?? [];
+  return tasks.reduce((max, t) => Math.max(max, t.order + 1), 0);
 }

@@ -134,6 +134,13 @@ export interface AdrRecord {
   /** 状态变更差异（可选；无 changes 的 ADR 不参与折叠，§3.3） */
   changes?: AdrChanges;
 
+  /**
+   * 主张来源（domain-model.md §3）。§3.1 的整个论证建立在"这条谁主张的"必须可见之上，
+   * 故读模型必须暴露此列——否则它成为一个只写不读的列，Agent 自省时看不到
+   * "这是推断还是人断言"，§4.1 的落点判定也就无从被检验。
+   */
+  provenance: Provenance;
+
   /** 创建时间（仅用于人类展示，不参与排序，§3.3） */
   created_at: Timestamp;
 

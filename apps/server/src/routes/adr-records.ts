@@ -1,10 +1,12 @@
 // AdrRecords REST routes —— 技术宪法账本（ADR，append-only）
 // docs/design/technical-constitution.md §3；镜像 milestones.ts 的 zod+Hono 写法。
+// 约束写入协议（高影响非人主张落 proposed）见 docs/design/domain-model.md §4.1/§4.4。
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { AdrRepository } from '@x-cartographer/db';
+import { AdrRepository, createLogger } from '@x-cartographer/db';
+import { resolveAdrCreateStatus } from '../lib/constraint-impact';
 
 const adrStatusSchema = z.enum(['proposed', 'accepted', 'superseded', 'deprecated']);
 
@@ -55,6 +57,7 @@ const transitionStatusSchema = z.object({
   reason: z.string().optional(),
 });
 
+const log = createLogger('adr-records');
 const adrRepo = new AdrRepository();
 
 export const adrRecordsRoutes = new Hono()
@@ -87,12 +90,30 @@ export const adrRecordsRoutes = new Hono()
     return c.json(rec);
   })
   // POST /api/adr-records（仅追加；supersedes 联动在 repo 内）
+  //
+  // 约束写入协议（§4.1）：建 ADR 是「一次决策」，属高影响写入。非人主张
+  // （agent_inferred / imported）的落点由 resolveAdrCreateStatus 判定——
+  // 未显式指定 status 时**强制 proposed**，不自动 accepted（升格须显式且带理由，§4.4）。
+  // human_asserted 维持现状：可传 status，缺省仍是 proposed。
   .post('/', zValidator('json', createAdrSchema), async (c) => {
     const input = c.req.valid('json');
+    const landing = resolveAdrCreateStatus({
+      provenance: input.provenance,
+      status: input.status,
+    });
+    if (landing.warnings) {
+      // 不静默改用户意图，但也不静默放过：调用方显式要跳过 proposed，
+      // 此处沿用其值并留痕（响应 + 日志双写）。
+      log.warn('adr.create.status_without_human_assertion', {
+        provenance: input.provenance ?? 'agent_inferred',
+        status: landing.status,
+        title: input.title,
+      });
+    }
     const rec = await adrRepo.create({
       product_id: input.product_id,
       title: input.title,
-      status: input.status,
+      status: landing.status,
       context: input.context,
       decision: input.decision,
       consequences: input.consequences ?? undefined,
@@ -101,8 +122,17 @@ export const adrRecordsRoutes = new Hono()
       milestone_id: input.milestone_id ?? undefined,
       module_ids: input.module_ids,
       changes: input.changes ?? undefined,
+      provenance: input.provenance,
     });
-    return c.json({ success: true, id: rec.id }, 201);
+    return c.json(
+      {
+        success: true,
+        id: rec.id,
+        status: rec.status,
+        ...(landing.warnings ? { warnings: landing.warnings } : {}),
+      },
+      201
+    );
   })
   // POST /api/adr-records/:id/status（状态流转 + 账本）
   .post('/:id/status', zValidator('json', transitionStatusSchema), async (c) => {

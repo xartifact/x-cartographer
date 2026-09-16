@@ -140,13 +140,32 @@ Key constraints:
 
 ## API 数据流约束
 
-- **深树一次取全**：`GET /api/projects/:id` 返回 `user_journeys[].stories[].tasks[]`（含 `story.milestone_id`、`story.tasks`）。统计/排期视图直接消费该树，**勿**逐 story 拉 `task list` 凑数（有 N+1 前科）。
+- **深树一次取全**：`GET /api/products/:id` 返回 `user_activities[].stories[].dev_tasks[]`（含 `story.milestone_id`）。统计/排期视图直接消费该树，**勿**逐 story 拉 `dev-task list` 凑数（有 N+1 前科，2026-09 又复现于 CLI `task summary`，已修）。注意深树字段名是 **`dev_tasks`**（非 `tasks`）。
+- **API 输出形状一律 snake_case**：所有 `/api/*` 端点返回 snake_case 键（`story_id`/`affected_modules`）。请求体用 camelCase，由路由层映射到 DTO——**直接透传 input 会导致字段被仓库层静默丢弃**（dev-tasks PATCH 曾因此丢 `affectedModules`）。
 - **CLI 与 web 数据一致性**：CLI 连 `~/.config/xcart/config` 的 gateway（生产 `http://100.80.110.125:8787`）；web 开发经 Vite proxy，目标由 `VITE_PROXY_TARGET`（`apps/web/.env`，已 gitignore）控制，`vite.config.ts` 用 `loadEnv` 读取。
 
 ## 本地开发环境
 
 - Gateway：`bun run --cwd apps/server dev`（`:8787`）；Web：`bun run --cwd apps/web dev`（`:3001`）。
 - 看生产数据 UI：`apps/web/.env` 写 `VITE_PROXY_TARGET=http://100.80.110.125:8787`（`.env` 被 gitignore，不入库）。
+
+### 本地 PGlite 纪律（违反会导致数据丢失，已多次踩坑）
+
+PGlite 是**嵌入式单实例**库（`apps/server/data/pglite`）。两个进程同时打开同一目录会触发 catalog 损坏与**静默重置**（数据全丢，无报错）。
+
+1. **跑任何本地 DB 脚本前，必须先停 gateway**：
+   ```bash
+   lsof -ti :8787 | xargs kill; rm -f apps/server/data/pglite/postmaster.pid
+   ```
+   包括迁移脚本、诊断脚本、`bun -e` 直连——**任何**新进程打开该目录都算违规。
+2. **验证 schema 变更时用非 watch 模式起服务**：`bun run --cwd apps/server src/index.ts`。
+   `dev`（`--watch`）在 schema 变更后会保留**陈旧的 drizzle 模块状态**，表现为插入报错而独立进程同样代码正常。
+3. **库损坏后的恢复**：停 gateway，然后
+   `cd apps/server && bun scripts/sync-dev-db.ts http://100.80.110.125:8787`
+   （从权威源重建；脚本会自动推进短 ID 序列，避免主键冲突）。
+4. **迁移脚本分两类，勿混用**：
+   - `run-migrate-story-map.ts` = 2026-09-10 故事地图重设计的**一次性编排**（含骨架重建），对已迁移库重跑会失败——这是设计如此。
+   - `migrate-schema.ts` = **增量幂等 DDL**（新 schema 变更加这里），可对任意状态重跑。
 
 ## 代码质量门禁
 
