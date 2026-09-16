@@ -15,7 +15,7 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { ensureDb } from '../db/client';
+import { ensureDb, rowsOf } from '../db/client';
 
 /**
  * 实体 ID 规格：前缀、序列表、所在表、以及指向该实体的外键列（存量重写用）。
@@ -106,13 +106,11 @@ export type ShortIdKind = keyof typeof ID_SPECS;
  * 序号超过 999 时自然增长为 4 位（`US-1000`），不截断。
  */
 export async function generateShortId(kind: ShortIdKind): Promise<string> {
-  const { prefix, sequence } = ID_SPECS[kind];
+  const { sequence } = ID_SPECS[kind];
   const db = await ensureDb();
   await db.execute(sql.raw(`CREATE SEQUENCE IF NOT EXISTS ${sequence}`));
-  const result = await db.execute(
-    sql.raw(`SELECT nextval('${sequence}')::text AS n`)
-  );
-  const n = Number((result as unknown as { rows: Array<{ n: string }> }).rows[0].n);
+  const result = await db.execute(sql.raw(`SELECT nextval('${sequence}')::text AS n`));
+  const n = Number(rowsOf(result)[0]?.n ?? 0);
   return formatShortId(kind, n);
 }
 

@@ -1,19 +1,19 @@
 ---
 name: xcart-task-management
-description: 在 X-Cartographer 中管理用户故事拆解出的研发任务：创建/查询/更新任务、推进任务状态、获取下一个可执行任务、查看状态历史与任务统计。当 agent 需要执行或协调研发任务时使用。
+description: 在 X-Cartographer 中管理用户故事拆解出的研发任务（dev task）：创建/查询/更新任务、推进任务状态、获取下一个可执行任务、查看状态历史与任务统计。当 agent 需要执行或协调研发任务时使用。
 ---
 
 # X-Cartographer 任务管理
 
-本 skill 教你用 xcart CLI 操作**任务（task）**生命周期：从故事拆解任务，推进状态，识别"下一个可执行任务"。
+本 skill 教你用 xcart CLI 操作**研发任务（dev task）**生命周期：从用户故事拆解研发任务，推进状态，识别"下一个可执行任务"。概念权威定义见 `docs/design/domain-model.md`——研发任务属**工作空间**（我们将采取什么行动），与用户任务（UserTask，属约束空间·意图）是不同空间的实体，永远不共用词汇。
 
 ## 命令
 
 ```bash
-xcart task list --story <storyId>
+xcart dev-task list --story <storyId>
 xcart task info <taskId>
-xcart task create --story <storyId> --title <t> [--type user_story|technical_task|bug_fix|spike] [--priority P0|P1|P2|P3] [--estimation <h>] [--description] [--deps id1,id2] [--tags a,b]
-xcart task update <taskId> [--title] [--priority] [--type] [--estimation] [--assignee] [--status] [--tags]
+xcart task create --story <storyId> --title <t> [--priority P0|P1|P2|P3] [--estimation <h>] [--description] [--deps id1,id2] [--tags a,b]
+xcart task update <taskId> [--title] [--priority] [--estimation] [--assignee] [--status] [--tags]
 xcart task status <taskId> <status> [--reason]       # backlog|todo|in_progress|in_review|testing|done|cancelled
 xcart task next --project <projectId> [--assignee]   # 下一个可执行任务（仅 todo 且依赖已完成）
 xcart task summary --project <projectId>             # 任务状态统计/完成率
@@ -57,10 +57,10 @@ xcart status history <taskId>                        # 状态变更历史（含�
 
 ## 校验值
 
-- `type`: `user_story | technical_task | bug_fix | spike`
-- `priority`: `P0(P0) | P1(P1) | P2(P2) | P3(P3)`
+- `priority`: `P0 | P1 | P2 | P3`
 - `status`: `backlog | todo | in_progress | in_review | testing | done | cancelled`
 
+**无 `--type` 参数**——`type` 字段已废除（实体切割后分类价值失效），交付性质由 `--tags` 承载（惯例标签：`architecture-enabler` / `implementation` / `refactor` / `bug`）。
 
 ## Agent 效率提示（数据统计与解析）
 

@@ -1,13 +1,13 @@
 # X-Cartographer — 关系可视化设计（任务依赖图 / 模块归属矩阵 / ADR 演进时间线）
 
-> 状态：**设计定稿，待实现（2026-09-08）**。遵循 `docs/design/ai-native-product-principles.md` P1（一个规范模型，多个投影，投影形态跟数据本质走）。与技术宪法（`technical-constitution.md`）、并发修复（`task-claim-concurrency.md`）均为正交设计，互不依赖，可独立排期。
+> 状态：**设计定稿，待实现（2026-09-08；2026-09-15 依赖更新）**。遵循 `docs/design/ai-native-product-principles.md` P1（一个规范模型，多个投影，投影形态跟数据本质走）。与技术宪法（`technical-constitution.md`）、并发修复（`task-claim-concurrency.md`）为正交设计，可独立排期；但 **§4 模块归属矩阵依赖 `domain-model.md` §6.4 的 `SystemModule` 落表**——该实体目前无表，故 §4 不可先行实现。
 
 ## 1. 背景
 
 任务规模增长后，人类难以从列表/看板视角看清任务之间的关系——但"关系"在这个系统里不是单一概念。核对代码发现两个基础事实：
 
-1. `apps/web/src/features/story-map/components/story-map-canvas.tsx:632-643` 里，故事地图画布现有的 `@xyflow/react` 边（edge）**只是布局边**（journey 标题→故事、故事→下一个故事的排序连线），不是语义关系——`Task.dependencies: string[]` 这个真正的依赖关系数据，今天从未被可视化过。
-2. `apps/web/package.json:16` 已经声明依赖 `@dagrejs/dagre@^3.0.0`，但全仓库 `grep` 零命中任何 `import` ——**这是一个孤儿依赖**，装了三周未被任何代码消费，与 `Project.metadata.tech_stack` 字段是同一类问题（P2 教训：东西存在不等于被使用）。本设计的任务依赖图部分，是"终于启用"而不是"引入新依赖"。
+1. `apps/web/src/features/story-map/components/story-map-canvas.tsx` 里，故事地图画布旧的 `@xyflow/react` 边（edge）**只是布局边**（journey 标题→故事、故事→下一个故事的排序连线），不是语义关系——`DevTask.dependencies: string[]` 这个真正的依赖关系数据，长期未被可视化。（注：该画布已于 2026-09 被 `patron-canvas.tsx` 取代，本文档 §3 的 DAG 视图已在 `task-dependency-graph.tsx` 落地并接入任务页。）
+2. `apps/web/package.json` 已声明依赖 `@dagrejs/dagre` 但全仓库零 `import` ——**孤儿依赖**，与 `Project.metadata.tech_stack` 是同一类问题（P2 教训：东西存在不等于被使用）。本设计的任务依赖图部分是"终于启用"而非"引入新依赖"。
 
 ## 2. 核心原则：一张大图装不下所有关系
 

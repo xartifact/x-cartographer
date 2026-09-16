@@ -1,6 +1,8 @@
 # X-Cartographer — 技术宪法（Technical Constitution / ADR）设计
 
-> 状态：**设计定稿，待实现（2026-09-05）**。本文档回答"技术宪法长什么样、为什么这样设计"，遵循 `docs/design/ai-native-product-principles.md` 的 P1–P5；与 `x-cartographer-architecture.md` 互补，不重复其内容。数据模型部分以本文档为准；文件级改动落点（schema/route/CLI 的具体代码位置）留待实现阶段单独产出，不在本文档中固化。
+> 状态：**设计定稿，待实现（2026-09-05；2026-09-15 域归属已明确）**。本文档回答"技术宪法长什么样、为什么这样设计"，遵循 `docs/design/ai-native-product-principles.md` 的 P1–P5；与 `x-cartographer-architecture.md` 互补，不重复其内容。数据模型部分以本文档为准；文件级改动落点（schema/route/CLI 的具体代码位置）留待实现阶段单独产出，不在本文档中固化。
+>
+> **域归属（2026-09-15 补）**：`AdrRecord` 与 `SystemModule` 均属 `domain-model.md` §2 的**约束空间·规矩（Doctrine）**——即"我们决定怎么做"。它们此前被归入平台域，现与其他约束实体统一，§4 的 `resolveEffectiveArchitectureContext` 因此不再跨域。
 >
 > 设计取舍原则：本文档在正确性与简单性冲突时，**优先正确性**——凡是"更简单但可能悄悄丢信息/悄悄产生歧义"的做法，一律不采用，即便它能减少代码量。
 

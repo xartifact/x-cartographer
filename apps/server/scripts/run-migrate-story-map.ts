@@ -11,11 +11,16 @@ import {
   bumpSequenceTo,
   ID_SPECS,
   parseShortId,
+  rowsOf,
   type DbInstance,
 } from '@x-cartographer/db';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 let db: DbInstance;
+
+/** 查询并取 rows（兼容 PGlite `{rows}` 与 postgres-js 裸数组两种驱动形态） */
+const query = async (s: string): Promise<Array<Record<string, unknown>>> =>
+  rowsOf(await db.execute(sql.raw(s)));
 
 const exec = async (s: string, allowFail = false): Promise<boolean> => {
   if (DRY_RUN) { console.log(`  [dry] ${s.slice(0, 70)}`); return true; }
@@ -28,16 +33,16 @@ const exec = async (s: string, allowFail = false): Promise<boolean> => {
   }
 };
 const qCount = async (t: string): Promise<number> => {
-  const r: any = await db.execute(sql.raw(`SELECT count(*)::int AS n FROM ${t}`));
-  return r.rows[0].n;
+  const r = await query(`SELECT count(*)::int AS n FROM ${t}`);
+  return Number(r[0]?.n ?? 0);
 };
 const hasTable = async (t: string): Promise<boolean> => {
-  const r: any = await db.execute(sql.raw(`SELECT to_regclass('public.${t}') IS NOT NULL AS e`));
-  return r.rows[0].e;
+  const r = await query(`SELECT to_regclass('public.${t}') IS NOT NULL AS e`);
+  return Boolean(r[0]?.e);
 };
 const cols = async (t: string): Promise<string[]> => {
-  const r: any = await db.execute(sql.raw(`SELECT column_name FROM information_schema.columns WHERE table_name='${t}'`));
-  return r.rows.map((x: any) => x.column_name);
+  const r = await query(`SELECT column_name FROM information_schema.columns WHERE table_name='${t}'`);
+  return r.map((x) => String(x.column_name));
 };
 
 const ACTIVITIES = [
@@ -51,11 +56,16 @@ const ACTIVITIES = [
 async function main(): Promise<void> {
   db = await ensureDb();
   console.log('=== 步骤 0：前置断言 ===');
-  const tList: any = await db.execute(sql.raw(`SELECT tablename FROM pg_tables WHERE schemaname='public'`));
-  const t = (tList as unknown as { rows: Array<{ tablename: string }> }).rows.map((x) => x.tablename);
+  const tList = await query(`SELECT tablename FROM pg_tables WHERE schemaname='public'`);
+  const t = tList.map((x) => String(x.tablename));
   if (!t.includes('projects') && !t.includes('products')) { console.error('[abort] 空库/连错库'); process.exit(1); }
   const preStories = await qCount('user_stories');
-  const preTasks = await qCount(t.includes('dev_tasks') ? 'dev_tasks' : 'tasks');
+  // 任务数基线：迁移会把 tasks 改名为 dev_tasks，故无论当前是哪张表，
+  // 都要把「有数据的那张」当作同一实体计数（dev_tasks 存在但为空 = 半迁移残留）
+  const preTasks =
+    (await hasTable('dev_tasks')) && (await qCount('dev_tasks')) > 0
+      ? await qCount('dev_tasks')
+      : (await hasTable('tasks')) ? await qCount('tasks') : 0;
   const preChanges = await qCount('status_changes');
   console.log(`[pre] stories=${preStories} tasks=${preTasks} changes=${preChanges}`);
   if (preStories === 0) { console.error('[abort] stories=0'); process.exit(1); }
@@ -117,9 +127,8 @@ async function main(): Promise<void> {
   await exec(`ALTER TABLE "user_stories" ALTER COLUMN "legacy_journey_id" DROP NOT NULL`);
   console.log('  完成');
 
-  console.log('=== 步骤 4：数据归位 ===');
-  const prods: any = await db.execute(sql.raw('SELECT id FROM products'));
-  const pids = (prods as unknown as { rows: Array<{ id: string }> }).rows.map((x) => x.id);
+  const prods = await query('SELECT id FROM products');
+  const pids = prods.map((x) => String(x.id));
   if (true) {
     for (const pid of pids) {
       for (const a of ACTIVITIES) {
@@ -136,11 +145,10 @@ async function main(): Promise<void> {
     console.log('[DRY-RUN 完成未写入]');
     process.exit(0);
   }
-  const st: any = await db.execute(sql.raw(
+  const rows = await query(
     `SELECT s.id, s.title, s.legacy_journey_id, l.name AS legacy_name, l.project_id AS product_id
      FROM user_stories s LEFT JOIN _legacy_user_journeys l ON l.id = s.legacy_journey_id
-     WHERE s.activity_id IS NULL`));
-  const rows = (st as unknown as { rows: Array<{ id: string; title: string; legacy_name: string | null; product_id: string | null }> }).rows;
+     WHERE s.activity_id IS NULL`);
   const unmatchable: string[] = [];
   let moved = 0;
   for (const s of rows) {
@@ -155,12 +163,11 @@ async function main(): Promise<void> {
     for (const pid of pids) {
       for (const a of ACTIVITIES) {
         const aid = `UA-${pid.slice(0, 6)}-${a.order}`;
-        const bb: any = await db.execute(sql.raw(
+        const brow = await query(
           `SELECT s.id FROM user_stories s JOIN dev_tasks t ON t.story_id = s.id
            WHERE s.activity_id = '${aid}' AND s.status = 'done'
              AND (EXISTS (SELECT 1 FROM dev_tasks d WHERE d.dependencies @> to_jsonb(ARRAY[s.id])) OR t.status = 'done')
-           GROUP BY s.id, s."order" ORDER BY s."order" LIMIT 3`));
-        const brow = (bb as unknown as { rows: Array<{ id: string }> }).rows;
+           GROUP BY s.id, s."order" ORDER BY s."order" LIMIT 3`);
         for (let i = 0; i < brow.length; i++) await db.execute(sql`UPDATE user_stories SET "order" = ${i} WHERE id = ${brow[i].id}`);
       }
     }
@@ -170,9 +177,9 @@ async function main(): Promise<void> {
     // 此处只保证序列水位不低于当前最大值，重跑安全。
     for (const kind of ['story', 'devTask'] as const) {
       const spec = ID_SPECS[kind];
-      const got: any = await db.execute(sql.raw(`SELECT id FROM "${spec.table}"`));
+      const got = await query(`SELECT id FROM "${spec.table}"`);
       let max = 0;
-      for (const row of (got as unknown as { rows: Array<{ id: string }> }).rows) {
+      for (const row of got) {
         const n = parseShortId(kind, String(row.id));
         if (n !== null) max = Math.max(max, n);
       }

@@ -100,9 +100,11 @@ xcart context export PROD-002                # 全景 Markdown 供 LLM
 - Monorepo：`apps/web`（React + TanStack Router + Vite）、`apps/server`（Hono + PGlite + Drizzle）、`apps/cli`（xcart CLI）、`packages/{db,shared,ui}`。
 - **禁内置 LLM 依赖**：项目定位为纯存储/协调层（`refactor: remove built-in AI`）。story/任务 AI 生成类需求按架构决策废弃，勿新建该类功能。**MCP Server 已评估并否决，��实现**——Agent 集成只走 `xcart` CLI + Agent Skills，勿为 MCP 预留设计。
 
-## 实体术语（2026-09 重设计，权威定义见 `docs/design/story-map-redesign.md`）
+## Entity Terminology
 
-**迁移进行中**：实体体系正切换为用户故事地图语义。过渡期新旧并存说明：
+**Authoritative definitions**: domain division (constraint / work / evidence) in `docs/design/domain-model.md`; entity semantics and migration in `docs/design/story-map-redesign.md`.
+
+Migration status: the entity model has switched to user-story-map semantics. Old and new coexist during transition:
 
 | 旧 | 新 | 说明 |
 |---|---|---|
@@ -112,7 +114,22 @@ xcart context export PROD-002                # 全景 Markdown 供 LLM
 | UserStory | UserStory（保留） | 改挂 `activity_id` + 可选 `user_task_id` |
 | Task / 任务 | **DevTask / 研发任务** | `dev_tasks` 表；**type 字段已废除**（tags 承载性质） |
 
-新代码一律用新术语；旧 API（/projects、/journeys、/tasks）返回 410。
+New code MUST use the new terminology. Legacy APIs (`/projects`, `/journeys`, `/tasks`) return 410.
+
+### Domain Spaces (see `docs/design/domain-model.md` §2)
+
+| Space | Entities | Change rule |
+|---|---|---|
+| **Constraint** | Product, UserActivity, UserTask, UserStory, AdrRecord, SystemModule | Low frequency; a change is a decision. High-impact writes need confirmation; agent-inferred writes carry `provenance` |
+| **Work** | DevTask | High frequency; CAS claim; free writes |
+| **Evidence** | StatusChange | Append-only; never rewritten |
+
+Key constraints:
+
+- **Constraint writes MUST carry `provenance`** (`human_asserted` | `agent_inferred` | `imported`) — see `domain-model.md` §3. Never record an agent inference as a human assertion.
+- **Work MUST NOT write constraints** — DevTask never modifies stories or ADRs.
+- **Evidence is append-only** — StatusChange rows are never updated.
+- **No dangling refs, no dead columns** — a column with zero readers and zero writers MUST be deleted; it reads to an agent as a false claim about system capability (`domain-model.md` §5).
 
 ## UI 开发约束（web）
 

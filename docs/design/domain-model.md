@@ -1,0 +1,348 @@
+# X-Cartographer 域模型：承诺类型划分
+
+> 状态：**设计定稿（2026-09-15）**。本文档是 X-Cartographer 概念体系的唯一权威定义，**取代** `story-map-redesign.md` §2「命名空间规范」的按名词划分方案。
+> 遵循 `docs/design/ai-native-product-principles.md` P1–P5；术语对照见 §7。
+
+## 1. 为什么重新划分：旧方案的三处失效
+
+`story-map-redesign.md` §2 定义了「用户域 / 执行域 / 平台域」三域划分，依据是**实体名词类型**（用户域的加 `user_` 前缀，执行域加 `dev_` 前缀，其余归平台域）。实测证明这条轴失效，表现为三处：
+
+### 1.1 失效一：第三个域是剩余桶，没有统一语言
+
+平台域同时容纳 `Product`（作用域根）、`Milestone`（时间切片）、`StatusChange`（审计账本）、`AdrRecord`（架构决策）——四者彼此无关，既不共享统一语言，也无共同一致性边界。它是「不是前两类的都放这里」的负面定义。
+
+### 1.2 失效二：`SystemModule` 无处安放（已发生的失败，非理论推演）
+
+`technical-constitution.md` §3.6 定义 `SystemModule { id, name, path, responsibility, depends_on }`，并要求它同时被 `architecture_principles.module_ids`、`UserStory.affected_modules`、`DevTask.affected_modules` 引用——**它是唯一横跨 ADR 与 Story/Task 双方的概念**。
+
+但三域都不收它：它不是用户要什么（用户域），不是工作项（执行域），也不是基础设施（平台域）。它**没有表**，数据只能嵌套在 `adr_records.changes` 的 jsonb 里，读取时由 `adr.repository.ts` 的 `foldConstitution` 折叠进内存 Map。
+
+后果实测（2026-09-15 生产库）：
+
+| 症状 | 实测 |
+|---|---|
+| `user_stories.affected_modules` 填充 | **0/194** |
+| `dev_tasks.affected_modules` 填充 | **0/536** |
+| dev_task 侧写入路径 | **坏的**——`dev-tasks.ts` 透传 camelCase，`dev-task.repository.ts` 读 snake_case，静默丢弃 |
+| §4 `resolveEffectiveArchitectureContext` 算法 | **不存在** |
+| Web 模块归属矩阵（`relationship-visualization.md` §4） | **目录未建** |
+
+**这不是"没来得及做"，是"没有归属所以永远排不上"。** 一个概念若在任何域里都不是第一等公民，它的配套功能会系统性缺席。
+
+### 1.3 失效三：Agent 的核心操作被迫穿域墙
+
+系统唯一真正核心的 Agent 操作是 `resolveEffectiveArchitectureContext(task)`（`technical-constitution.md` §4）：以 task 为输入，读 story（意图）、ADR（决策）、module（结构）。而这三样分属三个不同域。
+
+```
+task
+  ↑ 做到什么算对：story → activity → product      [用户域]
+  ↑ 怎么做才合规：module ← adr ← principles       [平台域 + 无处]
+  ↓ 做完了吗：status_changes                      [平台域]
+```
+
+**域边界本应画在遍历最少处。** 按名词类型切分，恰好把最常一起用的东西分到了不同域。
+
+### 1.4 根因
+
+三域按**名词类型**切分，而非按**一致性边界与用法**切分。这是典型的建模错误：名词分类法必然产生 catch-all 域，且 catch-all 域在下一次扩展时必然再崩。
+
+## 2. 新轴：承诺类型
+
+### 2.1 划分依据
+
+X-Cartographer 是一个 **AI-Native 系统**：人通过 Agent 操作 `xcart` 写入数据，Agent 是主要读写者。因此域划分必须回答 Agent 自省时最需要知道的三件事：
+
+1. **这是什么**（实体语义）
+2. **我能怎么动它**（变更方式与权限）
+3. **它可信吗**（权威来源）
+
+旧划分回答了第 1 问的一半，完全没回答第 2、3 问。
+
+新轴按**实体承诺了什么**划分：
+
+| 空间 | 承诺 | 变更方式 | 验证方式 | 账本 |
+|---|---|---|---|---|
+| **约束空间** | 世界应该是什么样 | 低频；变更 = 一次决策 | 满足（achieved）/ 遵守（complied） | 变更入账 |
+| **工作空间** | 我们将采取什么行动 | 高频；CAS 抢占 | 完成（done） | 状态流转入账 |
+| **证据空间** | 已经发生了什么 | **只追加** | 不可变 | **本身即账本** |
+
+### 2.2 三个空间的实体归类
+
+```mermaid
+graph TB
+  subgraph C["约束空间 ｜ 承诺：世界应该是什么样"]
+    P[Product<br/>作用域根]
+    M[Milestone<br/>发布范围与目标]
+    U1[UserActivity<br/>叙事阶段]
+    U2[UserTask<br/>操作步骤]
+    U3[UserStory<br/>具体要求]
+    A[AdrRecord<br/>架构决策]
+    SM[SystemModule<br/>结构词汇]
+  end
+  subgraph W["工作空间 ｜ 承诺：我们将采取什么行动"]
+    T[DevTask]
+  end
+  subgraph E["证据空间 ｜ 承诺：已经发生了什么"]
+    SC[StatusChange]
+  end
+  C -. "约束行动" .-> W
+  W -. "产生证据" .-> E
+```
+
+| 实体 | 表 | 原域 | 新空间 | 变更说明 |
+|---|---|---|---|---|
+| `Product` | `products` | 平台域 | 约束 | 归一（作用域根） |
+| `UserActivity` | `user_activities` | 用户域 | 约束 | 归一 |
+| `UserTask` | `user_tasks` | 用户域 | 约束 | 归一 |
+| `UserStory` | `user_stories` | 用户域 | 约束 | 归一 |
+| `Milestone` | `milestones` | 平台域 | **约束** | ✅ 归位：发布范围 + 目标承诺，属"意图"（见 Q2 决策） |
+| `SystemModule` | `system_modules`（待建） | **无处** | **约束** | ✅ **首次有家** |
+| `DevTask` | `dev_tasks` | 执行域 | **工作** | 正名（原文「执行域」只含工作项，名不副实） |
+| `StatusChange` | `status_changes` | 平台域 | **证据** | 正名（横向切面，本不属任何域） |
+
+### 2.3 约束空间内部的二分
+
+约束空间内部仍有二分，**不可抹掉**——它决定验证模式：
+
+| 子类 | 实体 | 被验证为 | 例 |
+|---|---|---|---|
+| **意图（Intent）** | Product / Activity / UserTask / UserStory | **被满足**（achievement） | 「支持跨列拖拽」→ 实现了吗 |
+| **规矩（Doctrine）** | AdrRecord / SystemModule | **被遵守**（compliance） | 「网关不得引入 LLM 依赖」→ 遵守了吗 |
+
+两者对 Agent 的用法相同（都是"绑定我行动的权威"，读取动作都是装配上下文），但验证方式不同，故在模型上不做区分、在语义上必须分清。
+
+### 2.4 空间边规则
+
+| 边 | 方向 | 规则 |
+|---|---|---|
+| 约束 → 工作 | DevTask 引用 UserStory | **允许**且必须（工作项必须锚定意图） |
+| 约束 → 约束 | 任意引用 | 允许，但**不得成环**（见 §5） |
+| 工作 → 证据 | StatusChange 记录 DevTask 流转 | 允许，只追加 |
+| 工作 → 工作 | DevTask 依赖 DAG | 允许，**必须无环** |
+| 工作 → 约束 | **禁止** | 工作项不得改写意图/决策 |
+| 证据 → 任意 | **禁止** | 证据只追加，不得被改写 |
+
+**关键推论**：`DevTask.product_id` 违反「工作 → 约束可跨，但归属经意图派生」规则——它的存在让 DevTask 可以直接指向 Product，绕过 story 锚定。这是**冗余边**，实测 0/536 全 NULL，详见 §6.1。
+
+## 3. `provenance`：制约来源标记
+
+### 3.1 为什么必需
+
+系统的操作模型是 **人 → Agent → x-cart**：人是权威源，Agent 是操作界面。但 Agent 有两种写 story 的情形：
+
+```
+情形 A：人说"用户应该能导出数据"
+        → Agent 写入 story   → 这确实是人主张的
+
+情形 B：Agent 读 x-herald 代码，发现有 export 模块
+        → Agent 写入 story   → 没人主张过，是 Agent 推断的
+```
+
+**两者在 schema 里长得完全一样。** 若混在一起，Agent 后续会把自己推断的东西当成外部事实来做推理——台账的可信度归零。这不是洁癖：**把错误前提喂给推理主体，它还会基于此规划后续步骤。**
+
+### 3.2 定义
+
+约束空间实体新增字段：
+
+```
+provenance: 'human_asserted' | 'agent_inferred' | 'imported'
+```
+
+| 取值 | 含义 | 例 |
+|---|---|---|
+| `human_asserted` | 人类直接主张 | 人通过 Agent 说"加这个需求" |
+| `agent_inferred` | Agent 从证据推断 | 读代码/issue/文档后归纳 |
+| `imported` | 外部系统导入 | 从既有 TOML/Markdown 批量导入 |
+
+**默认值**：`agent_inferred`。理由——**失败安全**：把人类主张误标为推断，代价是多一次确认；把推断误标为人类主张，代价是可信度污染。后者不可逆。
+
+### 3.3 适用范围
+
+约束空间全部六类实体。**工作空间与证据空间不需要**——DevTask 由 Agent 执行，其来源不构成权威问题；StatusChange 的 `changed_by` 已承载操作者信息。
+
+## 4. 约束写入协议
+
+### 4.1 三层写入规则
+
+| provenance | 影响级别 | 落点 | 生效条件 |
+|---|---|---|---|
+| `human_asserted` | 任意 | 直接写入 | 立即生效 |
+| `agent_inferred` / `imported` | **低** | 直接写入 | 立即生效（带标记） |
+| `agent_inferred` / `imported` | **高** | 写入 `proposed` | **显式升格**后生效 |
+
+**低影响** = 不改变约束语义：补描述、加标签、调 `order`、填 `affected_modules`。
+**高影响** = 改变约束语义：新增/修改/废弃 ADR、增删 SystemModule、创建/删除 UserStory、改 activity 结构。
+
+### 4.2 为什么不用"禁止 Agent 写约束"
+
+曾考虑过两种更严的方案，均被否决：
+
+| 方案 | 否决理由 |
+|---|---|
+| Agent 只读约束 | 与 AI-Native 定位冲突——把 Agent 当二等公民，系统无法自我演进 |
+| Agent 可写但需人事前批准 | 与 P3「声明式约束 + 自证，而非集中裁决」冲突，且成为瓶颈 |
+
+**当前采信的理由**：Agent 的约束写入**不是自授权**——因为来源是人（§3.1）。真正的风险不是"Agent 改约束"，是"Agent 的推断被记成人类断言"。所以解法是 `provenance` + 高影响项落 `proposed`，而非禁止写入。
+
+### 4.3 与既有状态机的复用
+
+`adr_records.status` 已有 `proposed → accepted | rejected`（`technical-constitution.md` §3.1）。高影响约束写入复用同一状态机，**不发明新机制**（P4：新治理机制复用同一本账本）。
+
+### 4.4 不设确认权：状态机即权限模型
+
+**决定（2026-09-15）**：高影响约束的"确认"**不引入权限模型**，而是落为**显式状态升格**。
+
+背景：系统当前**无角色/权限概念**（`apps/server/src/middleware/auth.ts` 只有全局 Bearer token，无 actor 区分）。曾考虑"人确认"方案，但因三点被否决：
+
+| 否决理由 | 说明 |
+|---|---|
+| 无载体 | 没有 actor 概念，无法表达"谁确认了"——建权限模型是另一个独立工程 |
+| 与 P3 冲突 | `ai-native-product-principles.md` P3：「声明式约束 + 自证，而非集中裁决」 |
+| 成瓶颈 | 每次高影响写入都要人点确认，Agent 的演进能力被卡死 |
+
+**替代机制**：
+
+| 层次 | 做法 |
+|---|---|
+| 来源可见 | `provenance` 字段（§3）标出"这条谁主张的" |
+| 状态落点 | `agent_inferred` 的高影响写入落 `proposed` |
+| 升格动作 | `proposed → accepted` **必须带 `--reason`**；执行者不限（人 / Agent 均可） |
+
+**核心洞察**：`proposed → accepted` 这个转换**本身就是"确认"这个动作的载体**——状态机即权限模型。配合 `status_changes` 账本（P4「每次变更可追溯、有理由」），"约束何时被谁提升为生效"永远可查。
+
+这样既不阻塞 Agent，又不产生自授权闭环：Agent 可以提议，但**提议生效必须留痕且显式**，无法静默自我许可。
+
+| 规则 | 内容 | 理由 |
+|---|---|---|
+| **无环** | `Milestone ↔ AdrRecord` 类循环引用禁止 | 实测 `milestones.adr_id` 与 `adr_records.milestone_id` 双向引用，前者已被 `adr.repository.ts` 用 `createdAt` 架空 |
+| **单权威方向** | 一对概念只允许一个权威引用方向 | 同上；`technical-constitution.md` §5 已定 `adr → milestone` 为权威，反向字段应删 |
+| **无悬空** | 引用的实体必须存在 | `affected_modules` 引用不存在的 `SystemModule` 即此类违规 |
+| **无死列** | 零读取点 + 零写入点的字段必须删除 | 见 §6 |
+
+**死列是有害的**，不是中性的：对人是噪音，对 Agent 是**关于"系统能做什么"的错误断言**。Agent 自省 schema 会得出"有 `affected_modules` → 我应该标注模块"，然后标注静默消失。
+
+## 6. 已知违规清单（待修）
+
+本节记录 2026-09-15 实测发现的、违反本模型的现存问题。**它们不是本设计的产物，是本设计要消灭的对象。**
+
+### 6.1 冗余跨域边：`dev_tasks.product_id`
+
+| 项 | 实测 |
+|---|---|
+| 填充率 | **0/536** |
+| 唯一读路径 | `findByProductId`，要求 `story_id IS NULL`，而 536/536 全非空 → 恒返回 0 行 |
+| 写路径 | 三条中两条零调用方（`saveFullProduct` 全链无客户端引用） |
+| 类型层 | `product_id: string` 声明非空，实际列可空，`?? ''` 把 NULL 伪装成空串 |
+
+**判定：死列，应删。** 产品归属应经 `dev_task → story → activity → product` 传递。
+
+### 6.2 意图断裂：108 个 story 无 `activity_id`
+
+| 项 | 实测 |
+|---|---|
+| `user_stories.activity_id IS NULL` | **108/194** |
+| 连带不可见 dev_task | **246/536（46%）** |
+| 呈现 | `/api/dev-tasks/all` 返回 290 而非 536；`/next`、产品树、CLI summary 同样丢失 |
+
+因 `dev_tasks.product_id` 全 NULL（§6.1），**无任何兜底路径**——这 246 个任务在任何接口都取不到。
+
+**根因**：迁移脚本对无法按标题语义判定的 story 不猜测归位（设计如此，避免编造归属），但系统未把「未归位」建模为一等状态，导致它表现为「数据消失」而非「待分类」。
+
+### 6.3 状态跨域：`user_stories.status`
+
+`user_stories.status` 与 `dev_tasks.status` 是**两套独立状态机**，物理上互不联动：
+
+| 项 | 实测 |
+|---|---|
+| 状态账本 | story 170 条、dev_task 548 条（`entity_type` 区分） |
+| `story=done` 但子任务未完成 | 144 个 done 故事中存在（如 8/24、10/11） |
+| 子任务全 done 但 story 非 done | **10 个** |
+| 账本 reason | 46 条「源码审计确认」、9 条「复查：任务全部 done，故事收口」 |
+
+那 46 条正是**人肉同步两套状态的痕迹**。
+
+**判定**：两者都是真域事实，但**词撞了**——
+- story done = 「需求**被接受**」（人的裁决，对应意图的**被满足**验证）
+- task done = 「工作**被做完**」（工作流事实，对应**完成**验证）
+
+**修法**：story 侧状态更名，使动作主体可辨（如 `accepted`），并消除 UI 同名并列（`tasks-page.tsx` 同屏展示两个「已完成」，语义不同）。
+
+### 6.4 悬空引用：`affected_modules` / `module_ids`
+
+三个字段（`user_stories` / `dev_tasks` / `adr_records`）注释均称「引用 `SystemModule.id`」，但该实体**无表**。详见 §1.2。
+
+### 6.5 死列与死文件
+
+| 对象 | 证据 | 判定 |
+|---|---|---|
+| `milestones.adr_id` | 0/18 填充；全仓零读取点；设计用途被 `adr.repository.ts` 用 `createdAt` 架空；schema 注释承诺的「仓库层校验归属」不存在；注释指向的 §9 风险条目不存在 | 删 |
+| `products.persona` | 0/5 填充；DB 列存在但 shared 类型、repository、route、CLI、UI **五层全无读写路径** | 接线或删，不得留空列 |
+| `packages/shared/src/types/*.d.ts`（7 个） | 与同名 `.ts` 并存；`.ts` 优先解析故 `.d.ts` 为死文件；且**已漂移**（`user-story.d.ts` 缺 `user_task_id`） | 删 |
+
+## 7. 术语对照
+
+| 旧术语 | 新术语 | 说明 |
+|---|---|---|
+| 用户域 | **约束空间·意图** | 内容不变，归属更精确 |
+| 执行域 | **工作空间** | 正名：原域只含工作项 |
+| 平台域 | **（撤销）** | 实体按承诺类型重新归类 |
+| 问题空间 / 解空间 | 约束 / 工作 | 话语义保留，但不再作为域划分依据 |
+| `Task` | `DevTask` | 沿用 `story-map-redesign.md` §3.3 |
+| `Project` | `Product` | 沿用 `story-map-redesign.md` §3.1 |
+
+## 8. 实施阶段
+
+| 阶段 | 内容 | 前置 |
+|---|---|---|
+| **A** | 本文档定稿；`story-map-redesign.md` §2 改为引用本文档 | — |
+| **B** | 诚实化 schema：删死列（§6.1/6.5）、删死文件、修 `affected_modules` 写入 bug | A |
+| **C** | 恢复任务可见性（§6.2）：补归位 + 「未分配」一等状态 | A |
+| **D** | 补 `UserTask` 层的**录入能力**（Q3）：CLI `user-task` 命令 + 故事地图内"新建任务列"入口；存量归纳仅作辅助 | A |
+| **E** | `provenance` + 约束写入协议（§3/§4.4） | A |
+| **F** | `SystemModule` 落表（§6.4）+ `affected_modules` 强校验 | B, E |
+| **G** | `Milestone` 接入账本（Q2）：补状态流转基线，消除"改了不入账" | A |
+| **H** | `story.status` 更名（§6.3）：`done` → 与 DevTask 状态可辨（如 `accepted`） | A |
+
+### 决策记录（2026-09-15 全部定案）
+
+| # | 问题 | 决定 | 依据 |
+|---|---|---|---|
+| **Q1** | 高影响约束的确认权归谁 | **不设确认权**——用 `proposed` + `--reason` 显式升格代替（状态机即权限模型） | 系统无权限模型；与 P3「非集中裁决」冲突；见 §4.4 |
+| **Q2** | `Milestone` 是域内实体还是投影 | **实体**，归**约束空间**；需接入账本 | 实测 `completed` 但故事未 done 仅 2 处、反向 0 处（对比 story 的双向矛盾 10 处）；`goal` 填充 18/18；有独立语义与 UI 载体 |
+| **Q3** | `UserTask` 语义 | **操作步骤**（Patton 第二行脊线），且**必须正向推演补层** | 见下方「Q3 决策说明」 |
+
+#### Q3 决策说明：为何拒绝"现有数据无此需求"的论证
+
+初版分析曾以实测数据（`user_tasks` 0 行、故事标题已是动词短语粒度）论证"中间层无语义空间"，**该论证被否决**，理由是**循环论证**：
+
+> 数据里没有 UserTask，是因为**系统从未支持正向创建**——CLI 无 `user-task` 命令，故事地图无"新建任务列"入口。用"数据没有"论证"不该有"，预设了结论。
+
+**决定**：强制补层（方案 B），且**以正向推演为主**——新项目/新活动录入时，先声明其 UserTask（操作步骤），再在其下放故事。存量 194 个故事的反向归纳只作**辅助起点**，不作为层的定义来源。
+
+**正向推演的录入路径**（链路已就绪，仅缺数据）：
+
+| 环节 | 现状 |
+|---|---|
+| API | ✅ `POST /api/user-tasks`（`apps/server/src/routes/user-tasks.ts`） |
+| 深树 | ✅ `GET /api/products/:id` 返回 `user_activities[].user_tasks[]` |
+| 数据层 | ✅ `product.repository.ts` 含 `user_tasks` 与 `user_task_id` 映射 |
+| 故事地图 | ✅ 任务列渲染 + 拖拽落列（`patron-canvas.tsx`） |
+| 前端页面 | ✅ `/products/:id/user-tasks` |
+| **CLI** | ❌ **无 `user-task` 命令**（Agent 无法创建——需补） |
+| **地图内创建入口** | ❌ 无"新建任务列"操作（需补） |
+
+**必须遵守的三条规则**（避免重演 `story.status` 漂移病）：
+
+1. **正向为准**：层次的权威来源是"先声明操作步骤，再放故事"，不是从存量故事聚类
+2. **允许未归类，不允许长期空洞**：总有权故事落不进任何步骤，正常；但不得长期停留 0 填充
+3. **活动不足时补活动**：若某活动下的故事无法归纳出有意义的操作步骤（如"拆解任务"仅 2 个故事），应**补活动**而非硬造步骤
+
+## 9. 与既有文档的关系
+
+| 文档 | 关系 |
+|---|---|
+| `ai-native-product-principles.md` | **上位原则**。本文档遵循 P1–P5；§3 `provenance` 是 P3 在约束空间的具体化，§4.3 复用 P4 的账本 |
+| `story-map-redesign.md` | **被本文档 §2 取代**——该文档的三域划分作废；其 §3（实体定义）、§4（迁移）继续有效 |
+| `technical-constitution.md` | **互补**。本文档给出 ADR/SystemModule 的域归属，该文档给出其内部模型与解析算法；其 §4 算法在新轴下不再跨域 |
+| `relationship-visualization.md` | **依赖本文档**。其 §4 模块归属矩阵依赖 §6.4 的 `SystemModule` 落表 |
+| `x-cartographer-architecture.md` | **互补**。该文档描述"现在长什么样"，本文档定义"概念如何划分" |

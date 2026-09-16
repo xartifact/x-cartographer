@@ -220,6 +220,18 @@ function isLockError(err: unknown): boolean {
   );
 }
 
+/**
+ * 查询结果归一化：drizzle 的 `execute()` 在两种驱动下返回形态不同——
+ * PGlite 返回 `{ rows: [...] }`，postgres-js（生产 `DATABASE_URL`）返回裸数组。
+ * 任何直接消费 `execute()` 返回值的代码都必须经此处，否则在另一种驱动下会崩
+ * （生产事故：实体创建全线 500，因 `result.rows[0]` 在 postgres-js 下为 undefined）。
+ */
+export function rowsOf(result: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(result)) return result as Array<Record<string, unknown>>;
+  const rows = (result as { rows?: Array<Record<string, unknown>> } | null)?.rows;
+  return rows ?? [];
+}
+
 async function initializeDb(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
 

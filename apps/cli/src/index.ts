@@ -279,6 +279,54 @@ async function cmdUserActivity(ctx: Ctx): Promise<void> {
   }
 }
 
+// ---------- user-task（用户任务：活动下的操作步骤，故事地图第二层）----------
+async function cmdUserTask(ctx: Ctx): Promise<void> {
+  const sub = ctx.positional[0];
+  const f = ctx.flags;
+  switch (sub) {
+    case 'list': {
+      const activityId = opt(f, 'activity');
+      const productId = opt(f, 'product', 'project');
+      if (!activityId && !productId) throw new Error('用法: xcart user-task list --activity <id> | --product <id>');
+      const qs = activityId ? `activityId=${encodeURIComponent(activityId)}` : `productId=${encodeURIComponent(productId!)}`;
+      const data = await api(`/api/user-tasks?${qs}`);
+      const rows = (Array.isArray(data) ? data : []).map((t) => ({
+        id: t.id, activity: t.activity_id, name: t.name, order: t.order,
+      }));
+      console.log(render(rows, ctx.format));
+      break;
+    }
+    case 'create': {
+      const body = {
+        activityId: req(f, 'activity'),
+        name: req(f, 'name'),
+        description: opt(f, 'description') ?? '',
+      };
+      const order = opt(f, 'order'); if (order !== undefined) Object.assign(body, { order: Number(order) });
+      const data = await api('/api/user-tasks', 'POST', body);
+      console.log(render(data, ctx.format));
+      break;
+    }
+    case 'update': {
+      const id = reqId(ctx.positional.slice(1), 'user-task update');
+      const body: Record<string, unknown> = {};
+      const name = opt(f, 'name'); if (name !== undefined) body.name = name;
+      const desc = opt(f, 'description'); if (desc !== undefined) body.description = desc;
+      const order = opt(f, 'order'); if (order !== undefined) body.order = Number(order);
+      const data = await api(`/api/user-tasks/${id}`, 'PATCH', body);
+      console.log(render(data, ctx.format));
+      break;
+    }
+    case 'delete': {
+      const id = reqId(ctx.positional.slice(1), 'user-task delete');
+      const res = await api(`/api/user-tasks/${id}`, 'DELETE');
+      console.log(render(res, ctx.format));
+      break;
+    }
+    default: throw new Error(`未知子命令: user-task ${sub ?? ''}\n\n${helpText()}`);
+  }
+}
+
 // ---------- story ----------
 async function cmdStory(ctx: Ctx): Promise<void> {
   const sub = ctx.positional[0];
@@ -415,7 +463,6 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
         storyId: req(f, 'story', 'storyId'),
         title: req(f, 'title'),
         description: opt(f, 'description') ?? '',
-        type: opt(f, 'type') ?? 'technical_task',
         priority: opt(f, 'priority') ?? 'P2',
         estimation: Number(opt(f, 'estimation') ?? '0'),
       };
@@ -430,7 +477,6 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       const body: Record<string, unknown> = {};
       const title = opt(f, 'title'); if (title !== undefined) body.title = title;
       const desc = opt(f, 'description'); if (desc !== undefined) body.description = desc;
-      const type = opt(f, 'type'); if (type !== undefined) body.type = type;
       const priority = opt(f, 'priority'); if (priority !== undefined) body.priority = priority;
       const est = opt(f, 'estimation'); if (est !== undefined) body.estimation = Number(est);
       const deps = opt(f, 'deps');
@@ -830,7 +876,6 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       console.log(render({ installed_to: installed, skills: dirs }, ctx.format));
       break;
     }
-    default: throw new Error(`未知子命令: skill ${sub ?? ''}\n\n${helpText()}`);
   }
 }
 
@@ -856,42 +901,47 @@ function helpText(): string {
 
 用法: xcart <command> [subcommand] [options]
 
-项目管理
+产品 / 项目
   xcart product list
   xcart project info --id <id>
   xcart project create --name <name> [--description] [--tech-stack a,b]
   xcart project update <id> [--name] [--description]
   xcart project delete <id>
 
-用户旅程
-  xcart activity list --project <id>
-  xcart journey info <id>                        # 该旅程下的故事
+用户活动（故事地图骨干列；journey 为 deprecated alias）
+  xcart activity list --product <id>
+  xcart activity info <id>                       # 该活动下的故事
   xcart activity create --product <id> --name <n> [--description] [--order]
-  xcart journey update <id> [--name] [--persona] [--description] [--order]
-
-  xcart journey delete <id>
+  xcart activity update <id> [--name] [--description] [--order]
+  xcart activity delete <id>
 
 用户故事
-  xcart story list --journey <id>
-  xcart story update <id> [--title] [--priority] [--status] [--journey <id>|none] [--milestone <id>|none] [--estimation]
-
-  xcart story move <id> <journeyId>                # 跨旅程移动故事（= update --journey）
-
-  xcart story create --journey <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b]
+  xcart story list --activity <id>
+  xcart story update <id> [--title] [--priority] [--status] [--activity <id>|none] [--milestone <id>|none] [--estimation]
+  xcart story move <id> <activityId>            # 跨活动移动故事（= update --activity）
+  xcart story create --activity <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b]
   xcart story status <id> <status> [--reason]
   xcart story delete <id>
-  xcart story bulk-create --journey <id> --file stories.json
+  xcart story bulk-create --activity <id> --file stories.json
 
-任务
+用户任务（活动下的操作步骤，故事地图第二层；与研发任务 DevTask 不同空间）
+  xcart user-task list --activity <id> | --product <id>
+  xcart user-task create --activity <id> --name <n> [--description] [--order]
+  xcart user-task update <id> [--name] [--description] [--order]
+  xcart user-task delete <id>
+
+研发任务（DevTask；task 为 deprecated alias）
   xcart dev-task list --story <id>
   xcart task info <id>
-  xcart task create --story <id> --title <t> [--type] [--priority] [--estimation] [--deps a,b] [--tags a,b]
-  xcart task update <id> [--title] [--status] [--assignee] [--priority] [--type] [--estimation]
+  xcart task create --story <id> --title <t> [--priority] [--estimation] [--deps a,b] [--tags a,b]
+  xcart task update <id> [--title] [--status] [--assignee] [--priority] [--estimation]
   xcart task status <id> <status> [--reason]
   xcart task delete <id>
   xcart task next --project <id> [--assignee]   # 下一个可执行任务（拓扑规则）
   xcart task summary --project <id>             # 任务统计
   xcart task bulk-create --story <id> --file tasks.json
+
+注：任务无 --type 参数（type 字段已废除，交付性质由 --tags 承载，如 architecture-enabler/implementation/refactor/bug）。
 
 版本 / 里程碑
   xcart milestone list --project <id>
@@ -932,7 +982,7 @@ Agent 使用提示
   - 数据统计用单命令聚合：'overview --format json'（一次 API 完成，勿逐 story 拉 task list）
   - 'context export' 默认 Markdown；'--format json' 得结构化数据（树内含任务明细）
   - estimation 单位=AI-Native 研发工时（小时）：按 coding agent 执行评估，非人工人天；任务约 2-4h/个
-  - 可用参照: 简单 2-3h、中等 5-8h、复杂 13h+、完整模块 1-2 天（docs/Senior-Dev-Agent使用指南.md）
+  - 可用参照: 简单 2-3h、中等 5-8h、复杂 13h+、完整模块 1-2 天
   - skills 含排期语义：xcart skill install 后见 skills/xcart-*/SKILL.md「排期评估」节
   - 输出已瘦身（project list description 截断）；需要全量用 'project info --id'
   - 解析 CLI 输出 JSON 优先用 jq（1 行指令、失败面窄），非 python/node 内联脚本
@@ -967,6 +1017,7 @@ async function main() {
       case 'activity':
       case 'journey': // deprecated alias
         await cmdUserActivity(ctx); break;
+      case 'user-task': await cmdUserTask(ctx); break;
       case 'story': await cmdStory(ctx); break;
       case 'dev-task':
       case 'task': // deprecated alias
