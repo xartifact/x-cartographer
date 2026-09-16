@@ -34,7 +34,7 @@ const updateStorySchema = z.object({
 });
 
 const updateStatusSchema = z.object({
-  status: z.enum(['backlog', 'todo', 'in_progress', 'done', 'cancelled']),
+  status: z.enum(['backlog', 'todo', 'in_progress', 'accepted', 'cancelled']),
   reason: z.string().optional(),
 });
 

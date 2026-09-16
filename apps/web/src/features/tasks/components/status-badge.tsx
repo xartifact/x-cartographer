@@ -237,6 +237,6 @@ export const STORY_STATUS_OPTIONS: { value: StoryStatus; label: string; color: s
   { value: 'backlog', label: '待处理', color: 'gray' },
   { value: 'todo', label: '待开始', color: 'slate' },
   { value: 'in_progress', label: '进行中', color: 'blue' },
-  { value: 'done', label: '已完成', color: 'green' },
+  { value: 'accepted', label: '已验收', color: 'green' },
   { value: 'cancelled', label: '已取消', color: 'red' },
 ];

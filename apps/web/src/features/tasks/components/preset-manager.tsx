@@ -166,7 +166,7 @@ export const DEFAULT_PRESETS: FilterPreset[] = [
     updatedAt: new Date().toISOString(),
     conditions: {
       taskStatuses: [TaskStatus.DONE],
-      storyStatuses: ['done' as StoryStatus],
+      storyStatuses: ['accepted' as StoryStatus],
     },
   },
   {

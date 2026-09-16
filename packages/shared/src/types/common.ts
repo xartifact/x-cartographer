@@ -131,9 +131,11 @@ export interface Position {
 }
 
 /**
- * 任务状态（用于用户故事）
+ * 用户故事状态（约束空间·意图：验收判断——"需求被接受了"）
+ * 与 DevTask 的 TaskStatus（工作空间：执行进度——"活干完了"）是不同语义，永不用同词。
+ * done → accepted 更名见 docs/design/domain-model.md §6.3 / §8-H。
  */
-export type StoryStatus = 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled';
+export type StoryStatus = 'backlog' | 'todo' | 'in_progress' | 'accepted' | 'cancelled';
 
 /**
  * 所有状态类型的联合
@@ -282,9 +284,9 @@ export const STORY_STATUS_CONFIG: Record<StoryStatus, StatusConfig> = {
     isInProgress: true,
     order: 3,
   },
-  done: {
-    value: 'done',
-    label: '已完成',
+  accepted: {
+    value: 'accepted',
+    label: '已验收',
     color: 'green',
     isCompleted: true,
     isInProgress: false,

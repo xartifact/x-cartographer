@@ -165,7 +165,7 @@ async function main(): Promise<void> {
         const aid = `UA-${pid.slice(0, 6)}-${a.order}`;
         const brow = await query(
           `SELECT s.id FROM user_stories s JOIN dev_tasks t ON t.story_id = s.id
-           WHERE s.activity_id = '${aid}' AND s.status = 'done'
+           WHERE s.activity_id = '${aid}' AND s.status IN ('done', 'accepted')
              AND (EXISTS (SELECT 1 FROM dev_tasks d WHERE d.dependencies @> to_jsonb(ARRAY[s.id])) OR t.status = 'done')
            GROUP BY s.id, s."order" ORDER BY s."order" LIMIT 3`);
         for (let i = 0; i < brow.length; i++) await db.execute(sql`UPDATE user_stories SET "order" = ${i} WHERE id = ${brow[i].id}`);

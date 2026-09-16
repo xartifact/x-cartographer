@@ -192,7 +192,7 @@ const TASK_STATUS_CYCLE: TaskStatus[] = [
 /**
  * 常见状态循环（故事）
  */
-const STORY_STATUS_CYCLE: StoryStatus[] = ['todo', 'in_progress', 'done'];
+const STORY_STATUS_CYCLE: StoryStatus[] = ['todo', 'in_progress', 'accepted'];
 
 /**
  * 状态切换按钮

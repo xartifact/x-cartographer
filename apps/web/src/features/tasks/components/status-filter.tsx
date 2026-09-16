@@ -119,7 +119,7 @@ export function StatusFilter({
   const quickFilters = showQuickFilters
     ? [
         { label: '进行中', statuses: ['in_progress', 'in_review', 'testing'] as (TaskStatus | StoryStatus)[] },
-        { label: '已完成', statuses: ['done' as TaskStatus | StoryStatus] },
+        { label: '已完成', statuses: ['done' as TaskStatus | StoryStatus, 'accepted' as TaskStatus | StoryStatus] },
         { label: '未开始', statuses: ['backlog', 'todo'] as (TaskStatus | StoryStatus)[] },
       ]
     : [];

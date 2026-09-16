@@ -148,7 +148,7 @@ export const useTaskStatusStore = create<TaskStatusUIState>()(
           const isInProgress = entityType === 'task' ? status.includes('progress') : status === 'in_progress';
           if (!isInProgress) return false;
         }
-        if (completedOnly && status !== 'done') return false;
+        if (completedOnly && !(status === 'done' || status === 'accepted')) return false;
         return true;
       },
     }),

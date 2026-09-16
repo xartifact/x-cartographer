@@ -76,7 +76,7 @@ function makeProduct(id: string, name: string): Product {
             tags: [],
             activity_id: `${id}-activity-1`,
             order: 2,
-            status: TaskStatusEnum.DONE,
+            status: 'accepted',
             created_at: '2026-01-01T00:00:00.000Z',
             updated_at: '2026-01-01T00:00:00.000Z',
             dev_tasks: [

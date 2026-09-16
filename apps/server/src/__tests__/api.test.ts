@@ -344,7 +344,7 @@ describe('stories CRUD + status flow', () => {
 
     // status 流转 → 写 status_changes
     res = await jsonRequest('POST', `/api/stories/${storyId}/status`, {
-      status: 'done',
+      status: 'accepted',
       reason: 'shipped',
     });
     expect(res.status).toBe(200);
@@ -354,7 +354,7 @@ describe('stories CRUD + status flow', () => {
       await app.request(`/api/stories/${storyId}`)
     ).json()) as Array<Record<string, unknown>> &
       Record<string, unknown>;
-    expect(body.status).toBe('done');
+    expect(body.status).toBe('accepted');
 
     // status-changes 按 entity 查询
     res = await app.request(`/api/status-changes?entityId=${storyId}`);
@@ -364,12 +364,12 @@ describe('stories CRUD + status flow', () => {
     expect(changes[0].entity_id).toBe(storyId);
     expect(changes[0].entity_type).toBe('story');
     expect(changes[0].previous_status).toBe('backlog');
-    expect(changes[0].new_status).toBe('done');
+    expect(changes[0].new_status).toBe('accepted');
     expect(changes[0].reason).toBe('shipped');
 
     // 不存在的 story 状态流转 → 404
     res = await jsonRequest('POST', '/api/stories/nope/status', {
-      status: 'done',
+      status: 'accepted',
     });
     expect(res.status).toBe(404);
 
@@ -377,7 +377,7 @@ describe('stories CRUD + status flow', () => {
     res = await jsonRequest('POST', '/api/status-changes', {
       entityId: storyId,
       entityType: 'story',
-      previousStatus: 'done',
+      previousStatus: 'accepted',
       newStatus: 'cancelled',
       reason: 'manual',
     });

@@ -132,7 +132,7 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
   }
 
   async function cycleStatus(s: EnrichedStory) {
-    const order: StoryStatus[] = ['backlog', 'todo', 'in_progress', 'done'];
+    const order: StoryStatus[] = ['backlog', 'todo', 'in_progress', 'accepted'];
     const idx = order.indexOf(s.status ?? 'backlog');
     const next = order[(idx + 1) % order.length];
     await updateStoryStatus.mutateAsync({ id: s.id, status: next });
@@ -175,7 +175,7 @@ export function StoriesPage({ project: initialProject }: StoriesPageProps) {
             className="h-9 rounded-md border bg-background px-2 text-sm"
           >
             <option value="">所有状态</option>
-            {(['backlog', 'todo', 'in_progress', 'done'] as StoryStatus[]).map((s) => (
+            {(['backlog', 'todo', 'in_progress', 'accepted'] as StoryStatus[]).map((s) => (
               <option key={s} value={s}>
                 {STORY_STATUS_LABEL[s]}
               </option>

@@ -394,8 +394,8 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
           backlog: statusStats.backlog || 0,
         }}
         storyStats={{
-          total: storyStats.backlog + storyStats.todo + storyStats.in_progress + storyStats.done,
-          completed: storyStats.done || 0,
+          total: storyStats.backlog + storyStats.todo + storyStats.in_progress + storyStats.accepted,
+          completed: storyStats.accepted || 0,
           inProgress: storyStats.in_progress || 0,
           backlog: storyStats.backlog || 0,
         }}

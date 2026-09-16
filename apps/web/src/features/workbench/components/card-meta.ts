@@ -19,7 +19,7 @@ export const STORY_STATUS_LABEL: Record<string, string> = {
   backlog: '待办池',
   todo: '待执行',
   in_progress: '进行中',
-  done: '已完成',
+  accepted: '已验收',
   cancelled: '已取消',
 };
 

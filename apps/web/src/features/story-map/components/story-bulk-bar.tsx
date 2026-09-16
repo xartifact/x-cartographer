@@ -41,7 +41,7 @@ const STATUS_OPTIONS: { value: StoryStatus; label: string }[] = [
   { value: 'backlog', label: '待规划' },
   { value: 'todo', label: '待办' },
   { value: 'in_progress', label: '进行中' },
-  { value: 'done', label: '已完成' },
+  { value: 'accepted', label: '已验收' },
 ];
 
 export function StoryBulkBar({
