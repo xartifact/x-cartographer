@@ -382,6 +382,8 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       if (activity !== undefined) body.activityId = activity === 'none' ? null : activity;
       const milestone = opt(f, 'milestone');
       if (milestone !== undefined) body.milestoneId = milestone === 'none' ? null : milestone;
+      const userTask = opt(f, 'user-task');
+      if (userTask !== undefined) body.userTaskId = userTask === 'none' ? null : userTask;
       const status = opt(f, 'status');
       if (status !== undefined) {
         const res = await api(`/api/stories/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
@@ -920,7 +922,7 @@ function helpText(): string {
 
 用户故事
   xcart story list --activity <id>
-  xcart story update <id> [--title] [--priority] [--status] [--activity <id>|none] [--milestone <id>|none] [--estimation]
+  xcart story update <id> [--title] [--priority] [--status] [--activity <id>|none] [--user-task <id>|none] [--milestone <id>|none] [--estimation]
   xcart story move <id> <activityId>            # 跨活动移动故事（= update --activity）
   xcart story create --activity <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b]
   xcart story status <id> <status> [--reason]

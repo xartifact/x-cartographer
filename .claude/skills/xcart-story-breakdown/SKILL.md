@@ -27,9 +27,10 @@ xcart user-task delete <userTaskId>
 xcart story list --activity <activityId>              # 注意：--activity（活动），非 --journey
 xcart story info <storyId>                            # 含拆解出的任务
 xcart story create --activity <id> --title <t> [--priority high|medium|low] [--estimation <h>] [--ac "c1;c2"] [--tags a,b]
-xcart story update <id> [--title] [--priority] [--estimation] [--status] [--milestone <mid>|none] [--ac "a;b"]
+xcart story update <id> [--title] [--priority] [--estimation] [--status] [--user-task <uid>|none] [--milestone <mid>|none] [--ac "a;b"]
 xcart story status <storyId> <status> [--reason]      # backlog|todo|in_progress|done|cancelled
 xcart story delete <storyId>
+xcart story update <id> --user-task <userTaskId>            # 挂到活动下的操作步骤（故事地图第二层）；`--user-task none` 移出步骤
 xcart story update <id> --activity <activityId>            # 跨活动移动故事（order 自动追加到目标活动末尾）
 xcart story move <id> <activityId>                         # 同上，命令别名
 
@@ -53,7 +54,7 @@ xcart story bulk-create --activity <activityId> --file stories.json
 
 1. **需求 → 活动**：先建/选一个 activity（`activity create --product ... --name ...`）。活动是故事地图的骨干列（Patton backbone），按用户达成目标的叙事先后排列（`--order`）。
 2. **活动 → 用户任务**：为该活动声明其**操作步骤**（`user-task create --activity <id> --name <n>`）。这是故事地图第二层脊线——比故事粗一档的动词短语（如活动"组织故事地图"下的步骤"调整顺序"、"筛选检索"）。**先声明步骤，再往下放故事**；某活动若归纳不出有意义的步骤，应补/调整活动，而非硬造步骤。
-3. **用户任务 → 故事**：按"作为[角色]，我想要[功能]，以便[价值]"写 title；`story create` 支持 `--ac`（验收标准，`;` 分隔）与 `--priority`。故事挂在活动下，可用 `user_task_id` 归入某个步骤（未归类允许存在，但不应长期全空）。
+3. **用户任务 → 故事**：按"作为[角色]，我想要[功能]，以便[价值]"写 title；`story create` 支持 `--ac`（验收标准，`;` 分隔）与 `--priority`。故事挂在活动下，可用 `xcart story update <id> --user-task <userTaskId>` 归入某个步骤（`--user-task none` 移出步骤；未归类允许存在，但不应长期全空）。
 4. **批量拆分**：把多条故事写成 `stories.json`（数组，每项含 `title/description/priority/estimation/acceptance_criteria/tags`），`story bulk-create --activity <id> --file stories.json`。
 5. **排期**：`story update <storyId> --milestone <milestoneId>` 挂到版本；`--milestone none` 移出排期。
 6. **跨活动移动**：`story update <storyId> --activity <activityId>`（或 `story move <storyId> <activityId>`）把故事移到目标活动，原活动保留、目标活动末尾接排。
