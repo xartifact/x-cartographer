@@ -483,3 +483,22 @@ Agent 的推断静默记成生效约束且不可逆）：
 | `technical-constitution.md` | **互补**。本文档给出 ADR/SystemModule 的域归属，该文档给出其内部模型与解析算法；其 §4 算法在新轴下不再跨域 |
 | `relationship-visualization.md` | **依赖本文档**。其 §4 模块归属矩阵依赖 §6.4 的 `SystemModule` 落表 |
 | `x-cartographer-architecture.md` | **互补**。该文档描述"现在长什么样"，本文档定义"概念如何划分" |
+
+### 6.7 未决：非 ADR 实体的高影响落点（E 阶段残留，2026-09-19 记录）
+
+§4.1 规定「agent_inferred/imported × 高影响 → 写入 proposed，显式升格后生效」。
+该规则当前**只对 ADR 落地**（`resolveAdrCreateStatus`）。其余约束实体的缺口：
+
+| 实体 | 高影响动作 | 现状 | 障碍 |
+|---|---|---|---|
+| UserStory | 创建/删除 | 直接生效，仅 `story.constraint_impact` 日志 | **StoryStatus 状态机无 `proposed` 值**（§6.3 更名后为 `backlog/todo/in_progress/accepted/cancelled`）——落 `proposed` 需先扩枚举，连带状态机语义（§6.3 的 done/accepted 区分）重审 |
+| SystemModule | 增/删 | 直接生效，无状态概念 | 模块是「结构认知」（§6.4），无生命周期状态；加 `proposed` 等于给目录引入审批流，与「随代码演进持续更新」矛盾 |
+| UserActivity | 结构修改 | 直接生效 | 同上，无状态概念 |
+| Milestone / Product | 创建 | 直接生效 | 同上 |
+
+**待裁定**：三选一。
+- **A. 扩枚举**：给 StoryStatus 加 `proposed`， stories POST 按分类器落点（改状态机，牵 §6.3 语义）。
+- **B. 账本即落点**：非 ADR 高影响写入直接生效，但强制写 `status_changes` 账本（reason=constraint_impact:high, provenance），「显式升格」由人事后 `--reason` 追认；ADR 保持真状态机。与 §4.4「状态机即权限模型」部分偏离但不动枚举。
+- **C. 缩小表述**：§4.1 的落点规则**仅适用于 ADR**，其余实体按「纯信息不裁决」（§3.5/§6.4.2）直接生效+provenance 留痕。最小改动，但弱化协议普适性。
+
+（裁定前不动代码。B 与 §6.4.2 的「告警不阻断」哲学最连贯；A 语义最正统但代价最大。）
