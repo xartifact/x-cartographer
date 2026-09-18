@@ -30,8 +30,12 @@ export interface DevTask {
 
   /** 依赖的任务 ID 列表 */
   dependencies: string[];
-  /** 所属用户故事 ID（产品级任务池任务可为空） */
+  /** 所属用户故事 ID（工程治理类工作项为空） */
   story_id: string | null;
+  /** 产品归属：不挂 story 时必填（派生链在 story 为空时断裂）——domain-model §2.5 */
+  product_id?: string;
+  /** 模块锚定：工程治理类工作的主锚（架构治理载体） */
+  module_id?: string;
 
   /** 标签（承载交付性质：implementation / refactor / bug / infra 等） */
   tags: string[];
@@ -64,8 +68,12 @@ export interface CreateDevTaskDTO {
   priority: TaskPriority;
   estimation: number;
   dependencies?: string[];
-  /** 所属用户故事（产品级任务池任务可省略） */
+  /** 所属用户故事（工程治理类工作项可省略） */
   story_id?: string;
+  /** 产品归属：不挂 story 时必填 */
+  product_id?: string;
+  /** 模块锚定：工程治理类工作的主锚 */
+  module_id?: string;
   tags?: string[];
 }
 

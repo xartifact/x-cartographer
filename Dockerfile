@@ -47,8 +47,9 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/db/package.json ./packages/db/
 
-# 服务器 TS 源码 + 源码引用的 schema/迁移
+# 服务器 TS 源码 + 迁移脚本（入口 entrypoint.ts 启动时先跑 migrate-schema.ts）
 COPY apps/server/src ./apps/server/src
+COPY apps/server/scripts ./apps/server/scripts
 COPY packages/shared/src ./packages/shared/src
 COPY packages/ui/src ./packages/ui/src
 COPY packages/db/src ./packages/db/src
@@ -62,4 +63,6 @@ ENV HOST=0.0.0.0
 
 EXPOSE 8787
 
-CMD ["bun", "run", "apps/server/src/index.ts"]
+# 入口先跑数据库迁移（幂等），成功才启动网关——
+# 两次生产事故（2026-09-15 / 2026-09-18）同根因：新镜像已启动、库未迁移。
+CMD ["bun", "run", "apps/server/src/entrypoint.ts"]

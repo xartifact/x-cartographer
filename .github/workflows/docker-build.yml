@@ -99,6 +99,9 @@ jobs:
           echo "Pulling image tag: $IMAGE_TAG"
           docker pull ghcr.io/${{ github.repository }}:$IMAGE_TAG
 
+
+          # 迁移由容器入口自动执行（apps/server/src/entrypoint.ts）：
+          #   先迁移（幂等），成功才启动网关；失败则容器退出由 restart: always 重试。
           echo "Starting services..."
           docker-compose up -d
 

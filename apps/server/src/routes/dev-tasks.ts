@@ -20,6 +20,10 @@ import {
 
 const createDevTaskSchema = z.object({
   storyId: z.string().optional(),
+  /** 工程治理类工作项的产品归属（不挂 story 时必填——派生链在 story 为空时断裂） */
+  productId: z.string().optional(),
+  /** 模块锚定：工程治理类工作的主锚（domain-model §2.5） */
+  moduleId: z.string().optional(),
   title: z.string(),
   description: z.string(),
   priority: z.nativeEnum(TaskPriority),
@@ -38,6 +42,8 @@ const updateDevTaskSchema = z.object({
   tags: z.array(z.string()).optional(),
   assignee: z.string().optional(),
   storyId: z.string().nullable().optional(),
+  productId: z.string().optional(),
+  moduleId: z.string().optional(),
   affectedModules: z.array(z.string()).optional(),
 });
 
@@ -65,6 +71,8 @@ const statusChangeRepo = new StatusChangeRepository();
 function toJson(t: {
   id: string;
   storyId: string | null;
+  productId: string | null;
+  moduleId: string | null;
   title: string;
   description: string;
   priority: string;
@@ -82,6 +90,8 @@ function toJson(t: {
   return {
     id: t.id,
     story_id: t.storyId,
+    product_id: t.productId,
+    module_id: t.moduleId,
     title: t.title,
     description: t.description,
     priority: t.priority,
@@ -177,6 +187,8 @@ export const devTasksRoutes = new Hono()
     const id = await generateShortId('devTask');
     await taskRepo.create(id, {
       story_id: input.storyId,
+      product_id: input.productId,
+      module_id: input.moduleId,
       title: input.title,
       description: input.description,
       priority: input.priority,
@@ -203,6 +215,8 @@ export const devTasksRoutes = new Hono()
     if (input.assignee !== undefined) dto.assignee = input.assignee;
     if (input.affectedModules !== undefined) dto.affected_modules = input.affectedModules;
     if (input.storyId !== undefined) dto.story_id = input.storyId;
+    if (input.productId !== undefined) dto.product_id = input.productId;
+    if (input.moduleId !== undefined) dto.module_id = input.moduleId;
     // 模块引用存在性校验（告警不阻断；产品上下文经 story→activity 解析）
     let moduleWarning: string[] = [];
     if (input.affectedModules !== undefined) {
