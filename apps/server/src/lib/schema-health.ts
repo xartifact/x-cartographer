@@ -53,6 +53,9 @@ const REQUIRED_COLUMNS: Array<{ table: string; column: string; since: string }> 
   // 0006 system_modules（模块目录升为一等实体）
   { table: 'system_modules', column: 'provenance', since: '0006' },
   { table: 'system_modules', column: 'depends_on', since: '0006' },
+  // 0008 工作项第二锚定路径
+  { table: 'dev_tasks', column: 'product_id', since: '0008' },
+  { table: 'dev_tasks', column: 'module_id', since: '0008' },
 ];
 
 export interface SchemaHealth {

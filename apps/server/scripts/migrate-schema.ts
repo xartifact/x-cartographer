@@ -59,10 +59,24 @@ const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> 
     ],
   },
   {
-    since: '0007',
-    label: '死列清理（product_id / adr_id / persona，填充率 0 且无消费点）',
+    since: '0008',
+    label: '工作项第二锚定路径（product_id 恢复 + module_id 新增，domain-model §2.5）',
     statements: [
-      `ALTER TABLE "dev_tasks" DROP COLUMN IF EXISTS "product_id"`,
+      `ALTER TABLE "dev_tasks" ADD COLUMN IF NOT EXISTS "product_id" text REFERENCES "products"("id") ON DELETE CASCADE`,
+      `ALTER TABLE "dev_tasks" ADD COLUMN IF NOT EXISTS "module_id" text REFERENCES "system_modules"("id") ON DELETE SET NULL`,
+      `CREATE INDEX IF NOT EXISTS "dev_tasks_product_id_idx" ON "dev_tasks" ("product_id")`,
+      `CREATE INDEX IF NOT EXISTS "dev_tasks_module_id_idx" ON "dev_tasks" ("module_id")`,
+      // 回填：已有任务的产品归属经 story → activity → product 派生（幂等：只填 NULL 行）
+      `UPDATE "dev_tasks" d SET "product_id" = a."product_id" FROM "user_stories" s JOIN "user_activities" a ON a."id" = s."activity_id" WHERE d."story_id" = s."id" AND d."product_id" IS NULL`,
+    ],
+  },
+  {
+    since: '0007',
+    label: '死列清理（adr_id / persona）',
+    statements: [
+      // 注：本项原含 `dev_tasks.product_id`，但该列已于 0008 恢复
+      // （工程治理类工作项需要它做产品归属——domain-model.md §2.5/§6.1）。
+      // 保留在 0007 会在排序执行时把它再次删掉，故移除。
       `ALTER TABLE "milestones" DROP COLUMN IF EXISTS "adr_id"`,
       `ALTER TABLE "products" DROP COLUMN IF EXISTS "persona"`,
     ],
@@ -87,7 +101,10 @@ async function main(): Promise<void> {
       (SELECT count(*) FROM dev_tasks)::int AS tasks`))[0] as { stories: number; tasks: number };
   console.log(`[pre] stories=${pre.stories} tasks=${pre.tasks}`);
 
-  for (const m of MIGRATIONS) {
+  // 按版本号排序执行 —— 不依赖数组字面顺序。
+  // （曾因 0008 被插在 0007 之前，导致 0008 加回的 product_id 又被 0007 删掉。）
+  const ordered = [...MIGRATIONS].sort((a, b) => a.since.localeCompare(b.since));
+  for (const m of ordered) {
     console.log(`--- ${m.since}: ${m.label}`);
     for (const st of m.statements) {
       // DDL 重复执行（如列已存在）不应中断——IF NOT EXISTS / DROP IF EXISTS 已保证幂等，
@@ -111,11 +128,13 @@ async function main(): Promise<void> {
       console.error('[assert-fail] 数据行数变化——DDL 不应影响数据');
       process.exit(1);
     }
+    // 死列断言：只含**当前仍未恢复**的死列（0007 范围内）。
+    // 注：dev_tasks.product_id 不在此列——它已由 0008 恢复为有效字段（工程治理类
+    // 工作项的产品归属），保留它是**预期状态**而非遗漏。
     const dead = (await query(`
       SELECT table_name || '.' || column_name AS col FROM information_schema.columns
       WHERE table_schema='public'
-        AND ((table_name='dev_tasks' AND column_name='product_id')
-          OR (table_name='milestones' AND column_name='adr_id')
+        AND ((table_name='milestones' AND column_name='adr_id')
           OR (table_name='products' AND column_name='persona'))`)).map((r) => String(r.col));
     if (dead.length > 0) { console.error(`[assert-fail] 死列仍存在: ${dead.join(', ')}`); process.exit(1); }
     console.log('  ✓ 死列已清除，行数守恒');
