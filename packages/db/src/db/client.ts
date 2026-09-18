@@ -151,65 +151,119 @@ const TABLE_SQLS = [
   )`,
 ];
 
+/** 应用级锁文件名（与 PGlite 内部的 postmaster.pid 无关，语义见 acquirePgliteLock） */
+const PGLITE_LOCK_FILE = '.xpr-db.pid';
+
 /**
- * 尝试打开 PGlite 文件数据库。
+ * 应用级独占锁：打开 PGlite 数据目录前先取得。
  *
- * PGlite 底层是 PostgreSQL WASM，pgdata 目录在进程崩溃后可能损坏：
- *   - postmaster.pid 残留 → PostgreSQL 拒绝启动
- *   - pgdata 不一致    → WASM abort（RuntimeError: Aborted）
+ * 与 PGlite 内部 postmaster.pid 的区别：那个文件由 WASM 内核在启动时写、
+ * 内容与时机不受我们控制；本锁由应用写入自己的 pid，**先于** PGlite 打开。
+ * 借鉴 x-herald（packages/db/src/connections/pglite.ts）的范式。
  *
- * 策略：
- *   第 1 次尝试：清理锁文件后打开。
- *   若 waitReady 或首条 SQL 失败：清空 pgdata，第 2 次用全新目录打开。
- *   第 2 次若仍失败：向上抛出，让调用方感知。
+ * 三种情形：
+ *   - 无锁 / 持有者已死 → 清理后写自己的 pid，继续
+ *   - 持有者是本进程 → 直接继续（重复初始化防护）
+ *   - 持有者存活 → **立即抛错**，附 pid、命令行、运行时长与解锁命令
+ *
+ * 历史教训：旧实现撞锁后等待重试，重试失败则 `rmSync` 删掉整个数据目录
+ * "重建"——2026-08-24 与 2026-09-18 两次本地库清空同此根源。
+ * 数据目录的内容永远比"自动恢复"贵：打不开就报错，让人决定怎么办。
+ */
+function acquirePgliteLock(pgliteDir: string): void {
+  const lockPath = `${pgliteDir}/${PGLITE_LOCK_FILE}`;
+  fs.mkdirSync(pgliteDir, { recursive: true });
+
+  if (fs.existsSync(lockPath)) {
+    const existingPid = Number.parseInt(fs.readFileSync(lockPath, 'utf-8').trim(), 10);
+    if (existingPid === process.pid) return; // 同进程重复初始化（测试场景）
+
+    if (Number.isInteger(existingPid) && existingPid > 0 && isProcessAlive(existingPid)) {
+      let command = '';
+      let elapsed = '';
+      try {
+        // 仅取诊断信息用；失败不影响错误抛出
+        const out = require('node:child_process')
+          .execSync(`ps -p ${existingPid} -o command=,etime=`, { encoding: 'utf-8', timeout: 1000 })
+          .trim();
+        const m = out.match(/^(.+?)\s+(\d{2}:\d{2}:\d{2}|\d+:\d{2})$/);
+        if (m) {
+          command = m[1]!.trim();
+          elapsed = m[2]!;
+        } else {
+          command = out;
+        }
+      } catch {
+        /* 诊断信息可选 */
+      }
+      log.error('db.lock_held_by_live_process', {
+        pid: existingPid,
+        command: command || undefined,
+        elapsed: elapsed || undefined,
+        lockPath,
+      });
+      const cmdSuffix = command ? ` "${command}"` : '';
+      const elapsedSuffix = elapsed ? `（已运行 ${elapsed}）` : '';
+      throw new Error(
+        `PGlite 数据目录已被存活进程锁定：PID ${existingPid}${cmdSuffix}${elapsedSuffix}。` +
+          `锁文件：${lockPath}。停止持有者：kill ${existingPid}（确认进程已退出后也可手动删锁文件）。` +
+          `绝不在锁被持有时打开/重建数据目录——那会损坏或清空数据。`
+      );
+    }
+
+    // 持有者已退出：清掉残留锁（崩溃残留是正常情形，清理后继续）
+    fs.unlinkSync(lockPath);
+    log.warn('db.stale_lock_removed', { lockPath, stalePid: existingPid });
+  }
+
+  fs.writeFileSync(lockPath, String(process.pid));
+  const cleanup = () => {
+    try {
+      // 只清理仍是自己写的锁（避免误删后到者的锁）
+      if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, 'utf-8').trim() === String(process.pid)) {
+        fs.unlinkSync(lockPath);
+      }
+    } catch {
+      /* 尽力清理 */
+    }
+  };
+  process.once('exit', cleanup);
+  process.once('SIGINT', () => {
+    cleanup();
+    process.exit(0);
+  });
+  process.once('SIGTERM', () => {
+    cleanup();
+    process.exit(0);
+  });
+}
+
+/**
+ * 打开 PGlite 文件数据库。
+ *
+ * 策略（x-herald 范式）：
+ *   1. 取应用级锁——被存活进程持有时**立即失败**，绝不等待重试。
+ *   2. 打开后失败（pgdata 真损坏，如 WASM abort）→ **向上抛错**，不删数据。
+ *      恢复方式：从远端 sync-dev-db.ts 重建或用备份还原——由人决定，非自动清空。
  */
 async function openPGlite(pgliteDir: string): Promise<DbInstance> {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    fs.mkdirSync(pgliteDir, { recursive: true });
-
-    // 处理 postmaster.pid：仅当对应进程已不存在（真正残留）才删除。
-    // 若进程仍存活（另一实例正持有该库），直接打开会失败 —— 等待重试，
-    // 而非清空数据目录（那是数据丢失的根源）。
-    const pidFile = `${pgliteDir}/postmaster.pid`;
-    if (fs.existsSync(pidFile)) {
-      const content = fs.readFileSync(pidFile, 'utf-8');
-      const pid = Number.parseInt(content.split('\n')[0] ?? '', 10);
-      const processAlive = Number.isInteger(pid) && pid > 0 && isProcessAlive(pid);
-      if (processAlive) {
-        log.warn('db.lock_held_by_live_process', { pid, path: pidFile });
-        // 等待持有者释放（最多 3 秒），随后重试
-        const { promise, resolve } = Promise.withResolvers<void>();
-        setTimeout(resolve, 3000);
-        await promise;
-        continue;
-      }
-      fs.unlinkSync(pidFile);
-      log.warn('db.stale_lock_removed', { path: pidFile, attempt });
+  acquirePgliteLock(pgliteDir);
+  try {
+    const pglite = new PGlite(pgliteDir);
+    // waitReady 确保 WASM 和 PostgreSQL 完成内部启动
+    await pglite.waitReady;
+    for (const sql of TABLE_SQLS) {
+      await pglite.exec(sql);
     }
-
-    try {
-      const pglite = new PGlite(pgliteDir);
-      // waitReady 确保 WASM 和 PostgreSQL 完成内部启动
-      await pglite.waitReady;
-      for (const sql of TABLE_SQLS) {
-        await pglite.exec(sql);
-      }
-      return drizzlePglite(pglite, { schema });
-    } catch (err) {
-      if (attempt === 1 && !isLockError(err)) {
-        log.warn('db.pgdata_corrupted_resetting', {
-          dir: pgliteDir,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        fs.rmSync(pgliteDir, { recursive: true, force: true });
-        // 继续第 2 次循环，使用全新空目录
-      } else {
-        throw err;
-      }
-    }
+    return drizzlePglite(pglite, { schema });
+  } catch (err) {
+    log.error('db.pglite_open_failed', {
+      dir: pgliteDir,
+      error: err instanceof Error ? err.message : String(err),
+      hint: 'pgdata 可能损坏。恢复：停掉全部进程后用 sync-dev-db.ts 从远端重建，或还原备份。绝不自动清空。',
+    });
+    throw err;
   }
-  // TypeScript 要求有返回值（实际不可达）
-  throw new Error('PGlite 初始化失败');
 }
 
 /**
@@ -223,20 +277,6 @@ function isProcessAlive(pid: number): boolean {
     // ESRCH = 进程不存在；EPERM = 存在但无权信号（视为存活）
     return (err as NodeJS.ErrnoException).code === 'EPERM';
   }
-}
-
-/**
- * 判断错误是否因"库被另一进程锁定"——这类错误不应触发清空重置
- */
-function isLockError(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return (
-    msg.includes('lock') ||
-    msg.includes('another process') ||
-    msg.includes('database is being accessed by other users') ||
-    msg.includes('could not open file') ||
-    msg.includes('Permission denied')
-  );
 }
 
 /**
