@@ -23,7 +23,10 @@
 set -euo pipefail
 
 NEW_ROOT="/opt/xartifact"
-OLD_ROOT="${HOME}/Docker"
+# 注意：sudo 下 HOME 会变成 /root，故用绝对路径而非 ${HOME}
+OWNER_HOME="/home/binzhan"
+OLD_ROOT="${OWNER_HOME}/Docker"
+OLD_RUNNER_DIR="${OWNER_HOME}/runner-new"
 REPOS=(x-cartographer x-herald)
 
 PKG_SERVICE="github-actions.service"
@@ -114,22 +117,39 @@ EOF
 # ── switch：停旧 runner，启用包服务 ──
 cmd_switch() {
   need_root switch
-  echo "=== 停用旧手动 runner ==="
+  # 复用现有 runner 身份（agentId 95 / x99-arch-server），不重新注册。
+  # 前提：两版二进制版本一致（均 2.337.0，已核实）。
+  echo "=== 1. 复制现有 runner 凭据到包的工作目录 ==="
+  local creds=(.runner .credentials .credentials_rsaparams)
+  for f in "${creds[@]}"; do
+    if [[ -f "${OLD_RUNNER_DIR}/${f}" ]]; then
+      cp -a "${OLD_RUNNER_DIR}/${f}" "/var/lib/github-actions/${f}"
+      echo "  ✓ ${f}"
+    else
+      echo "  ✗ 缺少 ${f} —— 无法复用，需重新注册" >&2
+      exit 1
+    fi
+  done
+  chown "${RUNNER_USER}:${RUNNER_USER}" /var/lib/github-actions/.runner \
+    /var/lib/github-actions/.credentials /var/lib/github-actions/.credentials_rsaparams
+  # 私钥文件保持 600（含 RSA 私钥）
+  chmod 600 /var/lib/github-actions/.credentials_rsaparams
+  chmod 644 /var/lib/github-actions/.runner /var/lib/github-actions/.credentials
+
+  echo
+  echo "=== 2. 停用旧手动 runner ==="
+  # 必须先停：.runner 里的 agentName 是唯一身份，两个进程同跑会被 GitHub 拒绝
   systemctl stop "${OLD_SERVICE}" 2>/dev/null || true
   systemctl disable "${OLD_SERVICE}" 2>/dev/null || true
   echo "  ✓ 旧服务已停用（unit 文件保留，可用 rollback 恢复）"
 
   echo
-  echo "=== 新 runner 需要重新注册（AUR 包用独立凭据目录）==="
-  echo "  若 ${RUNNER_USER} 尚未注册，需执行："
-  echo "    sudo -u ${RUNNER_USER} HOME=/var/lib/github-actions \\"
-  echo "      /var/lib/github-actions/bin/config.sh \\"
-  echo "      --url https://github.com/xartifact --token <RUNNER_TOKEN> \\"
-  echo "      --name x99-arch-server --labels self-hosted,linux,x64 --unattended"
-  echo "  （token 从 GitHub 获取：Settings → Actions → Runners → New runner）"
+  echo "=== 3. 启用并启动包服务 ==="
+  systemctl enable --now "${PKG_SERVICE}"
+  sleep 5
+  systemctl show "${PKG_SERVICE}" -p ActiveState -p SubState -p MainPID -p User
   echo
-  echo "  注册完成后启动："
-  echo "    sudo systemctl enable --now ${PKG_SERVICE}"
+  echo "  若未 active，查日志：journalctl -u ${PKG_SERVICE} -n 40 --no-pager"
 }
 
 # ── verify ──
@@ -137,14 +157,29 @@ cmd_verify() {
   echo "=== 服务状态 ==="
   systemctl show "${PKG_SERVICE}" -p ActiveState -p SubState -p Restart -p MainPID -p User 2>/dev/null || true
   echo
-  echo "=== 旧服务应已停 ==="
-  systemctl is-active "${OLD_SERVICE}" 2>/dev/null || echo "  inactive（符合预期）"
+  echo "=== 旧服务应已停（避免同名身份冲突）==="
+  if systemctl is-active --quiet "${OLD_SERVICE}" 2>/dev/null; then
+    echo "  ✗ 旧服务仍在运行 —— 两个同名 runner 会被 GitHub 拒绝" >&2
+  else
+    echo "  ✓ inactive（符合预期）"
+  fi
   echo
-  echo "=== 部署目录 ==="
-  ls -ld "${NEW_ROOT}"/*/ 2>/dev/null || echo "  未创建"
+  echo "=== 凭据已复用（未重新注册）==="
+  if [[ -f /var/lib/github-actions/.runner ]]; then
+    echo -n "  agentName: "
+    grep -o '"agentName": *"[^"]*"' /var/lib/github-actions/.runner || echo "(解析失败)"
+    echo -n "  agentId:   "
+    grep -o '"agentId": *[0-9]*' /var/lib/github-actions/.runner || echo "(解析失败)"
+  else
+    echo "  ✗ 凭据缺失，switch 未完成" >&2
+  fi
   echo
-  echo "=== GitHub 侧 runner 状态 ==="
-  echo "  gh api /orgs/xartifact/actions/runners --jq '.runners[] | {name,status,busy}'"
+  echo "=== 部署目录（/home 被沙箱禁，必须在 /opt）==="
+  ls -ld "${NEW_ROOT}"/*/ 2>/dev/null || echo "  未创建（先跑 prepare）"
+  echo
+  echo "=== GitHub 侧 runner 状态（应为 online）==="
+  gh api /orgs/xartifact/actions/runners --jq '.runners[] | select(.name=="x99-arch-server") | {name,status,busy}' 2>/dev/null \
+    || echo "  （本机无 gh 或未认证，请在本地执行该命令）"
 }
 
 # ── rollback ──
@@ -159,8 +194,10 @@ cmd_rollback() {
   echo "  ✓ 已恢复旧服务"
   systemctl show "${OLD_SERVICE}" -p ActiveState -p MainPID
   echo
-  echo "  部署目录如需回退："
-  echo "    sudo rm -rf ${NEW_ROOT} && cp -a ${OLD_ROOT}/<repo> ${NEW_ROOT}/  （反向操作）"
+  echo "  注意："
+  echo "  - 凭据副本仍在 /var/lib/github-actions/（无害，下次 switch 会覆盖）"
+  echo "  - 部署目录如需回退：workflow 的 DEPLOY_DIR 改回 ~/Docker/<repo> 即可"
+  echo "    （/opt/xartifact 可保留作备份，或手动删除）"
 }
 
 case "${1:-plan}" in
@@ -181,14 +218,19 @@ GitHub Actions runner 迁移计划（AUR 包 github-actions-bin）
 
 步骤（依次执行，每步可单独跑）：
   1. sudo bash migrate-runner.sh prepare    # 建 /opt/xartifact + 复制 compose/.env
-  2. sudo bash migrate-runner.sh dropin     # 写 drop-in（ReadWritePaths + Restart=always）+ 加 docker 组
-  3. # 注册新 runner（需 GitHub token，见 switch 输出）
-     sudo bash migrate-runner.sh switch     # 停旧 runner，打印注册命令
-  4. sudo bash migrate-runner.sh verify     # 验证
+  2. sudo bash migrate-runner.sh dropin     # ReadWritePaths + Restart=always + github-actions 加 docker 组
+  3. sudo bash migrate-runner.sh switch     # 复制凭据（复用身份，无需 token）+ 停旧 + 启新
+  4. sudo bash migrate-runner.sh verify     # 验证（含同名冲突检测）
   回滚：
      sudo bash migrate-runner.sh rollback
 
-随后需改两仓库 workflow 的 DEPLOY_DIR：
+**无需重新注册**：现有凭据（agentId 95 / x99-arch-server）直接复制到包的工作目录。
+前提已核实：两版二进制版本一致（均 2.337.0-1）。
+
+⚠ switch 会先停旧 runner —— .runner 里的 agentName 是唯一身份，
+  新旧同跑会被 GitHub 拒绝。
+
+随后需改两仓库 workflow 的 DEPLOY_DIR（顺序建议：先 prepare+dropin，再改 workflow，最后 switch）：
   ~/Docker/x-cartographer  →  /opt/xartifact/x-cartographer
   ~/Docker/x-herald        →  /opt/xartifact/x-herald
 PLAN
