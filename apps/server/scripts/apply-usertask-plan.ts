@@ -1,57 +1,49 @@
 #!/usr/bin/env bun
 /**
- * UserTask 补层落库（一次性脚本，裁决后执行）
+ * UserTask 补层落库（通用脚本）
  *
- * 来源：/tmp/usertask-draft.md —— 由 Agent 从存量 50 个活跃故事归纳，
- * 经用户整体批准后落库，故 provenance = human_asserted（裁决过的意图，
- * 非 Agent 推断——domain-model.md §3 的来源标记不可混）。
+ * 输入：一份 plan JSON（裁决产物），格式见 UsertaskPlan 类型。
+ * provenance 固定为 human_asserted —— plan 由 Agent 归纳成草稿、经**人裁决**后落库，
+ * 属"裁决过的意图"而非 Agent 推断（domain-model.md §3 来源标记不可混）。
  *
- * 幂等：UserTask 按 name 在活动内去重；故事挂载为覆盖写。
- * 用法：bun scripts/apply-usertask-plan.ts [--dry-run] [--server <url>]
+ * 用法：
+ *   bun scripts/apply-usertask-plan.ts <plan.json> [--dry-run] [--server <url>]
+ *
+ * plan JSON 结构：
+ *   {
+ *     "product_id": "69hKGAjvxjf6QVQu6DtZx",
+ *     "activities": {
+ *       "管理产品": [
+ *         { "name": "创建与配置产品", "desc": "...", "stories": ["US-015"] }
+ *       ]
+ *     }
+ *   }
+ *
+ * 幂等：UserTask 按 name 在活动内去重；故事挂载为覆盖写。可安全重跑。
  */
-const DRY_RUN = process.argv.includes('--dry-run');
-/** --server <url>；缺省用本地 gateway */
-const serverIdx = process.argv.indexOf('--server');
-const SERVER = serverIdx >= 0 ? (process.argv[serverIdx + 1] ?? 'http://localhost:8787') : 'http://localhost:8787';
+const args = process.argv.slice(2);
+const DRY_RUN = args.includes('--dry-run');
+const serverIdx = args.indexOf('--server');
+const SERVER = serverIdx >= 0 ? (args[serverIdx + 1] ?? 'http://localhost:8787') : 'http://localhost:8787';
 
-/** 活动名 → { 步骤名, 描述, 归属故事 id }[] —— 与草稿逐字一致 */
-const PLAN: Record<string, Array<{ name: string; desc: string; stories: string[] }>> = {
-  '管理产品': [
-    { name: '创建与配置产品', desc: '建立产品、设定其元数据与工作区', stories: ['US-015'] },
-    { name: '切换当前产品', desc: '在多个产品之间切换工作上下文', stories: ['2TkPTEtG0KZTh4NoxMUo6'] },
-    { name: '保存与加载数据', desc: '持久化与恢复产品数据', stories: ['US-016'] },
-    { name: '管理导入导出', desc: '数据的导入导出能力（含下线决策）', stories: ['eiLlYCYk86je-Jrkl-6Wy'] },
-  ],
-  '组织故事地图': [
-    { name: '创建与编辑故事', desc: '在地图上新增、修改故事内容', stories: ['US-004', 'US-006', 'US-009'] },
-    { name: '调整地图布局', desc: '拖拽排序、纵向深度与优先级表达', stories: ['US-008', 'livRZhST9D9feFXLYsS7c'] },
-    { name: '检索与筛选', desc: '按标签/优先级/版本过滤，聚焦特定内容', stories: ['US-010', 'US-042'] },
-    { name: '浏览地图全貌', desc: '可视化总览与卡片详情', stories: ['US-007', 'gMlVIegfHZV4wyqYre0nm', 'sXCmRZo_JxcZxWLJanTL2', 'LzeFkWQJcb9C4hBL0BtcT'] },
-    { name: '管理故事状态', desc: '状态与优先级展示、取消放弃的故事', stories: ['-w1Be5LWc79dFv_iDVyNZ', 'ISi7IuVpXJAoJoFdBh1kO'] },
-    { name: '查看关系与依赖', desc: '依赖图、模块归属等关系视图', stories: ['2Tcdd0D-uOz-DL9bo8RnU', 'mB3EAa0eeGdb53JSgENfC'] },
-    { name: '查阅使用文档', desc: '帮助与上手材料', stories: ['US-019', 'US-020'] },
-    { name: '对齐方法论与语义', desc: '沉淀地图语义纪律（含 Agent 生成纪律）', stories: ['a3kpWpAYtMIRyVALx-JR7', 'kvkwxNnouah8rXMMwUReZ'] },
-    { name: '排入发布', desc: '把故事挂到版本切片线下（地图内的排期动作）', stories: ['US-040'] },
-  ],
-  '拆解任务': [
-    { name: '登记研发任务', desc: '为故事拆解出研发任务并设定优先级与估算', stories: ['US-012'] },
-    { name: '导出任务清单', desc: '把任务导出到外部看板工具', stories: ['US-014'] },
-  ],
-  '跟踪执行': [
-    { name: '认领与推进任务', desc: '挑活、认领、推进状态', stories: ['US-017', 'DPJMk8vM_rb2Av9PJh4kl'] },
-    { name: '批量管理任务', desc: '批量更新状态、跨产品汇总待办', stories: ['US-034', 'US-038'] },
-    { name: '查看进度与统计', desc: '项目进度、数据概览、按版本排期', stories: ['US-035', 'iUXr0eSGFrc9xXJXgW0YS'] },
-    { name: '维护技术宪法', desc: 'ADR 的建模、路由、CLI、消费面与 Skill', stories: ['s9Qu7Zrt4BcpZRwS1zQOc', 'w-HTN_ONxKJDaRFmdVtjC', 'RecaGMWNlb_RTwPIvuswL', 'XmV-q2eSAblZwTdb0knMF', 'zK1JY2M7UesSoRCqGjypU', 'HTHnFx9UEHzG_wvanjgfJ', 'wY_zzmLO8tlRnyK5dbrft', 'WR9VCoKVmgBuGMqBztJV-', 'Ifc9cyGxHQswuu3nTy1wj'] },
-    { name: '接入外部 Agent', desc: 'API 令牌、CLI 入口、上下文导出', stories: ['US-044', 'US-046', 'US-047'] },
-    { name: '搭建基础设施', desc: '脚手架、数据库、ORM 选型', stories: ['US-000', 'US-021', 'US-022'] },
-  ],
-  '规划发布': [
-    { name: '管理版本', desc: '创建与维护版本里程碑', stories: ['US-039'] },
-    { name: '查看发布视图', desc: 'Roadmap 泳道与可预测性指标', stories: ['US-041', 'baMSRGsUGD-CYFZfuvv3D'] },
-  ],
-};
+const planPath = args.find((a) => !a.startsWith('--') && a !== SERVER);
+if (!planPath) {
+  console.error('用法: bun scripts/apply-usertask-plan.ts <plan.json> [--dry-run] [--server <url>]');
+  process.exit(1);
+}
 
-const PRODUCT = '69hKGAjvxjf6QVQu6DtZx';
+interface UsertaskPlan {
+  product_id: string;
+  activities: Record<string, Array<{ name: string; desc: string; stories: string[] }>>;
+}
+
+const raw = await Bun.file(planPath).json() as UsertaskPlan;
+if (!raw.product_id || !raw.activities) {
+  console.error('[abort] plan JSON 缺少 product_id 或 activities');
+  process.exit(1);
+}
+const PRODUCT = raw.product_id;
+const PLAN = raw.activities;
 
 async function api<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const res = await fetch(`${SERVER}${path}`, {
