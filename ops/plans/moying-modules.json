@@ -1,0 +1,58 @@
+{
+  "product_id": "BNtVVQ5JZx_Gjv-PbbFEL",
+  "modules": [
+    {
+      "id": "des-kernel",
+      "name": "DES 仿真引擎内核",
+      "path": "modules/des（据故事文本，未验证）",
+      "responsibility": "纯 Kotlin 离散事件原语：SimClock/EventQueue、种子确定性、多会话隔离、快照与事件流回放、批量实例 API、semver 治理",
+      "depends_on": []
+    },
+    {
+      "id": "sim-device",
+      "name": "仿真设备域",
+      "path": "（未读，REST 锚 /simulation/device）",
+      "responsibility": "机器人状态机/路网移动/充电、CNC 加工状态机与故障注入、行为树建模、指令语义、设备 REST/生命周期",
+      "depends_on": [
+        "des-kernel"
+      ]
+    },
+    {
+      "id": "link-bridge",
+      "name": "链路桥接与协议适配",
+      "path": "（未读，app 层 iot/mydata）",
+      "responsibility": "影子桥接、真实命令链路、设备注册与 isSimulation、协议路由",
+      "depends_on": [
+        "sim-device"
+      ]
+    },
+    {
+      "id": "scene-model",
+      "name": "场景与模板",
+      "path": "（未读，fms/scene/schema）",
+      "responsibility": "场景 Schema、模板库、验收场景",
+      "depends_on": [
+        "des-kernel",
+        "sim-device"
+      ]
+    },
+    {
+      "id": "sim-console",
+      "name": "仿真控制台",
+      "path": "（未读，umi + 独立 Vite）",
+      "responsibility": "主控制台仿真页、独立控制台应用、测试基建与 E2E",
+      "depends_on": [
+        "sim-device"
+      ]
+    },
+    {
+      "id": "eval-lab",
+      "name": "实验与评估",
+      "path": "（未读）",
+      "responsibility": "指标导出、实验工作流、对比报告、容量基准",
+      "depends_on": [
+        "des-kernel"
+      ]
+    }
+  ]
+}

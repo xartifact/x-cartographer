@@ -1,0 +1,132 @@
+{
+  "product_id": "M26_K2UPZuV48B5HfuQiR",
+  "modules": [
+    {
+      "id": "engine",
+      "name": "引擎内核与装配",
+      "path": "apps/gateway/src",
+      "responsibility": "组合根：配置加载校验、Hono 应用装配、中间件挂载、Admin API 路由注册、后台任务生命周期",
+      "depends_on": [
+        "proxy-runtime",
+        "admin-api",
+        "protocol-transform",
+        "resilience",
+        "observability",
+        "db",
+        "shared"
+      ]
+    },
+    {
+      "id": "proxy-runtime",
+      "name": "代理执行链",
+      "path": "apps/gateway/src/gateway",
+      "responsibility": "数据面请求执行：端点接入、协议检测、虚拟密钥认证、按协议编排 handler、重试与故障转移执行",
+      "depends_on": [
+        "protocol-transform",
+        "routing-engine",
+        "resilience",
+        "observability",
+        "db",
+        "shared"
+      ]
+    },
+    {
+      "id": "protocol-transform",
+      "name": "协议转换",
+      "path": "apps/gateway/src/gateway/transformer",
+      "responsibility": "OpenAI/Anthropic/Gemini ↔ 内部标准格式双向转换：请求 normalize、响应与 SSE 流转换、注册表与 chain 执行器",
+      "depends_on": [
+        "shared"
+      ]
+    },
+    {
+      "id": "routing-engine",
+      "name": "路由决策",
+      "path": "apps/gateway/src/gateway/services",
+      "responsibility": "虚拟模型→实例决策核心：规则引擎（条件编译+内存索引）、意图路由、模型组优先级、白黑名单、fallback 动作、路由链追踪",
+      "depends_on": [
+        "shared",
+        "db"
+      ]
+    },
+    {
+      "id": "resilience",
+      "name": "高可用策略",
+      "path": "apps/gateway/src/gateway/services",
+      "responsibility": "保护策略引擎：熔断器状态机、密钥限流（滑动窗口/日配额）、TTFB 超时策略",
+      "depends_on": [
+        "shared",
+        "db"
+      ]
+    },
+    {
+      "id": "observability",
+      "name": "日志与用量管线",
+      "path": "apps/gateway/src/gateway/services",
+      "responsibility": "请求日志/用量/成本落库写入与实时事件流：token 估算、性能快照、SSE 推送；训练语料唯一原文源",
+      "depends_on": [
+        "db",
+        "shared"
+      ]
+    },
+    {
+      "id": "admin-api",
+      "name": "管理面 API",
+      "path": "apps/gateway/src/features",
+      "responsibility": "控制面：JWT 认证、配置 CRUD、日志与追踪查询、指标/成本统计、配置导入导出、AI 辅助诊断",
+      "depends_on": [
+        "db",
+        "shared",
+        "observability",
+        "resilience",
+        "routing-engine"
+      ]
+    },
+    {
+      "id": "admin-web",
+      "name": "管理前端",
+      "path": "apps/web + packages/ui",
+      "responsibility": "网关管理 SPA（TanStack Router）+ 功能组件库；两者是打包切分而非架构切分",
+      "depends_on": [
+        "shared"
+      ]
+    },
+    {
+      "id": "cli",
+      "name": "管理 CLI",
+      "path": "apps/cli",
+      "responsibility": "终端管理入口：经 Admin API HTTP 客户端提供网关管理命令",
+      "depends_on": [
+        "shared"
+      ]
+    },
+    {
+      "id": "db",
+      "name": "数据层",
+      "path": "packages/db",
+      "responsibility": "Drizzle schema、PGlite/Postgres 双连接、迁移、种子数据；唯一 schema 定义源",
+      "depends_on": []
+    },
+    {
+      "id": "shared",
+      "name": "共享契约包",
+      "path": "packages/shared",
+      "responsibility": "前后端契约单一来源：域类型、Zod schema、常量；不含运行时业务逻辑",
+      "depends_on": []
+    },
+    {
+      "id": "ai-agent-sdk",
+      "name": "AI Agent SDK",
+      "path": "packages/ai-agent",
+      "responsibility": "轻量 Agent 运行时（Agent/Tool/Skill/LLMAdapter）",
+      "depends_on": []
+    },
+    {
+      "id": "agent-extensions",
+      "name": "Agent 运行时扩展",
+      "path": "packages/agent-extensions",
+      "responsibility": "pi/omp 等 coding-agent 运行时的扩展：动态发现模型目录并注册 provider",
+      "depends_on": []
+    }
+  ]
+}

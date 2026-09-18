@@ -1,0 +1,92 @@
+{
+  "product_id": "yvREuxZSC_gqN2EsP0Xar",
+  "modules": [
+    {
+      "id": "kernel-api",
+      "name": "Kernel 对外契约",
+      "path": "kernel-api",
+      "responsibility": "RPC 接口、DTO、事件 schema（零框架依赖）",
+      "depends_on": [
+        "kernel-core"
+      ]
+    },
+    {
+      "id": "kernel-core",
+      "name": "领域核心",
+      "path": "kernel-core",
+      "responsibility": "纯函数无 I/O：路网图、CBS/ECBS、ADG、MILP、几何插值、状态机、交管规则约束",
+      "depends_on": []
+    },
+    {
+      "id": "kernel-runtime",
+      "name": "Zone Runtime",
+      "path": "kernel-runtime",
+      "responsibility": "每 zone 单线程 actor、内存权威态、tick 调度、Outbox 投递",
+      "depends_on": [
+        "kernel-core",
+        "kernel-api"
+      ]
+    },
+    {
+      "id": "adapter-in-mqtt",
+      "name": "入站 MQTT 适配器",
+      "path": "kernel-adapters/in-mqtt",
+      "responsibility": "订阅状态/回执/任务 topic，解析投递 ZoneMsg",
+      "depends_on": [
+        "kernel-runtime"
+      ]
+    },
+    {
+      "id": "adapter-in-rest",
+      "name": "REST 兼容层",
+      "path": "kernel-adapters/in-rest",
+      "responsibility": "兼容 /path_planning/* 端点，零改动接入",
+      "depends_on": [
+        "kernel-runtime"
+      ]
+    },
+    {
+      "id": "adapter-in-rpc",
+      "name": "Kernel RPC 服务",
+      "path": "kernel-adapters/in-rpc",
+      "responsibility": "终态 RPC server（进程内直调 vs gRPC 选型后落地）",
+      "depends_on": [
+        "kernel-runtime"
+      ]
+    },
+    {
+      "id": "adapter-out-mqtt",
+      "name": "出站 MQTT",
+      "path": "kernel-adapters/out-mqtt",
+      "responsibility": "指令下发与事件上报，逐字节兼容 Python 版",
+      "depends_on": [
+        "kernel-runtime"
+      ]
+    },
+    {
+      "id": "adapter-out-store",
+      "name": "持久化与 Outbox",
+      "path": "kernel-adapters/out-store",
+      "responsibility": "事件溯源/快照/审计、outbox relay、tick 零 DB IO",
+      "depends_on": [
+        "kernel-runtime"
+      ]
+    },
+    {
+      "id": "kernel-app",
+      "name": "组装与宿主接入",
+      "path": "kernel-app",
+      "responsibility": "组装、生命周期接入、健康检查、独立 jar/嵌入 RCS 双形态、灰度切流",
+      "depends_on": [
+        "kernel-api",
+        "kernel-core",
+        "kernel-runtime",
+        "adapter-in-mqtt",
+        "adapter-in-rest",
+        "adapter-in-rpc",
+        "adapter-out-mqtt",
+        "adapter-out-store"
+      ]
+    }
+  ]
+}

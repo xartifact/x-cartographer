@@ -1,0 +1,91 @@
+{
+  "product_id": "1fj0gtB01t1lJTbolxiRG",
+  "modules": [
+    {
+      "id": "config",
+      "name": "配置与数据契约",
+      "path": "packages/shared",
+      "responsibility": "契约类型、validateErrorEvent、多项目 AppConfig、config.json 读写",
+      "depends_on": []
+    },
+    {
+      "id": "sdk-reporter",
+      "name": "错误上报 SDK",
+      "path": "packages/sdk",
+      "responsibility": "宿主侧错误捕获（Node/Bun/浏览器）、Hono 中间件适配器、上下文注入、stack 解析、上报",
+      "depends_on": [
+        "config"
+      ]
+    },
+    {
+      "id": "event-ingest",
+      "name": "事件接入服务",
+      "path": "apps/server/src/routes",
+      "responsibility": "POST /api/events 校验规范化、异步触发流水线、/health、SPA 托管",
+      "depends_on": [
+        "config",
+        "event-store",
+        "fix-pipeline"
+      ]
+    },
+    {
+      "id": "fix-pipeline",
+      "name": "修复流水线",
+      "path": "apps/server/src/pipeline",
+      "responsibility": "7 步编排：路由→读源码→分派→应用补丁→验证→commit/push→状态流转",
+      "depends_on": [
+        "config",
+        "agent-integration",
+        "llm-core",
+        "event-store"
+      ]
+    },
+    {
+      "id": "agent-integration",
+      "name": "Coding Agent 集成",
+      "path": "packages/core + providers",
+      "responsibility": "AgentProvider 接口与注册表、ACP 协议、Claude Code/OpenCode CLI Provider",
+      "depends_on": [
+        "config"
+      ]
+    },
+    {
+      "id": "llm-core",
+      "name": "LLM 抽象与补丁生成",
+      "path": "packages/core/src + providers",
+      "responsibility": "LLMClient 模型无关抽象、unified diff 生成与解析",
+      "depends_on": [
+        "config"
+      ]
+    },
+    {
+      "id": "event-store",
+      "name": "事件持久化",
+      "path": "packages/db",
+      "responsibility": "PGlite+Drizzle：events/fixes 表",
+      "depends_on": [
+        "config"
+      ]
+    },
+    {
+      "id": "web-console",
+      "name": "管理控制台",
+      "path": "apps/ui + apps/server/src/trpc",
+      "responsibility": "React 配置页与 Fix History；tRPC 路由",
+      "depends_on": [
+        "config",
+        "event-store"
+      ]
+    },
+    {
+      "id": "delivery",
+      "name": "交付与部署",
+      "path": "Dockerfile + workflows",
+      "responsibility": "Docker 多阶段构建、CI 双注册表发布、多架构镜像、自托管部署",
+      "depends_on": [
+        "config",
+        "web-console"
+      ]
+    }
+  ]
+}

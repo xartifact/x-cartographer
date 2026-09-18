@@ -1,0 +1,65 @@
+{
+  "product_id": "M26_K2UPZuV48B5HfuQiR",
+  "conversions": [
+    {
+      "story_id": "wlyhTi8tgXQ6fd2rDCsXS",
+      "module_id": "proxy-runtime",
+      "title": "透传时不写重复请求体",
+      "reason": "工程治理：止住请求体日志膨胀"
+    },
+    {
+      "story_id": "kSMezYH7xmmbZvtoRMDbm",
+      "module_id": "observability",
+      "title": "时区基础设施",
+      "reason": "工程治理：日志时间准确性"
+    },
+    {
+      "story_id": "wjnO6pov7N3b6zYp2bO3n",
+      "module_id": "engine",
+      "title": "Service 层一致性",
+      "reason": "工程治理：职责分层一致性"
+    },
+    {
+      "story_id": "TNE8cb6irzppPmrjzZ-_L",
+      "module_id": "resilience",
+      "title": "后端限流可扩展",
+      "reason": "工程治理：限流引擎抽象接口 + Redis 后端"
+    },
+    {
+      "story_id": "_dwNNJUatA8vRsrlcshdL",
+      "module_id": "engine",
+      "title": "架构零成本修复",
+      "reason": "工程治理：authMiddleware 提层/统一 Zod/清理 deprecated"
+    },
+    {
+      "story_id": "ZVM2ps_H5xoIYAM-HPRnE",
+      "module_id": "observability",
+      "title": "训练语料导出脚本",
+      "reason": "工程治理：从日志管线产出语料"
+    },
+    {
+      "story_id": "dxZLJ0dz5-8-Lm0PcSUX2",
+      "module_id": "proxy-runtime",
+      "title": "测试友好重构",
+      "reason": "工程治理：降低测试成本"
+    },
+    {
+      "story_id": "7gqHHG6HMBHMZcptOKnUS",
+      "module_id": "shared",
+      "title": "shared 契约单一来源",
+      "reason": "工程治理：前后端类型对齐"
+    },
+    {
+      "story_id": "eLaVv1F8U7REUa8XMckpI",
+      "module_id": "agent-extensions",
+      "title": "插件系统",
+      "reason": "工程治理：扩展网关能力的机制建设"
+    },
+    {
+      "story_id": "AmxA-_BqFLkUNXOwDeT7B",
+      "module_id": "observability",
+      "title": "消除日志存储冗余",
+      "reason": "工程治理（cancelled，保留记录）：控制库体积"
+    }
+  ]
+}
