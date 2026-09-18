@@ -153,9 +153,29 @@ async function main(): Promise<void> {
   }
   console.log(`  短 ID 序列推进至 >= ${seqFloor}`);
 
-  const chk = await q<{ n: number }>('SELECT count(*)::int AS n FROM user_stories');
+  // 全表核对：同步计数与库内实数一致才算成功（此前只查 user_stories 单表，
+  // 漏掉的静默丢失要到业务页面报错才发现）
+  const expect: Array<[string, number]> = [
+    ['products', products.length],
+    ['user_activities', actN],
+    ['user_tasks', utN],
+    ['user_stories', storyN],
+    ['dev_tasks', taskN],
+    ['milestones', msN],
+    ['system_modules', modN],
+    ['status_changes', scN],
+  ];
+  const failures: string[] = [];
+  for (const [t, want] of expect) {
+    const got = (await q<{ n: number }>(`SELECT count(*)::int AS n FROM "${t}"`))[0]?.n ?? -1;
+    if (got !== want) failures.push(`${t}: 库内 ${got} ≠ 同步 ${want}`);
+  }
   console.log(`  产品=${products.length} 活动=${actN} 用户任务=${utN} 故事=${storyN} 任务=${taskN} 版本=${msN} 模块=${modN} 账本=${scN}`);
-  console.log(`  校验：本地 user_stories = ${chk[0]?.n}`);
+  if (failures.length) {
+    console.error(`\n[assert-fail] 同步后计数不一致:\n  ${failures.join('\n  ')}`);
+    process.exit(1);
+  }
+  console.log('  校验：八类实体计数全部一致');
   console.log('SYNC DONE');
   process.exit(0);
 }
