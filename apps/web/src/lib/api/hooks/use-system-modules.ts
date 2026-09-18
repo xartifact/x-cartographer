@@ -75,8 +75,12 @@ export function useDeleteSystemModule() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // productId 必传：模块身份是 (产品, slug)，服务端据此定位（0009）
     mutationFn: async (variables: { id: string; productId: string }) => {
-      const res = await api.api['system-modules'][':id'].$delete({ param: { id: variables.id } });
+      const res = await api.api['system-modules'][':id'].$delete({
+        param: { id: variables.id },
+        query: { productId: variables.productId },
+      });
       if (!res.ok) throw await toApiError(res, '删除模块失败');
       return res.json();
     },

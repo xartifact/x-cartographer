@@ -73,6 +73,7 @@ export const app = new Hono()
           ok: schema.ok,
           missing_tables: schema.missingTables,
           missing_columns: schema.missingColumns,
+          wrong_primary_keys: schema.wrongPrimaryKeys,
         },
         ...(schema.error ? { error: schema.error } : {}),
       },

@@ -63,11 +63,31 @@ const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> 
     label: '工作项第二锚定路径（product_id 恢复 + module_id 新增，domain-model §2.5）',
     statements: [
       `ALTER TABLE "dev_tasks" ADD COLUMN IF NOT EXISTS "product_id" text REFERENCES "products"("id") ON DELETE CASCADE`,
-      `ALTER TABLE "dev_tasks" ADD COLUMN IF NOT EXISTS "module_id" text REFERENCES "system_modules"("id") ON DELETE SET NULL`,
+      // module_id 不设外键：system_modules 身份是 (product_id, id) 复合主键（0009），
+      // 单列外键无从表达产品维度；且域模型 §6.4 要求删除模块后引用**不清理**。
+      `ALTER TABLE "dev_tasks" ADD COLUMN IF NOT EXISTS "module_id" text`,
       `CREATE INDEX IF NOT EXISTS "dev_tasks_product_id_idx" ON "dev_tasks" ("product_id")`,
       `CREATE INDEX IF NOT EXISTS "dev_tasks_module_id_idx" ON "dev_tasks" ("module_id")`,
       // 回填：已有任务的产品归属经 story → activity → product 派生（幂等：只填 NULL 行）
       `UPDATE "dev_tasks" d SET "product_id" = a."product_id" FROM "user_stories" s JOIN "user_activities" a ON a."id" = s."activity_id" WHERE d."story_id" = s."id" AND d."product_id" IS NULL`,
+    ],
+  },
+  {
+    since: '0009',
+    label: '模块身份改产品作用域（复合主键 (product_id, id) + 去掉单列外键）',
+    statements: [
+      // 起因：system_modules 单列 id 作全局主键，与「目录按产品隔离」矛盾。
+      // 两个产品各有 `cli` / `delivery` 时，upsert 按 id 命中且不更新 product_id，
+      // 后写者静默改写前者内容 → 模块易主、零报错（已实测复现）。
+      //
+      // 幂等性：原 PK 为单列 id（全局唯一），故按 (product_id, id) 分组必然无重复，
+      // 加复合主键不会失败。重复执行时 ADD CONSTRAINT 会因同名约束已存在而报错，
+      // 故先 DROP IF EXISTS 再 ADD（约束名与旧 PK 同名，先删后建）。
+      `ALTER TABLE "system_modules" DROP CONSTRAINT IF EXISTS "system_modules_pkey"`,
+      `ALTER TABLE "system_modules" ADD CONSTRAINT "system_modules_pkey" PRIMARY KEY ("product_id", "id")`,
+      // dev_tasks.module_id 的单列外键指向 system_modules(id)，复合主键后无从表达产品维度；
+      // 且域模型 §6.4「删除模块后既有引用不清理」本就要求无级联——外键语义相悖，去掉。
+      `ALTER TABLE "dev_tasks" DROP CONSTRAINT IF EXISTS "dev_tasks_module_id_fkey"`,
     ],
   },
   {
@@ -107,12 +127,17 @@ async function main(): Promise<void> {
   for (const m of ordered) {
     console.log(`--- ${m.since}: ${m.label}`);
     for (const st of m.statements) {
-      // DDL 重复执行（如列已存在）不应中断——IF NOT EXISTS / DROP IF EXISTS 已保证幂等，
-      // 但仍兜底 catch，避免个别 PG 版本的措辞差异导致整体失败。
-      try { await exec(st, st.split('\n')[0]!.slice(0, 76)); }
-      catch (e) {
+      // 幂等由 DDL 自身的 IF NOT EXISTS / DROP IF EXISTS 保证，**不靠 catch 兜底**。
+      // 曾用 catch-all 打印 "skip" 继续跑：它把真实失败（语法错误、约束冲突）
+      // 伪装成"已存在、跳过"，迁移看着 PASS 而 schema 没变——正是本项目
+      // 反复消灭的静默失败。此处改为**失败即中止**，让问题在部署时暴露。
+      try {
+        await exec(st, st.split('\n')[0]!.slice(0, 76));
+      } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.log(`  skip: ${msg.slice(0, 100)}`);
+        console.error(`\n[abort] ${m.since} 执行失败: ${msg.slice(0, 300)}`);
+        console.error(`  语句: ${st.slice(0, 200)}`);
+        process.exit(1);
       }
     }
   }

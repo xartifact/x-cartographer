@@ -58,6 +58,17 @@ const REQUIRED_COLUMNS: Array<{ table: string; column: string; since: string }> 
   { table: 'dev_tasks', column: 'module_id', since: '0008' },
 ];
 
+/**
+ * 关键约束：列存在≠语义正确。0009 把 system_modules 的主键从单列 id
+ * 改为复合 (product_id, id)——列没变，**约束变了**，而漏掉这个约束的后果是
+ * 跨产品 slug 静默互相覆盖（模块易主、零报错）。仅查列无法发现，故单列一类。
+ *
+ * `columns` 按 PK 定义顺序比对（pg_constraint.conkey 顺序）。
+ */
+const REQUIRED_PRIMARY_KEYS: Array<{ table: string; columns: string[]; since: string }> = [
+  { table: 'system_modules', columns: ['product_id', 'id'], since: '0009' },
+];
+
 export interface SchemaHealth {
   ok: boolean;
   /** 数据库连接是否可用 */
@@ -66,6 +77,8 @@ export interface SchemaHealth {
   missingTables: string[];
   /** 缺失的列（`table.column`，附引入版本） */
   missingColumns: string[];
+  /** 主键形态不符的约束（`table(pk 期望)`，附引入版本） */
+  wrongPrimaryKeys: string[];
   /** 探测失败时的错误摘要（连接不可用等） */
   error?: string;
 }
@@ -103,11 +116,37 @@ export async function checkSchemaHealth(): Promise<SchemaHealth> {
       .filter((c) => !presentCols.has(`${c.table}.${c.column}`))
       .map((c) => `${c.table}.${c.column} (since ${c.since})`);
 
+    // 4) 关键主键形态（列存在≠语义正确，见 REQUIRED_PRIMARY_KEYS）
+    //    conkey 是列号数组，按 attnum 还原列名后与期望序列比对。
+    const pkRows = rowsOf(
+      await db.execute(
+        sql.raw(`SELECT c.conrelid::regclass::text AS tbl, a.attname AS col, c.conkey
+                 FROM pg_constraint c
+                 JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+                 WHERE c.contype = 'p' AND c.connamespace = 'public'::regnamespace`)
+      )
+    );
+    const pkCols = new Map<string, string[]>();
+    for (const r of pkRows) {
+      const tbl = String(r.tbl);
+      pkCols.set(tbl, [...(pkCols.get(tbl) ?? []), String(r.col)]);
+    }
+    const wrongPrimaryKeys = REQUIRED_PRIMARY_KEYS
+      .filter(({ table, columns }) => {
+        const actual = pkCols.get(table) ?? [];
+        return actual.length !== columns.length || !columns.every((c) => actual.includes(c));
+      })
+      .map(({ table, columns, since }) => `${table}(${columns.join(', ')}) (since ${since})`);
+
     return {
-      ok: missingTables.length === 0 && missingColumns.length === 0,
+      ok:
+        missingTables.length === 0 &&
+        missingColumns.length === 0 &&
+        wrongPrimaryKeys.length === 0,
       reachable: true,
       missingTables,
       missingColumns,
+      wrongPrimaryKeys,
     };
   } catch (err) {
     return {
@@ -115,6 +154,7 @@ export async function checkSchemaHealth(): Promise<SchemaHealth> {
       reachable: false,
       missingTables: [],
       missingColumns: [],
+      wrongPrimaryKeys: [],
       error: err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
     };
   }

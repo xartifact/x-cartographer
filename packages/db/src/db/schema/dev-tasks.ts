@@ -30,8 +30,14 @@ export const devTasks = pgTable('dev_tasks', {
   /**
    * 模块锚定：工程治理类工作的主锚（架构治理载体）。
    * 与 affectedModules 的区别：本字段是**唯一主锚**，affectedModules 是**影响面标注**（可多个）。
+   *
+   * **不设外键**：system_modules 的身份是 (product_id, id) 复合主键，而本列只存 slug，
+   * 单列外键无从表达产品维度（同一 slug 在不同产品下是不同模块）。
+   * 且域模型 §6.4 明确「删除模块后既有引用**不清理**」——悬空引用是预期状态，
+   * 靠 findMissingIds 定期扫描报告，而非 DB 级联。外键语义（SET NULL / CASCADE）
+   * 与「纯信息不裁决」相悖，故此处只做列，不做约束。
    */
-  moduleId: text('module_id').references(() => systemModules.id, { onDelete: 'set null' }),
+  moduleId: text('module_id'),
   title: text('title').notNull(),
   description: text('description').notNull().default(''),
   priority: text('priority').notNull().default('P2'),

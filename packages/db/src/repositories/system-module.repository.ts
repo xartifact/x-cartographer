@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { systemModules } from '../db/schema/system-modules';
 import type { SystemModule } from '@x-cartographer/shared';
@@ -21,6 +21,11 @@ export interface SystemModuleInput {
  *
  * ID 规范例外：本表 id 是人类可读稳定 slug（gateway / web-spa），
  * 不走 short-id.ts 的 <PREFIX>-<序号> 规范（§3.6 理由：Agent 需直接拼出/记住）。
+ *
+ * **身份是 (productId, id)**（0009 起复合主键）：slug 只在所属产品目录内唯一，
+ * 故所有按 id 的操作都必须带 productId —— 单凭 slug 无法定位模块
+ * （`cli` 在多个产品下是不同模块）。与 module-refs.ts 的判定一致：
+ * 「没有产品上下文就无从判断模块是否有效」。
  */
 export class SystemModuleRepository {
   async findByProductId(productId: string): Promise<SystemModule[]> {
@@ -33,10 +38,15 @@ export class SystemModuleRepository {
     return rows.map(this.toModule);
   }
 
-  async findById(id: string): Promise<SystemModule | undefined> {
+  /** 按 (产品, slug) 定位单个模块 */
+  async findById(productId: string, id: string): Promise<SystemModule | undefined> {
     const db = await ensureDb();
-    const row = await db.query.systemModules.findFirst({ where: eq(systemModules.id, id) });
-    return row ? this.toModule(row) : undefined;
+    const rows = await db
+      .select()
+      .from(systemModules)
+      .where(and(eq(systemModules.productId, productId), eq(systemModules.id, id)))
+      .limit(1);
+    return rows[0] ? this.toModule(rows[0]) : undefined;
   }
 
   /**
@@ -50,7 +60,7 @@ export class SystemModuleRepository {
     return ids.filter((id) => !known.has(id));
   }
 
-  /** 幂等 upsert（按 slug 定位，整体替换——同 ADR changes 的 upsert 语义） */
+  /** 幂等 upsert（按 (产品, slug) 定位，整体替换——同 ADR changes 的 upsert 语义） */
   async upsert(dto: SystemModuleInput, productId: string): Promise<void> {
     const db = await ensureDb();
     const now = new Date();
@@ -68,7 +78,8 @@ export class SystemModuleRepository {
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: systemModules.id,
+        // 复合主键：冲突目标必须两列都给，否则 PostgreSQL 无法定位唯一索引
+        target: [systemModules.productId, systemModules.id],
         set: {
           name: dto.name,
           path: dto.path ?? '',
@@ -80,9 +91,11 @@ export class SystemModuleRepository {
       });
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(productId: string, id: string): Promise<void> {
     const db = await ensureDb();
-    await db.delete(systemModules).where(eq(systemModules.id, id));
+    await db
+      .delete(systemModules)
+      .where(and(eq(systemModules.productId, productId), eq(systemModules.id, id)));
   }
 
   private toModule(row: typeof systemModules.$inferSelect): SystemModule {

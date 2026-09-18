@@ -1,0 +1,148 @@
+{
+  "product_id": "69hKGAjvxjf6QVQu6DtZx",
+  "modules": [
+    {
+      "id": "web-story-map",
+      "name": "故事地图画布",
+      "path": "apps/web/src/features/story-map",
+      "responsibility": "Patton 经典故事地图渲染：活动骨架/任务列/故事卡分层排布、拖拽排序、切片线（版本泳道）、纵深表达、详情 Sheet；地图是产品的核心交互面（4103 行）",
+      "depends_on": [
+        "web-core",
+        "contract"
+      ]
+    },
+    {
+      "id": "web-tasks",
+      "name": "任务与依赖视图",
+      "path": "apps/web/src/features/tasks + task-graph",
+      "responsibility": "研发任务全生命周期界面：列表/看板、任务详情 Sheet、批量编辑、依赖关系图（ReactFlow + dagre 布局）（5024+307 行，最大前端区域）",
+      "depends_on": [
+        "web-core",
+        "contract"
+      ]
+    },
+    {
+      "id": "web-roadmap",
+      "name": "发布与版本视图",
+      "path": "apps/web/src/features/roadmap",
+      "responsibility": "版本泳道与可预测性指标：故事按「故事→版本」聚合展示、里程碑管理（834 行）",
+      "depends_on": [
+        "web-core",
+        "contract"
+      ]
+    },
+    {
+      "id": "web-modules",
+      "name": "模块目录界面",
+      "path": "apps/web/src/features/system-modules",
+      "responsibility": "SystemModule 的浏览与维护界面：模块列表/详情、依赖图可视化（悬空引用占位）（1076 行）",
+      "depends_on": [
+        "web-core",
+        "contract"
+      ]
+    },
+    {
+      "id": "web-journeys",
+      "name": "旅程与故事界面",
+      "path": "apps/web/src/features/user-journeys + user-stories + user-tasks",
+      "responsibility": "用户域三层（UserActivity → UserTask → UserStory）的维护界面：旅程视图、故事编辑、任务分组（742 行）",
+      "depends_on": [
+        "web-core",
+        "contract"
+      ]
+    },
+    {
+      "id": "web-browser",
+      "name": "数据浏览与工作台",
+      "path": "apps/web/src/features/data-browser + workbench + projects + onboarding + settings",
+      "responsibility": "跨实体数据浏览、当前工作上下文切换、产品选择与引导、应用设置（2958 行）",
+      "depends_on": [
+        "web-core",
+        "contract"
+      ]
+    },
+    {
+      "id": "web-core",
+      "name": "前端基础设施",
+      "path": "apps/web/src/lib + routes + styles + packages/ui",
+      "responsibility": "TanStack Router 路由树、API 客户端（hc）与 hooks、错误处理、markdown/文本测量工具、日志、shadcn 风格 UI 组件库（1704+918 行）",
+      "depends_on": [
+        "contract"
+      ]
+    },
+    {
+      "id": "api-routes",
+      "name": "网关 REST API",
+      "path": "apps/server/src/routes + app.ts",
+      "responsibility": "Hono 路由装配与十类实体端点（products/user-activities/user-tasks/stories/dev-tasks/milestones/adr-records/status-changes/system-modules/settings）：zod 入参校验、蛇形契约输出",
+      "depends_on": [
+        "domain-layer",
+        "contract"
+      ]
+    },
+    {
+      "id": "api-middleware",
+      "name": "网关中间件",
+      "path": "apps/server/src/middleware",
+      "responsibility": "API Token 认证（auth.ts）与 SPA 静态托管/回退（spa-static.ts）（121 行）",
+      "depends_on": [
+        "contract"
+      ]
+    },
+    {
+      "id": "domain-layer",
+      "name": "领域库",
+      "path": "apps/server/src/lib",
+      "responsibility": "跨路由领域逻辑：高影响变更分类器（constraint-impact.ts，决定写入是否落 proposed）、模块引用一致性（module-refs.ts，findMissingIds 悬空扫描）、schema 健康特征清单（schema-health.ts）（307 行）",
+      "depends_on": [
+        "contract",
+        "persistence"
+      ]
+    },
+    {
+      "id": "persistence",
+      "name": "持久化与迁移",
+      "path": "packages/db/src",
+      "responsibility": "Drizzle schema（十类实体 + 关系）、PGlite/PostgreSQL 双后端连接、增量迁移 0001-0008、短 ID 序列生成（short-id.ts，ID_SPECS 单一声明源）（2303 行）",
+      "depends_on": [
+        "contract"
+      ]
+    },
+    {
+      "id": "contract",
+      "name": "共享契约",
+      "path": "packages/shared/src",
+      "responsibility": "前后端类型与常量的单一来源：十类实体域类型、constitution（ADR 折叠）、ID 规格声明（1068 行）。不含运行时业务逻辑",
+      "depends_on": []
+    },
+    {
+      "id": "cli",
+      "name": "xcart CLI",
+      "path": "apps/cli/src",
+      "responsibility": "终端与 Agent 的主入口（1081 行单文件）：产品/旅程/故事/任务/ADR 的命令面，含 task next/summary/status、story update --user-task、context export；Agent Skills 依赖它",
+      "depends_on": [
+        "contract"
+      ]
+    },
+    {
+      "id": "delivery",
+      "name": "构建与交付",
+      "path": "Dockerfile + docker-compose.yml + .github/workflows + ops",
+      "responsibility": "多阶段镜像构建（含容器入口自动迁移）、compose 编排与健康探针、CI 构建/部署流水线、运维脚本（runner 迁移等）",
+      "depends_on": [
+        "api-routes",
+        "web-core"
+      ]
+    },
+    {
+      "id": "migration-tooling",
+      "name": "数据迁移与同步工具",
+      "path": "apps/server/scripts",
+      "responsibility": "一次性/运维脚本：schema 增量迁移（被容器入口调用）、故事地图重设计编排、UserTask plan 落库、生产库备份还原、dev 库从生产同步、悬空依赖清理、Story→DevTask 转换",
+      "depends_on": [
+        "persistence",
+        "contract"
+      ]
+    }
+  ]
+}

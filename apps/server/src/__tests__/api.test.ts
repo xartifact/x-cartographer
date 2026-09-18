@@ -605,6 +605,52 @@ describe('system modules 目录 + affected_modules 校验 (0006)', () => {
     const constitution = (await res.json()) as { modules: Array<{ id: string }> };
     expect(constitution.modules.map((m) => m.id)).toEqual(['web-spa']);
   });
+
+  it('0009 复合主键：同 slug 跨产品共存，detail/delete 按 (产品, slug) 定位', async () => {
+    const productIdA = await createProduct('模块产品 A');
+    const productIdB = await createProduct('模块产品 B');
+    const modBody = (pid: string, name: string) => ({
+      id: 'cli',
+      product_id: pid,
+      name,
+      depends_on: [],
+    });
+
+    // 两个产品各写同名 cli——0009 前这会静默覆盖（模块易主），现在必须共存
+    const r1 = await jsonRequest('PUT', '/api/system-modules/cli', modBody(productIdA, 'A 的 CLI'));
+    expect(r1.status).toBe(200);
+    const r2 = await jsonRequest('PUT', '/api/system-modules/cli', modBody(productIdB, 'B 的 CLI'));
+    expect(r2.status).toBe(200);
+
+    // 各自目录读回各自内容（曾实测：A 被 B 改写）
+    const listA = (await (
+      await jsonRequest('GET', `/api/system-modules?productId=${productIdA}`)
+    ).json()) as Array<{ id: string; name: string }>;
+    const listB = (await (
+      await jsonRequest('GET', `/api/system-modules?productId=${productIdB}`)
+    ).json()) as Array<{ id: string; name: string }>;
+    expect(listA).toHaveLength(1);
+    expect(listA[0]?.name).toBe('A 的 CLI');
+    expect(listB).toHaveLength(1);
+    expect(listB[0]?.name).toBe('B 的 CLI');
+
+    // detail 需 productId：缺省 400，带上则定位到对应产品的那条
+    const noCtx = await jsonRequest('GET', '/api/system-modules/cli');
+    expect(noCtx.status).toBe(400);
+    const dA = await jsonRequest('GET', `/api/system-modules/cli?productId=${productIdA}`);
+    expect(dA.status).toBe(200);
+    expect(((await dA.json()) as { name: string }).name).toBe('A 的 CLI');
+
+    // delete 需 productId：缺省 400；带 B 的上下文只删 B 的，A 的仍在
+    const delNoCtx = await jsonRequest('DELETE', '/api/system-modules/cli');
+    expect(delNoCtx.status).toBe(400);
+    const delB = await jsonRequest('DELETE', `/api/system-modules/cli?productId=${productIdB}`);
+    expect(delB.status).toBe(200);
+    const after = (await (
+      await jsonRequest('GET', `/api/system-modules?productId=${productIdA}`)
+    ).json()) as Array<{ id: string }>;
+    expect(after).toHaveLength(1);
+  });
 });
 
 describe('PUT /api/products/full transaction', () => {
