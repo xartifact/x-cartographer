@@ -80,14 +80,16 @@ const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> 
       // 两个产品各有 `cli` / `delivery` 时，upsert 按 id 命中且不更新 product_id，
       // 后写者静默改写前者内容 → 模块易主、零报错（已实测复现）。
       //
+      // 顺序关键：必须先删 dev_tasks.module_id 的外键，再删 system_modules 的主键——
+      // FK 依赖 PK 底层索引（生产实测：先删 PK 报 2BP01 "other objects depend on it"）。
+      // dev_tasks.module_id 的单列外键指向 system_modules(id)，复合主键后无从表达产品维度；
+      // 且域模型 §6.4「删除模块后既有引用不清理」本就要求无级联——外键语义相悖，去掉。
+      `ALTER TABLE "dev_tasks" DROP CONSTRAINT IF EXISTS "dev_tasks_module_id_fkey"`,
       // 幂等性：原 PK 为单列 id（全局唯一），故按 (product_id, id) 分组必然无重复，
       // 加复合主键不会失败。重复执行时 ADD CONSTRAINT 会因同名约束已存在而报错，
       // 故先 DROP IF EXISTS 再 ADD（约束名与旧 PK 同名，先删后建）。
       `ALTER TABLE "system_modules" DROP CONSTRAINT IF EXISTS "system_modules_pkey"`,
       `ALTER TABLE "system_modules" ADD CONSTRAINT "system_modules_pkey" PRIMARY KEY ("product_id", "id")`,
-      // dev_tasks.module_id 的单列外键指向 system_modules(id)，复合主键后无从表达产品维度；
-      // 且域模型 §6.4「删除模块后既有引用不清理」本就要求无级联——外键语义相悖，去掉。
-      `ALTER TABLE "dev_tasks" DROP CONSTRAINT IF EXISTS "dev_tasks_module_id_fkey"`,
     ],
   },
   {
