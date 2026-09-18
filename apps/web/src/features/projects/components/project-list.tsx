@@ -264,7 +264,6 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
   const searchQuery = useProjectStore(selectSearchQuery);
   const { setActiveProjectId } = useProjectStore();
   const { deleteProject } = useProjectActions();
-  const [_viewMode, _setViewMode] = useState<'grid' | 'list'>('grid');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // 客户端过滤（产品数量级较小，无需服务端搜索）
@@ -304,14 +303,8 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
 
   return (
     <div className="space-y-6">
-      {/* 搜索和工具栏 */}
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <ProjectSearch />
-        <div className="flex items-center gap-2">
-          {/* 视图切换 */}
-          {/* TODO: 添加视图切换按钮 */}
-        </div>
-      </div>
+      {/* 工具栏 */}
+      <ProjectSearch />
 
       {/* 产品列表 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
