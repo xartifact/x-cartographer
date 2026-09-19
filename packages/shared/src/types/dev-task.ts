@@ -90,4 +90,10 @@ export interface UpdateDevTaskDTO {
   tags?: string[];
   assignee?: string;
   affected_modules?: string[];
+  /** 换挂用户故事（含置 null 解挂） */
+  story_id?: string | null;
+  /** 产品归属（工程治理类） */
+  product_id?: string;
+  /** 模块锚定（工程治理类的主锚） */
+  module_id?: string;
 }

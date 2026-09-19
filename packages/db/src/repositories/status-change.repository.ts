@@ -11,7 +11,8 @@ export class StatusChangeRepository {
       .select()
       .from(statusChanges)
       .where(eq(statusChanges.entityId, entityId))
-      .orderBy(desc(statusChanges.changedAt));
+      // seq 兜底：changedAt 精度不足（同秒多次写入，测试/批量场景实测）时顺序不稳定
+      .orderBy(desc(statusChanges.changedAt), desc(statusChanges.seq));
 
     return rows.map(this.toRecord);
   }
@@ -21,8 +22,7 @@ export class StatusChangeRepository {
     const rows = await db
       .select()
       .from(statusChanges)
-      .orderBy(desc(statusChanges.changedAt));
-
+      .orderBy(desc(statusChanges.changedAt), desc(statusChanges.seq));
     return rows.map(this.toRecord);
   }
 

@@ -25,6 +25,8 @@ export class DevTaskRepository {
     await db.insert(devTasks).values({
       id,
       storyId: dto.story_id ?? null,
+      productId: dto.product_id ?? null,
+      moduleId: dto.module_id ?? null,
       title: dto.title,
       description: dto.description,
       priority: dto.priority,
@@ -42,13 +44,15 @@ export class DevTaskRepository {
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.priority !== undefined) updateData.priority = dto.priority;
     if (dto.estimation !== undefined) updateData.estimation = dto.estimation;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.dependencies !== undefined) updateData.dependencies = dto.dependencies;
     if (dto.tags !== undefined) updateData.tags = dto.tags;
     if (dto.affected_modules !== undefined) updateData.affectedModules = dto.affected_modules;
     if (dto.assignee !== undefined) updateData.assignee = dto.assignee;
+    if (dto.story_id !== undefined) updateData.storyId = dto.story_id;
+    if (dto.product_id !== undefined) updateData.productId = dto.product_id;
+    if (dto.module_id !== undefined) updateData.moduleId = dto.module_id;
 
     await db.update(devTasks).set(updateData).where(eq(devTasks.id, id));
   }
