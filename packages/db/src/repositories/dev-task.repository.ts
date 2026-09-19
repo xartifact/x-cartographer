@@ -19,6 +19,21 @@ export class DevTaskRepository {
     });
   }
 
+  /** 按模块锚定查询（§6.7 方案 B：工程治理类任务脱离 story 后的唯一检索路径） */
+  async findByModuleId(moduleId: string) {
+    const db = await ensureDb();
+    return db.query.devTasks.findMany({
+      where: eq(devTasks.moduleId, moduleId),
+    });
+  }
+
+  /** 全量（跨产品聚合视图用；深树路径看不到脱离 story 的任务，此处是权威） */
+  async findAllTasks() {
+    const db = await ensureDb();
+    return db.query.devTasks.findMany();
+  }
+
+
   async create(id: string, dto: CreateDevTaskDTO): Promise<void> {
     const db = await ensureDb();
     const now = new Date();

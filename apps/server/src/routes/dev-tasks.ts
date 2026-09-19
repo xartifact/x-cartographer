@@ -57,7 +57,10 @@ const updateStatusSchema = z.object({
 const allTasksQuerySchema = z.object({
   status: z.nativeEnum(TaskStatus).optional(),
   priority: z.nativeEnum(TaskPriority).optional(),
+  /** 按模块锚定过滤（§6.7 方案 B：工程治理任务的主锚） */
+  moduleId: z.string().optional(),
 });
+
 
 const taskRepo = new DevTaskRepository();
 const storyRepo = new StoryRepository();
@@ -150,27 +153,43 @@ export const devTasksRoutes = new Hono()
   })
 
   // GET /api/dev-tasks/all (跨产品任务聚合)
+  // 以 repo 全量为权威：深树（product.user_activities.stories.dev_tasks）看不到
+  // 脱离 story 的工程治理任务（§6.7 方案 B 迁锚后 story_id=null），曾致它们从
+  // 本视图消失。product 优先取任务自带的 product_id，否则经 story→activity 反查。
   .get('/all', zValidator('query', allTasksQuerySchema), async (c) => {
-    const { status, priority } = c.req.valid('query');
-    const productRepo = getProductRepository();
-    const products = await productRepo.findAll();
-    const result: Array<
-      DevTask & { product: { id: string; name: string }; story: { id: string; title: string } | null }
-    > = [];
-    for (const product of products) {
-      for (const activity of product.user_activities ?? []) {
-        for (const story of activity.stories ?? []) {
-          for (const task of story.dev_tasks ?? []) {
-            if (status && task.status !== status) continue;
-            if (priority && task.priority !== priority) continue;
-            result.push({
-              ...task,
-              product: { id: product.id, name: product.name },
-              story: { id: story.id, title: story.title },
-            });
-          }
+    const { status, priority, moduleId } = c.req.valid('query');
+    const tasks = await taskRepo.findAllTasks();
+    const products = await getProductRepository().findAll();
+    const productById = new Map(products.map((p) => [p.id, p]));
+    // story 上下文两张表：story 本体（标题）与 story→productId（经 activity 归属）
+    const storyById = new Map<string, { id: string; title: string }>();
+    const productIdByStory = new Map<string, string>();
+    for (const p of products) {
+      for (const a of p.user_activities ?? []) {
+        for (const s of a.stories ?? []) {
+          storyById.set(s.id, { id: s.id, title: s.title });
+          productIdByStory.set(s.id, p.id);
         }
       }
+    }
+    const result: Array<
+      ReturnType<typeof toJson> & {
+        product: { id: string; name: string };
+        story: { id: string; title: string } | null;
+      }
+    > = [];
+    for (const t of tasks) {
+      if (status && t.status !== status) continue;
+      if (priority && t.priority !== priority) continue;
+      if (moduleId && t.moduleId !== moduleId) continue;
+      const row = toJson(t as never);
+      const pid = t.productId ?? (t.storyId ? productIdByStory.get(t.storyId) : undefined) ?? '';
+      const story = t.storyId ? storyById.get(t.storyId) : undefined;
+      result.push({
+        ...row,
+        product: { id: pid, name: productById.get(pid)?.name ?? '' },
+        story: story ?? null,
+      });
     }
     return c.json(result);
   })
