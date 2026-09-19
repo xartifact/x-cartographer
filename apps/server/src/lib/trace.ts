@@ -135,8 +135,11 @@ export async function trace(entry: { kind: 'story' | 'module' | 'adr'; id: strin
       entry,
       product_id: story.product_id,
       stories: [story],
-      modules: modules.filter((m) => mods.includes(m.id)),
-      adrs: adrs.filter((a) => a.module_ids.some((m) => mods.includes(m))),
+      // 模块身份是 (product_id, id)：必须限定本产品目录，否则同名 slug 跨产品重复
+      modules: modules.filter((m) => m.product_id === story.product_id && mods.includes(m.id)),
+      adrs: adrs.filter(
+        (a) => a.product_id === story.product_id && a.module_ids.some((m) => mods.includes(m))
+      ),
       tasks: tasks.filter(
         (t) =>
           // 直挂该 story 的任务不看 product_id——经 story 派生归属（多数历史任务
@@ -153,9 +156,8 @@ export async function trace(entry: { kind: 'story' | 'module' | 'adr'; id: strin
     if (!mod) return null;
     return {
       product_id: mod.product_id,
-      stories: stories.filter((s) => s.affected_modules.includes(entry.id) && s.product_id === mod.product_id),
-      modules: [mod],
-      adrs: adrs.filter((a) => a.module_ids.includes(entry.id)),
+      // ADR 同 slug 不存在但 product_id 圈定归属产品，防他产品 ADR 混入
+      adrs: adrs.filter((a) => a.product_id === mod.product_id && a.module_ids.includes(entry.id)),
       tasks: tasks.filter((t) => t.module_id === entry.id),
     };
   }
