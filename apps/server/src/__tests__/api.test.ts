@@ -360,12 +360,13 @@ describe('stories CRUD + status flow', () => {
     res = await app.request(`/api/status-changes?entityId=${storyId}`);
     expect(res.status).toBe(200);
     const changes = (await res.json()) as Array<Record<string, unknown>>;
-    expect(changes).toHaveLength(1);
-    expect(changes[0].entity_id).toBe(storyId);
-    expect(changes[0].entity_type).toBe('story');
-    expect(changes[0].previous_status).toBe('backlog');
-    expect(changes[0].new_status).toBe('accepted');
-    expect(changes[0].reason).toBe('shipped');
+    // 2 条：创建故事时的 constraint_written（§6.7 方案 B）+ 状态流转 backlog→accepted
+    expect(changes).toHaveLength(2);
+    const flow = changes.find((c) => c.new_status === 'accepted')!;
+    expect(flow.entity_id).toBe(storyId);
+    expect(flow.entity_type).toBe('story');
+    expect(flow.previous_status).toBe('backlog');
+    expect(flow.reason).toBe('shipped');
 
     // 不存在的 story 状态流转 → 404
     res = await jsonRequest('POST', '/api/stories/nope/status', {
@@ -388,7 +389,9 @@ describe('stories CRUD + status flow', () => {
     res = await app.request('/api/status-changes');
     expect(res.status).toBe(200);
     const all = (await res.json()) as Array<Record<string, unknown>>;
-    expect(all).toHaveLength(2);
+    // ≥2：该故事的 constraint_written + 状态流转 + 手工 cancelled + 其它（各 describe
+    // 的 beforeEach 清库，但同一 it 内创建 product/activity/story 也会各记一条）
+    expect(all.length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -650,6 +653,91 @@ describe('system modules 目录 + affected_modules 校验 (0006)', () => {
       await jsonRequest('GET', `/api/system-modules?productId=${productIdA}`)
     ).json()) as Array<{ id: string }>;
     expect(after).toHaveLength(1);
+  });
+});
+
+describe('约束写入协议 方案 B（§6.7）：高影响写入直接生效 + 账本留痕', () => {
+  it('创建故事自动记 constraint_written，ratify 后为 ratified，重复追认 409', async () => {
+    const productId = await createProduct('约束账本产品');
+    const activityId = await createActivity(productId, '约束账本活动');
+
+    // 1. 创建故事（高影响）→ 直接生效 + 账本
+    const res = await jsonRequest('POST', '/api/stories', {
+      activityId,
+      title: '账本冒烟故事',
+      description: 'd',
+      priority: 'high',
+      estimation: 1,
+    });
+    expect(res.status).toBe(201);
+    const { id: storyId } = (await res.json()) as { id: string };
+
+    // 故事本身直接可查（方案 B：直接生效，不落 proposed）
+    const got = await jsonRequest('GET', `/api/stories/${storyId}`);
+    expect(got.status).toBe(200);
+
+    // 账本含 constraint_written，reason 带 impact/provenance 编码
+    const history = (await (
+      await jsonRequest('GET', `/api/status-changes?entityId=${storyId}`)
+    ).json()) as Array<{ entity_type: string; previous_status: string; new_status: string; reason?: string }>;
+    const written = history.find((h) => h.new_status === 'constraint_written');
+    expect(written).toBeTruthy();
+    expect(written!.previous_status).toBe('(none)');
+    expect(written!.entity_type).toBe('story');
+    expect(written!.reason).toContain('constraint-impact:high');
+
+    // 2. 追认（缺理由 → 400）
+    const noReason = await jsonRequest('POST', '/api/status-changes/ratify', {
+      entityType: 'story',
+      entityId: storyId,
+      reason: '',
+    });
+    expect(noReason.status).toBe(400);
+
+    // 3. 正常追认
+    const ratify = await jsonRequest('POST', '/api/status-changes/ratify', {
+      entityType: 'story',
+      entityId: storyId,
+      reason: '人工核对通过',
+    });
+    expect(ratify.status).toBe(200);
+
+    // 4. 重复追认 → 409
+    const again = await jsonRequest('POST', '/api/status-changes/ratify', {
+      entityType: 'story',
+      entityId: storyId,
+      reason: '再次',
+    });
+    expect(again.status).toBe(409);
+  });
+
+  it('模块新增/删除分别记 constraint_written', async () => {
+    const productId = await createProduct('约束账本模块产品');
+    const modBody = {
+      id: 'ledger-mod',
+      product_id: productId,
+      name: '账本模块',
+      depends_on: [],
+    };
+    const put = await jsonRequest('PUT', '/api/system-modules/ledger-mod', modBody);
+    expect(put.status).toBe(200);
+
+    const del = await jsonRequest('DELETE', `/api/system-modules/ledger-mod?productId=${productId}`);
+    expect(del.status).toBe(200);
+
+    // 幂等重放（upsert 已存在 → 更新，不应新增 constraint_written）
+    const put2 = await jsonRequest('PUT', '/api/system-modules/ledger-mod', modBody);
+    expect(put2.status).toBe(200);
+
+    const history = (await (
+      await jsonRequest('GET', '/api/status-changes?entityId=ledger-mod')
+    ).json()) as Array<{ new_status: string; reason?: string }>;
+    const writes = history.filter((h) => h.new_status === 'constraint_written');
+    // 新建 1 + 删除 1 + 重建 1（删后同 slug 再 PUT 是新增，高影响应记）
+    expect(writes).toHaveLength(3);
+    expect(writes[0]!.reason).toContain('新增模块');
+    expect(writes[1]!.reason).toContain('删除模块');
+    expect(writes[2]!.reason).toContain('新增模块');
   });
 });
 

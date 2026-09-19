@@ -9,6 +9,7 @@ import { StoryRepository, StatusChangeRepository, generateShortId, createLogger 
 import { Priority } from '@x-cartographer/shared';
 import { findDanglingModuleRefs, productIdOfActivity } from '../lib/module-refs';
 import { assessConstraintImpact } from '../lib/constraint-impact';
+import { recordConstraintWrite } from '../lib/constraint-ledger';
 
 const createStorySchema = z.object({
   activityId: z.string(),
@@ -119,6 +120,13 @@ export const storiesRoutes = new Hono()
       tags: input.tags,
       provenance: input.provenance,
     });
+    // 约束写入协议（§4.1 方案 B）：创建 UserStory 是高影响写入，直接生效 + 账本留痕
+    await recordConstraintWrite({
+      entityType: 'story',
+      entityId: id,
+      action: `创建故事「${input.title}」`,
+      provenance: input.provenance,
+    });
     return c.json({ success: true, id }, 201);
   })
   // PATCH /api/stories/:id
@@ -164,7 +172,15 @@ export const storiesRoutes = new Hono()
   })
   // DELETE /api/stories/:id
   .delete('/:id', async (c) => {
-    await storyRepo.delete(c.req.param('id'));
+    const id = c.req.param('id');
+    const story = await storyRepo.findById(id);
+    await storyRepo.delete(id);
+    // 删除 UserStory 是高影响写入（§4.1）——删后实体不复存在，账本是唯一留痕
+    await recordConstraintWrite({
+      entityType: 'story',
+      entityId: id,
+      action: `删除故事「${story?.title ?? id}」`,
+    });
     return c.json({ success: true });
   })
   // POST /api/stories/:id/status (状态流转 + 记录)

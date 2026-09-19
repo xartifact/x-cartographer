@@ -165,11 +165,24 @@ export interface StatusChangeRecord {
   /** 唯一标识符 */
   id: string;
 
-  /** 关联的任务或故事 ID */
+  /** 关联实体 ID */
   entity_id: string;
 
-  /** 实体类型：'task' | 'story' | 'adr' */
-  entity_type: 'task' | 'story' | 'adr' | 'milestone';
+  /**
+   * 实体类型。约束空间实体（system_module / user_activity / product / user_task）
+   * 由约束写入协议（domain-model.md §4.1 方案 B，2026-09-19 裁定）使用：
+   * 高影响写入直接生效，同时落一条 `constraint_written` 账本；人事后写
+   * `ratified` 追认。工作空间实体（task/story 状态流转）与 adr 沿用原语义。
+   */
+  entity_type:
+    | 'task'
+    | 'story'
+    | 'adr'
+    | 'milestone'
+    | 'system_module'
+    | 'user_activity'
+    | 'product'
+    | 'user_task';
 
   /** 变更前的状态 */
   previous_status: string;
@@ -186,6 +199,29 @@ export interface StatusChangeRecord {
   /** 变更时间 */
   changed_at: Timestamp;
 }
+
+
+/** 约束账本可用的 entity_type（StatusChangeRecord 的子集，语义见各成员注释） */
+export type ConstraintLedgerEntityType =
+  | 'story'
+  | 'system_module'
+  | 'user_activity'
+  | 'product'
+  | 'user_task'
+  | 'milestone';
+
+/**
+ * 约束写入协议的账本状态值（domain-model.md §4.1 方案 B）。
+ * 不是实体状态机——只存在于 status_changes 账本里，业务表无对应列。
+ */
+export const CONSTRAINT_LEDGER = {
+  /** 高影响约束写入的直接生效落点（previous_status 固定为此） */
+  WRITTEN: 'constraint_written',
+  /** 人的事后追认（new_status），必须带 --reason */
+  RATIFIED: 'ratified',
+  /** 约束写入无前态 */
+  NONE: '(none)',
+} as const;
 
 /**
  * 状态配置类型

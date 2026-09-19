@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { generateShortId } from '@x-cartographer/db';
 import { MilestoneRepository, StatusChangeRepository } from '@x-cartographer/db';
 import { type CreateMilestoneDTO, type UpdateMilestoneDTO } from '@x-cartographer/shared';
+import { recordConstraintWrite } from '../lib/constraint-ledger';
 
 const milestoneStatusSchema = z.enum(['planned', 'active', 'completed']);
 
@@ -80,6 +81,13 @@ export const milestonesRoutes = new Hono()
       provenance: input.provenance,
     };
     await milestoneRepo.create(id, dto);
+    // 创建里程碑 = 排期承诺（§4.1 高影响）——直接生效 + 账本留痕（§6.7 方案 B）
+    await recordConstraintWrite({
+      entityType: 'milestone',
+      entityId: id,
+      action: `创建版本「${input.name}」（产品 ${input.product_id}）`,
+      provenance: input.provenance,
+    });
     return c.json({ success: true, id }, 201);
   })
   // PATCH /api/milestones/:id

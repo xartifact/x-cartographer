@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { SystemModuleRepository } from '@x-cartographer/db';
+import { recordConstraintWrite } from '../lib/constraint-ledger';
 
 /**
  * 模块 id 是人类可读稳定 slug（§3.6）：小写字母/数字/连字符，
@@ -58,12 +59,32 @@ export const systemModulesRoutes = new Hono()
     if (input.id !== id) {
       return c.json({ error: 'body.id 与路径 id 不一致' }, 400);
     }
+    // 先查后写：区分「新建」（增 = 高影响）与「更新」（模块定义刷新，同样改变
+    // 结构认知——但随代码演进持续更新是模块目录的天性（§6.4），只在新建/删除记账，
+    // 更新不记以免账本被例行维护噪音淹没）。
+    const existing = await moduleRepo.findById(input.product_id, id);
     await moduleRepo.upsert(input, input.product_id);
+    if (!existing) {
+      await recordConstraintWrite({
+        entityType: 'system_module',
+        entityId: id,
+        action: `新增模块「${input.name}」（产品 ${input.product_id}）`,
+        provenance: input.provenance,
+      });
+    }
     return c.json({ success: true, id });
   })
   // DELETE /api/system-modules/:id?productId= —— 同上，必须带产品上下文
   .delete('/:id', zValidator('query', productQuerySchema), async (c) => {
     const { productId } = c.req.valid('query');
-    await moduleRepo.delete(productId, c.req.param('id'));
+    const id = c.req.param('id');
+    const existing = await moduleRepo.findById(productId, id);
+    await moduleRepo.delete(productId, id);
+    // 删模块 = 移除一条结构认知（高影响）；既有引用按 §6.4.2 不清理，悬空靠扫描报告
+    await recordConstraintWrite({
+      entityType: 'system_module',
+      entityId: id,
+      action: `删除模块「${existing?.name ?? id}」（产品 ${productId}）`,
+    });
     return c.json({ success: true });
   });

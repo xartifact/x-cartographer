@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { generateShortId } from '@x-cartographer/db';
 import { getProductRepository } from '@x-cartographer/db';
 import type { Product } from '@x-cartographer/shared';
+import { recordConstraintWrite } from '../lib/constraint-ledger';
 
 const createProductSchema = z.object({
   name: z.string(),
@@ -45,6 +46,13 @@ export const productsRoutes = new Hono()
     const repository = getProductRepository();
     const id = await generateShortId('product');
     await repository.create(id, input);
+    // 创建产品 = 约束空间根实体（§4.1 高影响）——直接生效 + 账本留痕（§6.7 方案 B）
+    await recordConstraintWrite({
+      entityType: 'product',
+      entityId: id,
+      action: `创建产品「${input.name}」`,
+      provenance: input.provenance,
+    });
     return c.json({ success: true, id }, 201);
   })
   // PATCH /api/products/:id

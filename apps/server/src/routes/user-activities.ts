@@ -21,6 +21,7 @@ const updateUserActivitySchema = z.object({
 });
 
 import { generateShortId } from '@x-cartographer/db';
+import { recordConstraintWrite } from '../lib/constraint-ledger';
 
 const userActivityRepo = new UserActivityRepository();
 
@@ -46,6 +47,13 @@ export const userActivitiesRoutes = new Hono()
       order: input.order,
       // provenance 此前被丢掉：schema 收了它，路由却没传给仓库，
       // 人类显式登记的活动被静默记为 agent_inferred（同 ADR 路由曾有的 bug）。
+      provenance: input.provenance,
+    });
+    // 创建活动 = 增加一条意图结构（§4.1 高影响）——直接生效 + 账本留痕（§6.7 方案 B）
+    await recordConstraintWrite({
+      entityType: 'user_activity',
+      entityId: id,
+      action: `创建活动「${input.name}」（产品 ${input.productId}）`,
       provenance: input.provenance,
     });
     return c.json({ success: true, id }, 201);

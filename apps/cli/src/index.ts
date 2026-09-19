@@ -12,7 +12,7 @@
  *   xcart dev-task list | info | create | update | status | delete | next | summary | bulk-create  (task 为 deprecated alias)
  *   xcart milestone list | create | update | delete
  *   xcart adr create | list | show | status | current | as-of-milestone
- *   xcart status history <entityId> | all
+ *   xcart status history <entityId> | all | ratify <type> <id> --reason
  *   xcart context export <projectId>      (兼容别名: xcart export-context <id>)
  *   xcart overview --project <id>
  *   xcart skill install | list
@@ -719,6 +719,29 @@ async function cmdStatus(ctx: Ctx): Promise<void> {
       console.log(render(data, ctx.format));
       break;
     }
+    case 'ratify': {
+      // 约束写入的人事追认（§6.7 方案 B）：constraint_written → ratified
+      const entityType = ctx.positional[1];
+      const entityId = ctx.positional[2];
+      const reason = opt(ctx.flags, 'reason') ?? opt(ctx.flags, 'm');
+      if (!entityType || !entityId || !reason) {
+        throw new Error(
+          '用法: xcart status ratify <story|system_module|user_activity|product|user_task|milestone> <entityId> --reason "理由（必填）"'
+        );
+      }
+      const validTypes = ['story', 'system_module', 'user_activity', 'product', 'user_task', 'milestone'];
+      if (!validTypes.includes(entityType)) {
+        throw new Error(`非法实体类型: ${entityType}（可选: ${validTypes.join(' | ')}）`);
+      }
+      await api('/api/status-changes/ratify', 'POST', {
+        entityType,
+        entityId,
+        reason,
+        changedBy: opt(ctx.flags, 'by') ?? 'human:cli',
+      });
+      console.log(`✓ 已追认 ${entityType}/${entityId}`);
+      break;
+    }
     case 'all': {
       const data = await api('/api/status-changes');
       console.log(render(data, ctx.format));
@@ -965,6 +988,8 @@ function helpText(): string {
 状态历史
   xcart status history <entityId>
   xcart status all
+  xcart status ratify <story|system_module|user_activity|product|user_task|milestone> <id> --reason "…"
+                                                # 约束写入的人事追认（§6.7 方案 B；理由必填）
 
 上下文 / 总览
   xcart context export <projectId>              # 项目全景 Markdown（供 LLM）
