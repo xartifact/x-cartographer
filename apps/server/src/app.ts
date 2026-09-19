@@ -15,6 +15,7 @@ import { milestonesRoutes } from './routes/milestones';
 import { statusChangesRoutes } from './routes/status-changes';
 import { adrRecordsRoutes } from './routes/adr-records';
 import { systemModulesRoutes } from './routes/system-modules';
+import { traceRoutes } from './routes/trace';
 import { settingsRoutes } from './routes/settings';
 import { checkSchemaHealth } from './lib/schema-health';
 import type { MiddlewareHandler } from 'hono';
@@ -97,6 +98,7 @@ export const app = new Hono()
   .use('/status-changes/*', apiTokenAuth)
   .use('/adr-records/*', apiTokenAuth)
   .use('/system-modules/*', apiTokenAuth)
+  .use('/trace/*', apiTokenAuth)
   .route('/products', productsRoutes)
   .route('/user-activities', userActivitiesRoutes)
   .route('/user-tasks', userTasksRoutes)
@@ -106,9 +108,8 @@ export const app = new Hono()
   .route('/status-changes', statusChangesRoutes)
   .route('/adr-records', adrRecordsRoutes)
   .route('/system-modules', systemModulesRoutes)
+  .route('/trace', traceRoutes)
   .route('/settings', settingsRoutes)
-
-  // ── 旧路由兼容（一个版本周期）──
   .use('/projects/*', gone('projects', 'products'))
   .use('/journeys/*', gone('journeys', 'user-activities'))
   .use('/tasks/*', gone('tasks', 'dev-tasks'))

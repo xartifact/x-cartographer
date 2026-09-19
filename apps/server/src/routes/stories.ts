@@ -19,6 +19,7 @@ const createStorySchema = z.object({
   estimation: z.number().default(0),
   acceptanceCriteria: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
+  affectedModules: z.array(z.string()).default([]),
   provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).default('agent_inferred'),
 });
 
@@ -118,6 +119,7 @@ export const storiesRoutes = new Hono()
       estimation: input.estimation,
       acceptance_criteria: input.acceptanceCriteria,
       tags: input.tags,
+      affected_modules: input.affectedModules,
       provenance: input.provenance,
     });
     // 约束写入协议（§4.1 方案 B）：创建 UserStory 是高影响写入，直接生效 + 账本留痕

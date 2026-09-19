@@ -15,6 +15,7 @@
  *   xcart status history <entityId> | all | ratify <type> <id> --reason
  *   xcart context export <projectId>      (兼容别名: xcart export-context <id>)
  *   xcart overview --project <id>
+ *   xcart trace <story|module|adr> <id>   (约束→模块→实现 追溯链)
  *   xcart skill install | list
  *
  * 全局选项（放在任意位置均可）:
@@ -751,6 +752,55 @@ async function cmdStatus(ctx: Ctx): Promise<void> {
   }
 }
 
+/**
+ * 约束追溯（§2.3 两分的读路径）：story/module/adr 三入口任选其一，
+ * 输出「意图 → 结构 → 规矩 → 实现」链。纯读。
+ */
+async function cmdTrace(ctx: Ctx): Promise<void> {
+  const [kind, id] = ctx.positional;
+  if (!kind || !id || !['story', 'module', 'adr'].includes(kind)) {
+    throw new Error('用法: xcart trace <story|module|adr> <entityId>');
+  }
+  const param = kind === 'story' ? 'storyId' : kind === 'module' ? 'moduleId' : 'adrId';
+  const data = (await api(`/api/trace?${param}=${encodeURIComponent(id)}`)) as unknown;
+  if (!isObj(data)) { console.log('未找到'); return; }
+  if ('error' in data && typeof data.error === 'string') { console.log(`✗ ${data.error}`); return; }
+
+  const out = data as {
+    entry: { kind: string; id: string };
+    product_id: string;
+    stories: Array<{ id: string; title: string; status: string; affected_modules: string[] }>;
+    modules: Array<{ id: string; name: string }>;
+    adrs: Array<{ id: string; title: string; status: string }>;
+    tasks: Array<{ id: string; title: string; status: string; story_id: string | null; module_id: string | null }>;
+  };
+
+  const lines: string[] = [];
+  lines.push(`## 追溯：${kind} ${id}（产品 ${out.product_id}）`);
+  lines.push('');
+  lines.push('### 用户故事（意图）');
+  if (out.stories.length === 0) lines.push('-（无）');
+  for (const s of out.stories) {
+    lines.push(`- ${s.id} [${s.status}] ${s.title}${s.affected_modules.length ? `（涉及: ${s.affected_modules.join(', ')}）` : ''}`);
+  }
+  lines.push('');
+  lines.push('### 系统模块（结构）');
+  if (out.modules.length === 0) lines.push('-（无）');
+  for (const m of out.modules) lines.push(`- ${m.id}${m.name ? ` ${m.name}` : ''}`);
+  lines.push('');
+  lines.push('### 架构决策（规矩）');
+  if (out.adrs.length === 0) lines.push('-（无）');
+  for (const a of out.adrs) lines.push(`- ${a.id} [${a.status}] ${a.title}`);
+  lines.push('');
+  lines.push('### 研发任务（实现）');
+  if (out.tasks.length === 0) lines.push('-（无）');
+  for (const t of out.tasks) {
+    const anchor = t.story_id ? `story:${t.story_id}` : t.module_id ? `module:${t.module_id}` : '未锚定';
+    lines.push(`- ${t.id} [${t.status}] ${t.title}（${anchor}）`);
+  }
+  console.log(lines.join('\n'));
+}
+
 // ---------- context / overview ----------
 // 树直读：project API 返回的 user_activities[].stories[].tasks 已含全字段，
 // 不再逐 story 发起 N+1 请求（原实现对 41 故事的项目 = 42 次 HTTP）。
@@ -784,7 +834,7 @@ function summarizeTree(proj: Record<string, unknown>): {
       if (ss === 'accepted') doneStories++;
       for (const t of Array.isArray(s.dev_tasks) ? s.dev_tasks : []) {
         taskCount++;
-        const ts = t.status ?? 'backlog';
+
         taskStatus[ts] = (taskStatus[ts] ?? 0) + 1;
         if (ts === 'done') doneTasks++;
       }
@@ -994,6 +1044,7 @@ function helpText(): string {
 上下文 / 总览
   xcart context export <projectId>              # 项目全景 Markdown（供 LLM）
   xcart overview --project <id>                 # 项目总览统计
+  xcart trace <story|module|adr> <id>           # 约束追溯链（意图→结构→规矩→实现）
 
 Skills
   xcart skill list
@@ -1056,6 +1107,7 @@ async function main() {
       case 'adr': await cmdAdr(ctx); break;
       case 'status': await cmdStatus(ctx); break;
       case 'overview': await cmdOverview(ctx); break;
+      case 'trace': await cmdTrace(ctx); break;
       case 'context': {
         const sub = rest[0];
         if (sub === 'export') {

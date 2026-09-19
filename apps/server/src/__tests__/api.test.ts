@@ -739,6 +739,79 @@ describe('约束写入协议 方案 B（§6.7）：高影响写入直接生效 +
     expect(writes[1]!.reason).toContain('删除模块');
     expect(writes[2]!.reason).toContain('新增模块');
   });
+
+  it('trace: story 入口 join 出模块/任务，无入口或缺实体返回明确错误', async () => {
+    const productId = await createProduct('追溯产品');
+    const activityId = await createActivity(productId, '追溯活动');
+    // 模块
+    const put = await jsonRequest('PUT', '/api/system-modules/trace-mod', {
+      id: 'trace-mod',
+      product_id: productId,
+      name: '追溯模块',
+      depends_on: [],
+    });
+    expect(put.status).toBe(200);
+    // 故事 affected_modules 指向模块
+    const storyRes = await jsonRequest('POST', '/api/stories', {
+      activityId,
+      title: '追溯故事',
+      description: 'd',
+      priority: 'high',
+      estimation: 1,
+      affectedModules: ['trace-mod'],
+    });
+    expect(storyRes.status).toBe(201);
+    const { id: storyId } = (await storyRes.json()) as { id: string };
+    // 挂 story 的任务 + 脱离 story 挂模块的任务
+    const t1 = await jsonRequest('POST', '/api/dev-tasks', {
+      storyId,
+      title: '故事内任务',
+      description: 'd',
+      priority: 'P2',
+      estimation: 1,
+    });
+    expect(t1.status).toBe(201);
+    const t2 = await jsonRequest('POST', '/api/dev-tasks', {
+      productId,
+      moduleId: 'trace-mod',
+      title: '模块锚定任务',
+      description: 'd',
+      priority: 'P2',
+      estimation: 1,
+    });
+    expect(t2.status).toBe(201);
+    const t2id = ((await t2.json()) as { id: string }).id;
+    // story 入口：应 join 出模块 + 两类任务
+    const traced = await jsonRequest('GET', `/api/trace?storyId=${storyId}`);
+    expect(traced.status).toBe(200);
+    const result = (await traced.json()) as {
+      product_id: string;
+      stories: Array<{ id: string }>;
+      modules: Array<{ id: string }>;
+      tasks: Array<{ id: string; story_id: string | null }>;
+      adrs: Array<{ id: string }>;
+    };
+    expect(result.product_id).toBe(productId);
+    expect(result.stories.map((s) => s.id)).toContain(storyId);
+    expect(result.modules.map((m) => m.id)).toContain('trace-mod');
+    const taskIds = result.tasks.map((t) => t.id);
+    if (taskIds.length < 2) console.error('TRACE_DUMP', JSON.stringify({ storyId, t1: (await (await jsonRequest('GET', `/api/dev-tasks?storyId=${storyId}`)).json()), t2: await (await jsonRequest('GET', `/api/trace?moduleId=trace-mod`)).text?.() ?? '', result }));
+    expect(taskIds.length).toBeGreaterThanOrEqual(2);
+
+    // module 入口
+    const byMod = await jsonRequest('GET', '/api/trace?moduleId=trace-mod');
+    expect(byMod.status).toBe(200);
+    const modResult = (await byMod.json()) as { tasks: Array<{ id: string }> };
+    // module 入口：只收模块锚定任务（t2）；t1 挂 story 且无 affected_modules，不属本模块
+    expect(modResult.tasks.map((t) => t.id)).toContain(t2id);
+    // 错误：缺入口 / 多入口 / 实体不存在
+    const none = await jsonRequest('GET', '/api/trace');
+    expect(none.status).toBe(400);
+    const both = await jsonRequest('GET', `/api/trace?storyId=${storyId}&moduleId=trace-mod`);
+    expect(both.status).toBe(400);
+    const miss = await jsonRequest('GET', '/api/trace?storyId=NOPE');
+    expect(miss.status).toBe(400);
+  });
 });
 
 describe('PUT /api/products/full transaction', () => {

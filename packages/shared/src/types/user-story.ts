@@ -103,6 +103,7 @@ export interface CreateUserStoryDTO {
   estimation: number;
   acceptance_criteria: string[];
   tags: string[];
+  affected_modules?: string[];
   provenance?: Provenance;
 }
 
