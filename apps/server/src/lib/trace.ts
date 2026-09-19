@@ -155,7 +155,10 @@ export async function trace(entry: { kind: 'story' | 'module' | 'adr'; id: strin
     const mod = modules.find((m) => m.id === entry.id);
     if (!mod) return null;
     return {
+      entry,
       product_id: mod.product_id,
+      stories: stories.filter((s) => s.affected_modules.includes(entry.id) && s.product_id === mod.product_id),
+      modules: [mod],
       // ADR 同 slug 不存在但 product_id 圈定归属产品，防他产品 ADR 混入
       adrs: adrs.filter((a) => a.product_id === mod.product_id && a.module_ids.includes(entry.id)),
       tasks: tasks.filter((t) => t.module_id === entry.id),
