@@ -781,7 +781,8 @@ async function cmdTrace(ctx: Ctx): Promise<void> {
   lines.push('### 用户故事（意图）');
   if (out.stories.length === 0) lines.push('-（无）');
   for (const s of out.stories) {
-    lines.push(`- ${s.id} [${s.status}] ${s.title}${s.affected_modules.length ? `（涉及: ${s.affected_modules.join(', ')}）` : ''}`);
+    const mods = s.affected_modules ?? [];
+    lines.push(`- ${s.id} [${s.status}] ${s.title}${mods.length ? `（涉及: ${mods.join(', ')}）` : ''}`);
   }
   lines.push('');
   lines.push('### 系统模块（结构）');
