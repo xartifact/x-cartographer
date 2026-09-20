@@ -620,6 +620,56 @@ async function cmdMilestone(ctx: Ctx): Promise<void> {
   }
 }
 
+// ---------- module（系统模块目录）----------
+/** 模块身份是 (产品, slug)：detail/update/delete 需 --product 定位（slug 仅产品内唯一） */
+async function cmdModule(ctx: Ctx): Promise<void> {
+  const sub = ctx.positional[0];
+  const f = ctx.flags;
+  switch (sub) {
+    case 'list': {
+      const productId = req(f, 'product', 'project');
+      const data = await api(`/api/system-modules?productId=${encodeURIComponent(productId)}`);
+      const rows = (Array.isArray(data) ? data : []).map((m) => ({
+        id: m.id, name: m.name, path: m.path ?? '', depends_on: (m.depends_on ?? []).join(','),
+      }));
+      console.log(render(rows, ctx.format));
+      break;
+    }
+    case 'info': {
+      const productId = req(f, 'product', 'project');
+      const id = reqId(ctx.positional.slice(1), 'module info');
+      const data = await api(`/api/system-modules/${id}?productId=${encodeURIComponent(productId)}`);
+      console.log(render(data, ctx.format));
+      break;
+    }
+    case 'create':
+    case 'update': {
+      const productId = req(f, 'product', 'project');
+      const id = sub === 'create' ? (req(f, 'id') as string) : reqId(ctx.positional.slice(1), 'module update');
+      const body: Record<string, unknown> = {
+        id,
+        product_id: productId,
+        name: req(f, 'name'),
+      };
+      const pathOpt = opt(f, 'path'); if (pathOpt !== undefined) body.path = pathOpt;
+      const resp = opt(f, 'responsibility'); if (resp !== undefined) body.responsibility = resp;
+      const deps = splitList(opt(f, 'depends-on')); body.depends_on = deps;
+      const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
+      const data = await api(`/api/system-modules/${id}`, 'PUT', body);
+      console.log(render(data, ctx.format));
+      break;
+    }
+    case 'delete': {
+      const productId = req(f, 'product', 'project');
+      const id = reqId(ctx.positional.slice(1), 'module delete');
+      const res = await api(`/api/system-modules/${id}?productId=${encodeURIComponent(productId)}`, 'DELETE');
+      console.log(render(res, ctx.format));
+      break;
+    }
+    default: throw new Error(`未知子命令: module ${sub ?? ''}\n\n${helpText()}`);
+  }
+}
+
 // ---------- adr（技术宪法 / ADR）----------
 /** 渲染折叠后的当前态（§3.3 投影）：tech_stack / architecture_principles / modules 三节 */
 function renderConstitution(data: unknown, fmt: Format): void {
@@ -930,7 +980,7 @@ async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
   if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${projectId}`);
   const milestones = await api(`/api/milestones?productId=${encodeURIComponent(projectId)}`).catch(() => []);
   // 技术宪法摘要（容错：无 ADR 时降级空宪法，不得让 context export 整体失败）
-  const constitution = await api(`/api/adr-records/current?projectId=${encodeURIComponent(projectId)}`).catch(() => ({
+  const constitution = await api(`/api/adr-records/current?productId=${encodeURIComponent(projectId)}`).catch(() => ({
     tech_stack: [], architecture_principles: [], modules: [],
   }));
   const constObj = isObj(constitution) ? constitution : { tech_stack: [], architecture_principles: [], modules: [] };
@@ -974,7 +1024,7 @@ async function cmdOverview(ctx: Ctx): Promise<void> {
   const projectId = req(ctx.flags, 'project', 'projectId');
   const proj = await api(`/api/products/${projectId}`);
   if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${projectId}`);
-  const constitution = await api(`/api/adr-records/current?projectId=${encodeURIComponent(projectId)}`).catch(() => ({
+  const constitution = await api(`/api/adr-records/current?productId=${encodeURIComponent(projectId)}`).catch(() => ({
     tech_stack: [], architecture_principles: [], modules: [],
   }));
   const constObj = isObj(constitution) ? constitution : { tech_stack: [], architecture_principles: [], modules: [] };
@@ -1109,6 +1159,13 @@ function helpText(): string {
   xcart milestone update <id> [--name] [--goal] [--date] [--status]
   xcart milestone delete <id>
 
+系统模块（SystemModule 目录；ADR 的 module_ids / Story 的 affected_modules 引用此处的 slug）
+  xcart module list --project <id>
+  xcart module info <slug> --project <id>
+  xcart module create --project <id> --id <slug> --name <n> [--path <p>] [--responsibility <r>] [--depends-on a,b] [--provenance]
+  xcart module update <slug> --project <id> [--name] [--path] [--responsibility] [--depends-on a,b]
+  xcart module delete <slug> --project <id>
+
 技术宪法 (ADR)
   xcart adr create --project <id> --title <t> --context <c> --decision <d> [--consequences] [--alternatives] [--supersedes <adrId>] [--milestone <id>] [--modules a,b] [--status proposed|accepted] [--file changes.json]
   xcart adr list --project <id>                 # 决策记录账本（仅追加）
@@ -1187,6 +1244,7 @@ async function main() {
       case 'task': // deprecated alias
         await cmdDevTask(ctx); break;
       case 'milestone': await cmdMilestone(ctx); break;
+      case 'module': await cmdModule(ctx); break;
       case 'adr': await cmdAdr(ctx); break;
       case 'status': await cmdStatus(ctx); break;
       case 'overview': await cmdOverview(ctx); break;
