@@ -604,7 +604,7 @@ describe('system modules 目录 + affected_modules 校验 (0006)', () => {
     expect(task.affected_modules).toEqual(['web-spa']);
 
     // 当前态宪法含模块目录（0006 起由表提供，非折叠产物）
-    res = await jsonRequest('GET', `/api/adr-records/current?projectId=${productId}`);
+    res = await jsonRequest('GET', `/api/adr-records/current?productId=${productId}`);
     const constitution = (await res.json()) as { modules: Array<{ id: string }> };
     expect(constitution.modules.map((m) => m.id)).toEqual(['web-spa']);
   });
@@ -1122,7 +1122,7 @@ describe('ADR 创建落点：高影响非人主张落 proposed (§4.1/§4.4)', (
     }));
     const { id: adrId } = (await created.json()) as { id: string };
     const constitution = (await (
-      await app.request(`/api/adr-records/current?projectId=${productId}`)
+      await app.request(`/api/adr-records/current?productId=${productId}`)
     ).json()) as { architecture_principles: unknown[] };
     expect(constitution.architecture_principles).toEqual([]);
 
@@ -1133,7 +1133,7 @@ describe('ADR 创建落点：高影响非人主张落 proposed (§4.1/§4.4)', (
     });
     expect(promote.status).toBe(200);
     const after = (await (
-      await app.request(`/api/adr-records/current?projectId=${productId}`)
+      await app.request(`/api/adr-records/current?productId=${productId}`)
     ).json()) as { architecture_principles: Array<{ id: string }> };
     expect(after.architecture_principles.map((p) => p.id)).toEqual(['no-llm']);
   });

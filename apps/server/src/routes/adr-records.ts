@@ -61,17 +61,17 @@ const log = createLogger('adr-records');
 const adrRepo = new AdrRepository();
 
 export const adrRecordsRoutes = new Hono()
-  // GET /api/adr-records?projectId=
+  // GET /api/adr-records?productId=（其余路由统一用 productId，勿再用旧名 projectId）
   .get('/', async (c) => {
-    const projectId = c.req.query('projectId');
-    if (!projectId) return c.json({ error: 'projectId required' }, 400);
-    return c.json(await adrRepo.listByProject(projectId));
+    const productId = c.req.query('productId');
+    if (!productId) return c.json({ error: 'productId required' }, 400);
+    return c.json(await adrRepo.listByProject(productId));
   })
-  // GET /api/adr-records/current?projectId=（折叠后的当前宪法）
+  // GET /api/adr-records/current?productId=（折叠后的当前宪法）
   .get('/current', async (c) => {
-    const projectId = c.req.query('projectId');
-    if (!projectId) return c.json({ error: 'projectId required' }, 400);
-    return c.json(await adrRepo.getCurrentConstitution(projectId));
+    const productId = c.req.query('productId');
+    if (!productId) return c.json({ error: 'productId required' }, 400);
+    return c.json(await adrRepo.getCurrentConstitution(productId));
   })
   // GET /api/adr-records/as-of-milestone?milestoneId=（历史架构快照）
   .get('/as-of-milestone', async (c) => {
