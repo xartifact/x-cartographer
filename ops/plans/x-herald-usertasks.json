@@ -1,0 +1,164 @@
+{
+  "product_id": "M26_K2UPZuV48B5HfuQiR",
+  "activities": {
+    "部署并配置网关": [
+      {
+        "name": "准备网关运行环境",
+        "desc": "安装、启动并完成网关的基础配置",
+        "stories": [
+          "6hqXOU21j8pq8C0UeWaWt",
+          "kmBIjw7i10b40tR-GSk-1",
+          "55-dkSe0SeT9h3b1sJjk5",
+          "a9GWKVG3VXVTfc0j2CGJh"
+        ]
+      }
+    ],
+    "接入上游服务商与模型实例": [
+      {
+        "name": "管理潜在模型与模型组",
+        "desc": "登记上游服务商的模型目录并按组管理实例",
+        "stories": [
+          "YfbA-lsocIXYMk7zdAaAH",
+          "rUOs4n3qwBXSVrNKBjcQ4"
+        ]
+      },
+      {
+        "name": "AI 辅助配置与修复",
+        "desc": "用 AI 生成/修复实例配置、适配新服务商",
+        "stories": [
+          "uM9rq_D5P0s0xamfg9ENw",
+          "c8hiNDrbohFX8KysYb8I4",
+          "NFz-SgtWylJtNbElwKG78"
+        ]
+      }
+    ],
+    "定义对外模型与路由规则": [
+      {
+        "name": "划定模型可见范围",
+        "desc": "access_models 白名单/黑名单、虚拟模型与实例解耦",
+        "stories": [
+          "_jQl-vn1ZoXkKx-AtqM6l",
+          "kH7hojYrp6ou2_8HQ-LMQ"
+        ]
+      },
+      {
+        "name": "编写与可视化路由规则",
+        "desc": "规则引擎条件路由、DAG 编辑、意图路由与总览",
+        "stories": [
+          "S95r4QdG-TFXXrKcfeo-l",
+          "H_6yURu6AGShsfaJ4pGX8",
+          "klGme86Sx8xRUQrc-LXH-",
+          "jXqIboLFOvEBoiPDYFGku"
+        ]
+      }
+    ],
+    "把客户端接入网关": [
+      {
+        "name": "客户端接入与鉴权",
+        "desc": "Base URL 指向网关、虚拟密钥认证、一键配置、模型列表",
+        "stories": [
+          "nOmHX1w2v203ZzOPNT2MM",
+          "jTuPuHo-MQS0swlVxOsLn",
+          "AcfVBiuCqWevJK-3y4B00",
+          "16YPCuiaY06dQRi2K-Bv7"
+        ]
+      }
+    ],
+    "转换并转发请求": [
+      {
+        "name": "协议识别与转换",
+        "desc": "协议自动检测、OpenAI↔Anthropic、Gemini、同协议透传",
+        "stories": [
+          "tRBJ8QpCV3T9kk6ATvh5r",
+          "IsZZO8yu0txcOK9NuR3x2",
+          "hI6CVx8y8ZUMkAR_W-nTN",
+          "GOjCFytD1Rwe05wGjUTCt"
+        ]
+      },
+      {
+        "name": "流式与扩展端点",
+        "desc": "SSE 双向流转换、Embeddings 端点",
+        "stories": [
+          "Wp8kgD3QKsy0d9AN_iO_U",
+          "W0o-QhRE-ZFh-Lu001PXg"
+        ]
+      }
+    ],
+    "保障高可用与限流保护": [
+      {
+        "name": "故障检测与自动恢复",
+        "desc": "健康检查、自动重试、实例级故障转移",
+        "stories": [
+          "iU3vCrxQU6D0u-2uytnYb",
+          "myiFTuZodQBGXBvASU6n9",
+          "FtXytynHzSA76bGgCLr4G"
+        ]
+      },
+      {
+        "name": "保护性限流",
+        "desc": "熔断器、超时控制、密钥级限流",
+        "stories": [
+          "kViK4bVand5a_DjPcWVBx",
+          "B-zVJH-JNV3vjAmpj7h3w",
+          "ifwR29xRzntgDPByFu72y"
+        ]
+      }
+    ],
+    "观测流量、成本与排障": [
+      {
+        "name": "日志与追踪",
+        "desc": "请求日志记录、日志详情、路由追踪",
+        "stories": [
+          "K2nU_xOmF37dzBxvfelrf",
+          "9qkHhx6sTtdj6BPI6bMUb",
+          "_8Tmi3F8y4iCTJUJ8So8q"
+        ]
+      },
+      {
+        "name": "指标与看板",
+        "desc": "实时流量看板、Prometheus 指标、性能快照、异常检测",
+        "stories": [
+          "XtyTcJ9nzHR5iOntV6lym",
+          "ziUX1vVl4Xbro_l_Rzf3k",
+          "C-unHNpUlGiXqULHRfh_d",
+          "lJ686XGWEUxTrAXNF5kPd"
+        ]
+      },
+      {
+        "name": "成本与用量分析",
+        "desc": "成本追踪、密钥用量统计、服务商健康排名",
+        "stories": [
+          "2TSrznfTHs1LjuPXIldid",
+          "y24Mvz-IGQnetK4d4tdPI",
+          "i8bUP4NP57w4qmKPR6fO6"
+        ]
+      },
+      {
+        "name": "AI 辅助排障",
+        "desc": "错误模式学习与 AI 错误诊断",
+        "stories": [
+          "mh3oBJnP3lD2ukgdg7mic",
+          "FF21zwrYA2AB0zmEDr5tF"
+        ]
+      }
+    ],
+    "〔横切〕管理控制台与工具链": [
+      {
+        "name": "管理入口载体",
+        "desc": "管理 SPA 页面与 CLI 命令两套入口",
+        "stories": [
+          "T3Y80O2ZUiSl-TIY9tZV3",
+          "iW7qZe_x98YmmTt9JmoKo"
+        ]
+      },
+      {
+        "name": "界面体验",
+        "desc": "多语言支持与暗色主题",
+        "stories": [
+          "OBn1bmVNpom4W7otNPJJv",
+          "CXxJ9tZZTRV77h5-VvfDW"
+        ]
+      }
+    ]
+  }
+}

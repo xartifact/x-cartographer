@@ -1,0 +1,35 @@
+{
+  "product_id": "yvREuxZSC_gqN2EsP0Xar",
+  "activities": {
+    "确立 Kernel 架构与运行形态": [
+      {
+        "name": "确立 Kernel 架构与运行形态",
+        "desc": "zone actor 运行形态与 RPC/事件存储选型",
+        "stories": [
+          "ehyXd6mGRabcp6t6MAoEW",
+          "qKv3tf-qtTSfm6GNkECs2"
+        ]
+      }
+    ],
+    "迁移领域核心与状态链路": [
+      {
+        "name": "迁移领域核心与状态链路",
+        "desc": "CBS/ECBS+ADG 纯 Kotlin 直译对拍 + MQTT 状态入内存表",
+        "stories": [
+          "ePeAhoGIai5POyaQjs6ae",
+          "-op-oxDThsDOUcxfwB8xU"
+        ]
+      }
+    ],
+    "打通指令链路并灰度切换": [
+      {
+        "name": "打通指令链路并灰度切换",
+        "desc": "REST/MQTT fcmd→tcmd 全链 + zone 灰度与一键回滚",
+        "stories": [
+          "ooE-6iLdw2X-zoURTRWWa",
+          "2UhxsF6v6Oni6o-JbZz03"
+        ]
+      }
+    ]
+  }
+}

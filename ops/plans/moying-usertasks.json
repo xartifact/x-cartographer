@@ -1,0 +1,106 @@
+{
+  "product_id": "BNtVVQ5JZx_Gjv-PbbFEL",
+  "activities": {
+    "定义仿真场景": [
+      {
+        "name": "定义仿真场景",
+        "desc": "用配置与模板描述被仿真场景（设备、点位、工序）",
+        "stories": [
+          "lWVKKkhXK4uH2gUzGIreQ",
+          "oYksrtxV0ssio9SJKlz4F",
+          "Xxmdbc0qtCVv-bVUquVVA",
+          "zSxnbKoV2zIfqu_2fyGX9",
+          "uv1r9ErX_CbZqTPnF9zRO",
+          "2KLEX4HvE0H381kMwNt5r"
+        ]
+      }
+    ],
+    "建模并驱动仿真运行": [
+      {
+        "name": "建模并驱动仿真运行",
+        "desc": "DES 内核原语：时钟/队列/状态机/行为树/种子/会话",
+        "stories": [
+          "1Mwiwmai3QjBvQTCgS1VH",
+          "tSVrnLLn-7qtq-xv9VD60",
+          "jaPN8F7L5PuSmI7xJg9ED",
+          "tqKNzpj_qVEg1A5OE-yhT",
+          "6JeBOpeGffa7V-enRRe0O",
+          "U3mhYy8JODSmeGGVdHYYQ",
+          "3IIDgL54gWOPiJbWb0pN0",
+          "D1s-PMmLHhbcNgiEIjFy6",
+          "mV8zvgKz3jGLVjhBj-nW9"
+        ]
+      }
+    ],
+    "接入并管理仿真设备": [
+      {
+        "name": "接入并管理仿真设备",
+        "desc": "仿真设备的注册、生命周期、物模型与审计",
+        "stories": [
+          "AGkxTFocGNAK49aVwz6p4",
+          "6RF8U7HcMdDh9c0HMDKff",
+          "v7D2M3ricl-DHbiGV-1FE",
+          "si2T_MzjNmn4qMrd2WbMm",
+          "mQrwoOHAC9G_EVKPzZ98k",
+          "4Rht0klplHIw0KL7bvcvF",
+          "S3ZvG2gf57F8NxryB9ALz",
+          "VKsW_yy_fDYhJM6OHT1nc",
+          "cPfUwYUmZqPr9NKiOQCIj"
+        ]
+      }
+    ],
+    "下发并执行指令": [
+      {
+        "name": "下发并执行指令",
+        "desc": "向仿真设备下发指令并获得确定性响应",
+        "stories": [
+          "hJUzSgLuAftS06dy_m-f0",
+          "WO5E_CxFhCT3VRo3YR-11",
+          "jVGGmtA9WurzoV4uoMcPG",
+          "0WjdiDNDyc28YMORXCUlq",
+          "NO4cSJ_lZ0OcVae8WnHvE"
+        ]
+      }
+    ],
+    "观测与控制仿真": [
+      {
+        "name": "观测与控制仿真",
+        "desc": "控制台实时观测与操控仿真运行",
+        "stories": [
+          "jX2kp3SwGHFSpSn1DIlfh",
+          "S_J3d58KUBPRnkxhv5UlJ",
+          "8ur7ZpPW36MeXmMdGMOau",
+          "2emO17wvvTFTob70WT7n_",
+          "vfOOAnA6S4Lp5hj9CrU6M"
+        ]
+      }
+    ],
+    "评估与复现调度结果": [
+      {
+        "name": "评估与复现调度结果",
+        "desc": "指标导出、实验对比、故障注入与重放",
+        "stories": [
+          "SrcOStQrNHXK_tUSjgVJQ",
+          "ZMv6IKswNYEwEb_IHP9zW",
+          "tbWGD0zwmzELbAN7rUv3o",
+          "niQxDVzRcUlUNNEqe0MiU"
+        ]
+      }
+    ],
+    "验证与交付": [
+      {
+        "name": "验证与交付",
+        "desc": "文档、测试、基准与兼容策略",
+        "stories": [
+          "6hpT0nRJPF6_dilWOjpCD",
+          "Nkqs54b6MNbMAJyv6jb1u",
+          "yj-KgJkKhiZcZWem1HIQl",
+          "nIupAhO4jKoMgXxCVMDv4",
+          "-3dONoCMfuZ37SFMm4d_T",
+          "Ce6Tb3rrvz1T8eDrsWhy0",
+          "O9fdnpG13l6NEDCmcmhtz"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "product_id": "1fj0gtB01t1lJTbolxiRG",
+  "activities": {
+    "配置项目与修复引擎": [
+      {
+        "name": "配置项目与修复引擎",
+        "desc": "配置多项目、Agent/LLM/仓库并持久化",
+        "stories": [
+          "AcQ6bFkfJdDrJCMShzA97",
+          "4PmuKagw53Ol6Ilm1n6xn",
+          "OwN6qe0laKRJFU-xe64wW",
+          "Z792YdlX980LA6p5Mqc7d",
+          "H9mVqdBnkVSFm0WN6YqlS",
+          "Jwfg264LKHLTSvRdqwq2a"
+        ]
+      }
+    ],
+    "接收并路由错误事件": [
+      {
+        "name": "接收并路由错误事件",
+        "desc": "接收错误事件并按项目路由、持久化",
+        "stories": [
+          "brdAl0Hr3oXNircgnxTSN",
+          "x2JeEFjs78u94ETDroqmv",
+          "7sozWYM76VyClt7Gds0hm"
+        ]
+      }
+    ],
+    "自动修复与验证": [
+      {
+        "name": "自动修复与验证",
+        "desc": "定位源码→生成补丁→应用→验证→状态流转",
+        "stories": [
+          "FF00_NbLzatbOZKmM9pFi",
+          "IXs3QMIH1a4w_k0SmDUVW",
+          "tJwIegeyJbsQFNefFBBhb",
+          "nqwpDEnC5l0uCTgg00cSQ",
+          "XXWnG2XAM8w0bQR7cl_Cm"
+        ]
+      }
+    ],
+    "接入 Coding Agent 能力": [
+      {
+        "name": "接入 Coding Agent 能力",
+        "desc": "扩展平台的修复后端：Provider/协议/CLI/LLM 抽象",
+        "stories": [
+          "Q-n5laNHvrxvg96v1id3z",
+          "2oiU9usNMhnbBf039ou6n",
+          "bvOh48OFWH5ygof6Q6He1",
+          "dnu1FN9c3tH7pamZAcist",
+          "7NASKJpkSCC7IhA6xktg8"
+        ]
+      }
+    ],
+    "提交并推送修复": [
+      {
+        "name": "提交并推送修复",
+        "desc": "修复结果自动提交并推送特性分支",
+        "stories": [
+          "1-KM01_6FNU5-NI4cEy0E"
+        ]
+      }
+    ],
+    "查看修复历史": [
+      {
+        "name": "查看修复历史",
+        "desc": "查询事件与修复历史、查看修复状态",
+        "stories": [
+          "wh52vvPWyq34Wil1hOpD8",
+          "H6Zqcd7Bxn0-ZFCCzz_lC"
+        ]
+      }
+    ],
+    "部署与发布服务": [
+      {
+        "name": "部署与发布服务",
+        "desc": "容器化、卷挂载与 CI 自动发布",
+        "stories": [
+          "Md0CkMFVr46Wnwt9s8DiQ",
+          "nx0nZpzRoTm3F4PcFPupi",
+          "UHSZ3QgUQ_nFHxGGKqiwY"
+        ]
+      }
+    ],
+    "接入被监控应用": [
+      {
+        "name": "接入被监控应用",
+        "desc": "SDK 集成进被监控应用并上报运行时错误",
+        "stories": [
+          "xMqnhAklwoUyLCeTw5Cp3",
+          "_EQZDIT-b1ZYoBso8bljm",
+          "asSKJ7xR1UnE4M-DKLzXK",
+          "EWyykDD_guVuE-FLUr9f1"
+        ]
+      }
+    ]
+  }
+}
