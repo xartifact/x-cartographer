@@ -16,6 +16,7 @@
  *   xcart context export <projectId>      (兼容别名: xcart export-context <id>)
  *   xcart overview --project <id>
  *   xcart trace <story|module|adr> <id>   (约束→模块→实现 追溯链)
+ *   xcart ctx <taskId>                    (任务上下文切片)
  *   xcart skill install | list
  *
  * 全局选项（放在任意位置均可）:
@@ -710,6 +711,86 @@ async function cmdAdr(ctx: Ctx): Promise<void> {
 }
 
 // ---------- status ----------
+async function cmdCtx(ctx: Ctx): Promise<void> {
+  const taskId = ctx.positional[0];
+  if (!taskId) throw new Error('用法: xcart ctx <taskId>');
+  const data = (await api(`/api/ctx/${encodeURIComponent(taskId)}`)) as unknown;
+  if (!isObj(data)) { console.log('未找到'); return; }
+  if ('error' in data && typeof data.error === 'string') { console.log(`✗ ${data.error}`); return; }
+
+  const out = data as {
+    task: { id: string; title: string; description: string; status: string; priority: string; tags: string[]; story_id: string | null; module_id: string | null; product_id: string | null };
+    story: { id: string; title: string; status: string; priority: string; acceptance_criteria: string[]; milestone_id: string | null } | null;
+    modules: Array<{ id: string; name: string; responsibility: string; path: string; depends_on: string[]; depended_by: string[] }>;
+    principles: Array<{ id: string; statement: string; strength: string; module_ids: string[] }>;
+    dependencies: { upstream: Array<{ id: string; title: string; status: string; done: boolean }>; downstream: Array<{ id: string; title: string; status: string }> };
+    siblings: Array<{ id: string; title: string; status: string }>;
+    ledger: Array<{ entity_id: string; previous_status: string; new_status: string; reason: string | null; changed_by: string | null; changed_at: string }>;
+  };
+
+  const lines: string[] = [];
+  lines.push(`# 任务上下文：${out.task.id}`);
+  lines.push('');
+  lines.push(`**${out.task.title}**`);
+  lines.push('');
+  lines.push(`- 状态: ${out.task.status} | 优先级: ${out.task.priority} | 锚定: ${out.task.module_id ?? (out.task.story_id ? `story:${out.task.story_id}` : '无')}`);
+  if (out.task.tags.length) lines.push(`- 标签: ${out.task.tags.join(', ')}`);
+  if (out.task.description) { lines.push(''); lines.push(out.task.description); }
+
+  lines.push('');
+  lines.push('## 意图（做到什么算对）');
+  if (out.story) {
+    lines.push(`- ${out.story.id} [${out.story.status}] ${out.story.title}`);
+    if (out.story.acceptance_criteria.length) {
+      lines.push('- 验收标准:');
+      for (const ac of out.story.acceptance_criteria) lines.push(`  - ${typeof ac === 'string' ? ac : JSON.stringify(ac)}`);
+    }
+  } else {
+    lines.push('-（无 story 锚定：工程治理类任务，对照下方模块职责）');
+  }
+
+  lines.push('');
+  lines.push('## 结构与规矩（怎么做才合规）');
+  for (const m of out.modules) {
+    lines.push(`- **${m.id}** ${m.name}（${m.path}）`);
+    if (m.responsibility) lines.push(`  职责: ${m.responsibility}`);
+    if (m.depends_on.length) lines.push(`  依赖: ${m.depends_on.join(', ')}`);
+    if (m.depended_by.length) lines.push(`  被依赖: ${m.depended_by.join(', ')}`);
+  }
+  if (out.principles.length) {
+    lines.push('- 架构原则:');
+    for (const p of out.principles) {
+      lines.push(`  - [${p.strength}] ${p.statement}${p.module_ids.length ? `（生效范围: ${p.module_ids.join(', ')}）` : '（全局）'}`);
+    }
+  } else {
+    lines.push('-（涉事模块暂无生效的架构原则）');
+  }
+
+  lines.push('');
+  lines.push('## 实现（依赖与兄弟）');
+  const blocked = out.dependencies.upstream.filter((d) => !d.done);
+  if (out.dependencies.upstream.length) {
+    lines.push(`- 上游依赖: ${out.dependencies.upstream.map((d) => `${d.id}[${d.status}]${d.done ? '' : ' ⚠未完成'}`).join(', ')}`);
+    if (blocked.length) lines.push(`- ⚠ ${blocked.length} 条上游未完成，动工前先确认`);
+  } else {
+    lines.push('- 无上游依赖');
+  }
+  if (out.dependencies.downstream.length) {
+    lines.push(`- 下游（依赖本任务）: ${out.dependencies.downstream.map((d) => `${d.id}[${d.status}]`).join(', ')}`);
+  }
+  if (out.siblings.length) {
+    lines.push(`- 同模块兄弟: ${out.siblings.slice(0, 6).map((s) => `${s.id}[${s.status}]`).join(', ')}${out.siblings.length > 6 ? ` …共 ${out.siblings.length}` : ''}`);
+  }
+
+  lines.push('');
+  lines.push('## 证据（账本近况）');
+  if (out.ledger.length === 0) lines.push('-（无）');
+  for (const l of out.ledger) {
+    lines.push(`- ${l.changed_at.slice(0, 10)} ${l.entity_id}: ${l.previous_status} → ${l.new_status}${l.reason ? `（${l.reason.slice(0, 60)}）` : ''}`);
+  }
+  console.log(lines.join('\n'));
+}
+
 async function cmdStatus(ctx: Ctx): Promise<void> {
   const sub = ctx.positional[0] ?? 'all';
   switch (sub) {
@@ -1046,6 +1127,7 @@ function helpText(): string {
   xcart context export <projectId>              # 项目全景 Markdown（供 LLM）
   xcart overview --project <id>                 # 项目总览统计
   xcart trace <story|module|adr> <id>           # 约束追溯链（意图→结构→规矩→实现）
+  xcart ctx <taskId>                            # 任务上下文切片（Agent 动工前必读）
 
 Skills
   xcart skill list
@@ -1109,6 +1191,7 @@ async function main() {
       case 'status': await cmdStatus(ctx); break;
       case 'overview': await cmdOverview(ctx); break;
       case 'trace': await cmdTrace(ctx); break;
+      case 'ctx': await cmdCtx(ctx); break;
       case 'context': {
         const sub = rest[0];
         if (sub === 'export') {

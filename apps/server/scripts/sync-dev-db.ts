@@ -117,9 +117,10 @@ async function main(): Promise<void> {
         storyN++;
         for (const t of (s.dev_tasks as Array<Record<string, unknown>>) ?? []) {
           await db.execute(sql`
-            INSERT INTO dev_tasks (id, story_id, title, description, priority, estimation, status,
+            INSERT INTO dev_tasks (id, story_id, product_id, module_id, title, description, priority, estimation, status,
                                    dependencies, tags, affected_modules, assignee)
-            VALUES (${String(t.id)}, ${String(s.id)}, ${String(t.title)}, ${String(t.description ?? '')},
+            VALUES (${String(t.id)}, ${String(s.id)}, ${(t.product_id as string) ?? null},
+                    ${(t.module_id as string) ?? null}, ${String(t.title)}, ${String(t.description ?? '')},
                     ${String(t.priority ?? 'P2')}, ${Number(t.estimation ?? 0)}, ${String(t.status ?? 'backlog')},
                     ${JSON.stringify(t.dependencies ?? [])}::jsonb,
                     ${JSON.stringify(t.tags ?? [])}::jsonb,
@@ -129,6 +130,31 @@ async function main(): Promise<void> {
         }
       }
     }
+
+  }
+
+  // 脱离 story 的任务（§6.7 方案 B 迁锚的工程治理任务，story_id=NULL）——
+  // 深树按 story 挂载采集不到它们，曾致本地库静默缺失 15 条（实测）。
+  // /all 是权威全量（repo 全表，含无 story 任务），此处只补 story_id=NULL 的行。
+  const orphans = await fetchJson<Array<Record<string, unknown>>>('/api/dev-tasks/all');
+  const seen = new Set<string>();
+  // 去重：/all 也包含上面已插的挂 story 任务
+  for (const t of orphans) {
+    const tid = String(t.id);
+    if ((t.story_id as string | null) != null) continue; // 已按 story 插过
+    if (seen.has(tid)) continue;
+    seen.add(tid);
+    await db.execute(sql`
+      INSERT INTO dev_tasks (id, story_id, product_id, module_id, title, description, priority, estimation, status,
+                             dependencies, tags, affected_modules, assignee)
+      VALUES (${tid}, NULL, ${(t.product_id as string) ?? null},
+              ${(t.module_id as string) ?? null}, ${String(t.title)}, ${String(t.description ?? '')},
+              ${String(t.priority ?? 'P2')}, ${Number(t.estimation ?? 0)}, ${String(t.status ?? 'backlog')},
+              ${JSON.stringify(t.dependencies ?? [])}::jsonb,
+              ${JSON.stringify(t.tags ?? [])}::jsonb,
+              ${JSON.stringify(t.affected_modules ?? [])}::jsonb,
+              ${(t.assignee as string) ?? null})`);
+    taskN++;
   }
 
   // 账本

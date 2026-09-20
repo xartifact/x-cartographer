@@ -16,6 +16,7 @@ import { statusChangesRoutes } from './routes/status-changes';
 import { adrRecordsRoutes } from './routes/adr-records';
 import { systemModulesRoutes } from './routes/system-modules';
 import { traceRoutes } from './routes/trace';
+import { ctxRoutes } from './routes/ctx';
 import { settingsRoutes } from './routes/settings';
 import { checkSchemaHealth } from './lib/schema-health';
 import type { MiddlewareHandler } from 'hono';
@@ -99,6 +100,7 @@ export const app = new Hono()
   .use('/adr-records/*', apiTokenAuth)
   .use('/system-modules/*', apiTokenAuth)
   .use('/trace/*', apiTokenAuth)
+  .use('/ctx/*', apiTokenAuth)
   .route('/products', productsRoutes)
   .route('/user-activities', userActivitiesRoutes)
   .route('/user-tasks', userTasksRoutes)
@@ -109,6 +111,7 @@ export const app = new Hono()
   .route('/adr-records', adrRecordsRoutes)
   .route('/system-modules', systemModulesRoutes)
   .route('/trace', traceRoutes)
+  .route('/ctx', ctxRoutes)
   .route('/settings', settingsRoutes)
   .use('/projects/*', gone('projects', 'products'))
   .use('/journeys/*', gone('journeys', 'user-activities'))

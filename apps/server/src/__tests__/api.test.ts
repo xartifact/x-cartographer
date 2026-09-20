@@ -814,6 +814,90 @@ describe('约束写入协议 方案 B（§6.7）：高影响写入直接生效 +
   });
 });
 
+describe('任务上下文切片 ctx（P2：Agent 的实际输入面）', () => {
+  it('挂 story 的任务：join 出意图（验收标准）+ 模块（职责/依赖）+ 上游依赖状态', async () => {
+    const productId = await createProduct('ctx 产品');
+    const activityId = await createActivity(productId, 'ctx 活动');
+    await jsonRequest('PUT', '/api/system-modules/ctx-mod', {
+      id: 'ctx-mod', product_id: productId, name: 'ctx 模块',
+      responsibility: '负责一切', depends_on: [],
+    });
+    const sRes = await jsonRequest('POST', '/api/stories', {
+      activityId, title: 'ctx 故事', description: 'd', priority: 'high', estimation: 1,
+      affectedModules: ['ctx-mod'],
+      acceptanceCriteria: ['标准一', '标准二'],
+    });
+    expect(sRes.status).toBe(201);
+    const { id: storyId } = (await sRes.json()) as { id: string };
+    // 上游依赖任务（done）
+    const up = await jsonRequest('POST', '/api/dev-tasks', {
+      storyId, title: '上游任务', description: 'd', priority: 'P2', estimation: 1,
+    });
+    const { id: upId } = (await up.json()) as { id: string };
+    await jsonRequest('POST', `/api/dev-tasks/${upId}/status`, { status: 'done' });
+    // 本任务依赖上游
+    const tRes = await jsonRequest('POST', '/api/dev-tasks', {
+      storyId, title: '本任务', description: '任务描述正文', priority: 'P1', estimation: 2,
+      dependencies: [upId],
+    });
+    const { id: taskId } = (await tRes.json()) as { id: string };
+
+    const res = await jsonRequest('GET', `/api/ctx/${taskId}`);
+    expect(res.status).toBe(200);
+    const ctx = (await res.json()) as {
+      task: { id: string; title: string; story_id: string | null; module_id: string | null };
+      story: { id: string; acceptance_criteria: string[] } | null;
+      modules: Array<{ id: string; responsibility: string; depended_by: string[] }>;
+      principles: Array<{ id: string }>;
+      dependencies: { upstream: Array<{ id: string; done: boolean }> };
+      ledger: Array<{ new_status: string }>;
+    };
+
+    expect(ctx.task.id).toBe(taskId);
+    expect(ctx.task.story_id).toBe(storyId);
+    // 意图：story + 验收标准
+    expect(ctx.story?.id).toBe(storyId);
+    expect(ctx.story?.acceptance_criteria).toEqual(['标准一', '标准二']);
+    // 结构：story 的 affected_modules 跨锚进来
+    expect(ctx.modules.map((m) => m.id)).toContain('ctx-mod');
+    // 实现：上游依赖带完成标记
+    expect(ctx.dependencies.upstream).toHaveLength(1);
+    expect(ctx.dependencies.upstream[0]!.done).toBe(true);
+    // 账本近况（本任务与上游的创建/流转记录）
+    expect(ctx.ledger.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('治理类任务（无 story）：走模块锚定，404 与渲染路径明确', async () => {
+    const productId = await createProduct('ctx 治理产品');
+    const r = await jsonRequest('POST', '/api/dev-tasks', {
+      productId, moduleId: 'ctx-gov',
+      title: '治理任务', description: 'd', priority: 'P2', estimation: 1,
+    });
+    expect(r.status).toBe(201);
+    await jsonRequest('PUT', '/api/system-modules/ctx-gov', {
+      id: 'ctx-gov', product_id: productId, name: '治理模块', depends_on: [],
+      responsibility: '治理职责',
+    });
+
+    const res = await jsonRequest('GET', '/api/ctx/ctx-gov-nonexist');
+    expect(res.status).toBe(404);
+
+    const ok = await jsonRequest('POST', '/api/dev-tasks', {
+      productId, moduleId: 'ctx-gov',
+      title: '治理任务2', description: 'd', priority: 'P2', estimation: 1,
+    });
+    const { id: tid } = (await ok.json()) as { id: string };
+    const res2 = await jsonRequest('GET', `/api/ctx/${tid}`);
+    expect(res2.status).toBe(200);
+    const ctx = (await res2.json()) as {
+      story: null;
+      modules: Array<{ id: string; responsibility: string }>;
+    };
+    expect(ctx.story).toBeNull();
+    expect(ctx.modules[0]!.responsibility).toBe('治理职责');
+  });
+});
+
 describe('PUT /api/products/full transaction', () => {
   it('writes the whole tree and replaces children on re-put', async () => {
     const now = new Date().toISOString();
