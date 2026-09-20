@@ -835,7 +835,7 @@ function summarizeTree(proj: Record<string, unknown>): {
       if (ss === 'accepted') doneStories++;
       for (const t of Array.isArray(s.dev_tasks) ? s.dev_tasks : []) {
         taskCount++;
-
+        const ts = t.status ?? 'backlog';
         taskStatus[ts] = (taskStatus[ts] ?? 0) + 1;
         if (ts === 'done') doneTasks++;
       }
