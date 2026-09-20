@@ -33,6 +33,10 @@ export const ID_SPECS = {
       { table: 'milestones', column: 'product_id', kind: 'column' },
       { table: 'adr_records', column: 'product_id', kind: 'column' },
       { table: '_legacy_user_journeys', column: 'project_id', kind: 'column' },
+      // 0006/0008 后加的两条 FK——曾缺失致 rename 事务回滚
+      // （UPDATE products SET id 被 ON UPDATE 触发的即时 FK 校验阻断）
+      { table: 'system_modules', column: 'product_id', kind: 'column' },
+      { table: 'dev_tasks', column: 'product_id', kind: 'column' },
     ],
   },
   userActivity: {

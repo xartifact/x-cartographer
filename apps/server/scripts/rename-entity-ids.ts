@@ -38,7 +38,9 @@ let runner: QueryRunner = (await ensureDb()) as unknown as QueryRunner;
 
 const rows = async (q: string): Promise<Array<Record<string, unknown>>> => {
   const r: unknown = await runner.execute(sql.raw(q));
-  return (r as { rows: Array<Record<string, unknown>> }).rows;
+  // PGlite 返回 { rows: [...] }；postgres-js（生产 PostgreSQL）返回裸数组
+  if (Array.isArray(r)) return r as Array<Record<string, unknown>>;
+  return (r as { rows: Array<Record<string, unknown>> }).rows ?? [];
 };
 const exec = async (q: string): Promise<void> => {
   await runner.execute(sql.raw(q));

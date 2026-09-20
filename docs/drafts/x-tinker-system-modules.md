@@ -1,6 +1,6 @@
 # x-tinker system_modules 草稿
 
-**Product**: `1fj0gtB01t1lJTbolxiRG`（x-tinker，自愈流水线）
+**Product**: `PROD-004`（x-tinker，自愈流水线）
 **调查方式**：通读本地代码仓库 `/Users/binzhan/Workspaces/github/xartifact/x-tinker`（apps/server、apps/ui、packages/{shared,sdk,core,db}、Dockerfile、docker-compose.yml、.github/workflows/ci.yml，含 HEAD `c00d53f` multi-project 最新状态）；并用恢复后的 gateway :8787 核对全部 29 条 story（每条已逐条比对归属）。
 **约束遵守**：只读调查，未写库（GET 之外零请求）；模块划分按架构职责边界，非目录映射。
 
