@@ -418,6 +418,9 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const est = opt(f, 'estimation'); if (est !== undefined) body.estimation = Number(est);
       const ac = splitList(opt(f, 'ac', 'acceptance')); if (ac) body.acceptanceCriteria = ac;
       const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
+      // 拆解纪律要求标注影响模块（skills/xcart-story-breakdown:44），但此前只有
+      // update 分支解析它——等于把该纪律挂在一个不存在的开关上
+      const affected = splitList(opt(f, 'affected-modules', 'modules')); if (affected) body.affectedModules = affected;
       const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api('/api/stories', 'POST', body);
       console.log(render(data, ctx.format));
@@ -433,8 +436,20 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const ac = splitList(opt(f, 'ac', 'acceptance')); if (ac) body.acceptanceCriteria = ac;
       const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
       const affected = splitList(opt(f, 'affected-modules', 'modules')); if (affected) body.affectedModules = affected;
-      const activity = opt(f, 'journey');
-      if (activity !== undefined) body.activityId = activity === 'none' ? null : activity;
+      // --activity 是 help 与 skill 宣传的主名，journey 是 deprecated alias；
+      // 此前只读 journey，导致 `story update --activity A2` 送空 body（静默不移动）
+      const activity = opt(f, 'activity', 'journey');
+      // activity_id 是故事的**地图列归属，必填**（story-map-redesign §3.2）。
+      // 解挂会让故事及其研发任务从所有视图消失（domain-model §6.2 记录的正是这种
+      // 「意图断裂」缺陷，不是可用特性）——故明确拒绝，而不是把 null 透传给服务端
+      // 换回一个不解释原因的 Zod 400。
+      if (activity === 'none') {
+        throw new Error(
+          '故事必须归属一个用户活动（activity_id 必填）：解挂会让它及其研发任务从所有视图消失。' +
+          '如需换列请给出目标活动 id（xcart story update <id> --activity <activityId>）。'
+        );
+      }
+      if (activity !== undefined) body.activityId = activity;
       const milestone = opt(f, 'milestone');
       if (milestone !== undefined) body.milestoneId = milestone === 'none' ? null : milestone;
       const userTask = opt(f, 'user-task');
@@ -1430,9 +1445,9 @@ function helpText(): string {
 
 用户故事
   xcart story list --activity <id>
-  xcart story update <id> [--title] [--priority] [--status] [--activity <id>|none] [--user-task <id>|none] [--milestone <id>|none] [--estimation]
+  xcart story update <id> [--title] [--priority] [--status] [--activity <id>] [--user-task <id>|none] [--milestone <id>|none] [--estimation]
   xcart story move <id> <activityId>            # 跨活动移动故事（= update --activity）
-  xcart story create --activity <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b]
+  xcart story create --activity <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b] [--affected-modules m1,m2]
   xcart story status <id> <status> [--reason]
   xcart story delete <id>
   xcart story bulk-create --activity <id> --file stories.json
@@ -1511,7 +1526,7 @@ Agent 使用提示
   - 数据统计用单命令聚合：'overview --format json'（一次 API 完成，勿逐 story 拉 task list）
   - 'context export' 默认 Markdown；'--format json' 得结构化数据（树内含任务明细）
   - estimation 单位=AI-Native 研发工时（小时）：按 coding agent 执行评估，非人工人天；任务约 2-4h/个
-  - 可用参照: 简单 2-3h、中等 5-8h、复杂 13h+、完整模块 1-2 天
+  - 可用参照: 简单 2-3h、中等 5-8h、复杂 13h+、完整模块 1-2 小时
   - skills 含排期语义：xcart skill install 后见 skills/xcart-*/SKILL.md「排期评估」节
   - 输出已瘦身（project list description 截断）；需要全量用 'project info --id'
   - 解析 CLI 输出 JSON 优先用 jq（1 行指令、失败面窄），非 python/node 内联脚本

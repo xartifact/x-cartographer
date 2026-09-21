@@ -3,7 +3,7 @@
 > 原名：xpm-architecture.md（旧代号 XPM = X Product Manager）。
 > 状态：**已实施（2026-08-18）**，本版已按当前实现对齐并清理过时 (tRPC / Next.js) 内容：
 > - 命令名由 `xpm` 更名为 `xcart`；CLI 通过 Hono Gateway REST API 交互（原 tRPC 方案已被 Vite+Hono 迁移取代，见 migration-to-vite-hono.md）。
-> - `apps/cli` 已实现嵌套子命令 + GNU flag 风格 + 写操作对齐 REST 路由；`skills/` 目录已落地三份 SKILL.md；`xcart skill install` 可一键安装。
+> - `apps/cli` 已实现嵌套子命令 + GNU flag 风格 + 写操作对齐 REST 路由；`skills/` 目录已落地四份 SKILL.md；`xcart skill install` 可一键安装。
 >
 > 本文档的 CLI 命令树、skills 目录结构、agentskills 多平台安装等为其权威参考。
 >
@@ -223,7 +223,7 @@ $ xcart task next --format json
 |------|------|------|
 | Phase A: 命名 | `@xpm/* → @x-cartographer/*`、命令 `xpm → xcart`、环境变量 `XCART_API_URL/XCART_API_TOKEN` | ✅ |
 | Phase B: CLI | 嵌套子命令 + GNU flag 风格 + 写操作对齐 REST + `--format json` + 旧扁平命令别名兼容 | ✅ |
-| Phase C: Skills | `skills/` 三份 SKILL.md（project-overview / story-breakdown / task-management）+ `xcart skill install` | ✅ |
+| Phase C: Skills | `skills/` 四份 SKILL.md（project-overview / story-breakdown / task-management / technical-constitution）+ `xcart skill install` | ✅ |
 | 验证 | `bun test` 148 pass；web 63 pass；web/server/cli type-check 通过；oxlint 0 errors | ✅ |
 
 > 早期 tRPC / Next.js 迁移方案的历史细节见 docs/design/migration-to-vite-hono.md。

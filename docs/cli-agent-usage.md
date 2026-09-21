@@ -45,7 +45,7 @@ agent 调用 CLI 的总成本：
 3. **默认输出格式**：`context export` 默认 Markdown（原 JSON 字符串包 md）
 4. **输出瘦身**：`project list` description 截断（40/60 字）
 5. **效率提示进 CLI help**：`xcart --help` 尾部「Agent 使用提示」区块
-6. **效率提示进 skills**：3 个 xcart skill 均含「Agent 效率提示」区块
+6. **效率提示进 skills**：4 个 xcart skill 均含「Agent 效率提示」区块
 
 ## 推荐 agent 工作流
 

@@ -75,7 +75,7 @@ planned vs done（故事数 + 估算工时，cancelled 已剔除）——**目�
 
 ## 输出契约（--format json 片段）
 
-`project list` → `[{ "id", "name", "description"(截断), "journeys" }]`
+`project list` → `[{ "id", "name", "description"(截断), "activities" }]`
 `overview` → `{ "project_id", "name", "activities", "stories", "done_stories", "tasks", "done_tasks", "task_status", "story_status", "constitution": { "tech_stack_count", "principles_count", "must_principles_count", "modules_count" } }`
 `context export`：默认 Markdown（含技术宪法节）；`--format json` → `{ "product"(精简), "milestones", "constitution"(完整:{tech_stack,architecture_principles,modules}), "activities"(树含故事任务) }`
 
