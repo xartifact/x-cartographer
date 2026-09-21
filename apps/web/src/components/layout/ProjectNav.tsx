@@ -12,6 +12,7 @@ import {
   Footprints,
   FileText,
   Boxes,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
@@ -78,6 +79,12 @@ const defaultProjectNavItems: ProjectNavProps['items'] = [
     label: '模块',
     href: '/products/[id]/modules',
     icon: Boxes,
+  },
+  {
+    id: 'constitution',
+    label: '技术宪法',
+    href: '/products/[id]/constitution',
+    icon: ShieldCheck,
   },
 ];
 

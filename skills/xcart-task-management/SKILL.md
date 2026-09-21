@@ -14,7 +14,7 @@ xcart dev-task list --story <storyId>
 xcart task info <taskId>
 xcart task create --story <storyId> --title <t> [--priority P0|P1|P2|P3] [--estimation <h>] [--description] [--deps id1,id2] [--tags a,b]
 xcart task update <taskId> [--title] [--priority] [--estimation] [--assignee] [--status] [--tags]
-xcart task status <taskId> <status> [--reason]       # backlog|todo|in_progress|in_review|testing|done|cancelled
+xcart task status <taskId> <status> [--expected-status <s>] [--reason]  # backlog|todo|in_progress|in_review|testing|done|cancelled
 xcart task next --project <projectId> [--assignee]   # 下一个可执行任务（仅 todo 且依赖已完成）
 xcart task summary --project <projectId>             # 任务状态统计/完成率
 xcart task bulk-create --story <storyId> --file tasks.json
@@ -36,6 +36,9 @@ xcart status history <taskId>                        # 状态变更历史（含�
 
 - **新任务默认为 `backlog`**。只有进入 `todo` 且所有 `--deps` 依赖已完成的任务才会被 `task next` 返回。
 - 推进流程建议：`backlog → todo`（就绪）→ `in_progress`（执行）→ `in_review → testing` → `done`；失败可 `cancelled`。每次变更可带 `--reason` 记录原因（写入 status history）。
+- **并发认领必须用 CAS**：多 Agent 协作时，认领/流转加 `--expected-status <当前状态>`。服务端把条件推到 SQL WHERE（`packages/db/src/repositories/dev-task.repository.ts` 的 `compareAndSetStatus`），不匹配时返回 **409**（响应含 `current_status`）。收到 409 的正确反应是**重新 `task info` 读取当前状态**再决定是否推进——**不要盲目重试**：两个 Agent 都重试会让双方都以为拿到了独占任务，重复推进同一份工作。不加 `--expected-status` 时行为不变（无条件流转，向后兼容）。
+- **动工前看 `task info` 的 `architecture_context`**（若非空）：它按模块范围过滤出该任务相关的架构原则（`relevant_principles`）与模块（`relevant_modules`），`[MUST]` 级尤其要遵守。**但这只是信息提示，不是拦截性门禁**——没有需要确认的清单，也不存在"未读宪法就不许完成任务"的机制（自证/复核机制已明确排除在技术宪法范围外）。原则为空通常意味着任务与故事都没标 `affected_modules`，而不是"没有约束"。
+- **任务的架构上下文来源**：`task.affected_modules` → 回落 `story.affected_modules` → 回落 `task.module_id`；三者皆无则只剩全局原则。要让 `task info` 显示模块专属原则，拆解时就用 `story update --affected-modules` 或 `task update --affected-modules` 标注。
 
 ## 典型工作流
 

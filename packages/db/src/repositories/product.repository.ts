@@ -60,6 +60,7 @@ function dbRowToDevTask(row: typeof devTasks.$inferSelect): DevTask {
     product_id: row.productId ?? undefined,
     module_id: row.moduleId ?? undefined,
     tags: (row.tags ?? []) as string[],
+    affected_modules: (row.affectedModules ?? []) as string[],
     assignee: row.assignee ?? undefined,
     started_at: row.startedAt?.toISOString(),
     completed_at: row.completedAt?.toISOString(),

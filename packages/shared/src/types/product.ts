@@ -40,7 +40,15 @@ export interface Product {
  * 产品元数据
  */
 export interface ProductMetadata {
-  /** 技术栈 */
+  /**
+   * 技术栈（遗留扁平字符串数组）
+   *
+   * @deprecated 已由**技术宪法**取代：结构化选型请用 ADR 的 `tech_stack` changes
+   * （`TechStackEntry`：id/layer/choice/version/rationale）→ `xcart adr current --product <id>`。
+   * 本字段不做自动迁移——`"react": "19"` 这类扁平字符串**无法无损映射**到
+   * `{ layer, choice, version }`，猜测映射会产生假数据（见 `docs/design/technical-constitution.md` §8）。
+   * 新代码不要写入或读取本字段；写入侧请改用 ADR。
+   */
   tech_stack: string[];
 
   /** 版本号 */

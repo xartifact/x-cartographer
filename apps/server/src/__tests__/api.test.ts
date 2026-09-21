@@ -531,6 +531,84 @@ describe('dev-tasks CRUD + topological next', () => {
   });
 });
 
+describe('dev-task CAS 乐观锁（task-claim-concurrency.md）', () => {
+  it('CAS 乐观锁：expected_status 条件流转（task-claim-concurrency.md §2）', async () => {
+    const projectId = await createProduct('CAS Project');
+    const activityId = await createActivity(projectId, 'J');
+    const storyId = await createStory(activityId, 'S');
+    const taskId = await createDevTask(storyId, 'Claim me');
+
+    // 1. expected_status 匹配 → 流转成功
+    let res = await jsonRequest('POST', `/api/dev-tasks/${taskId}/status`, {
+      status: 'todo',
+      expected_status: 'backlog',
+      reason: '认领（CAS 命中）',
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true });
+
+    // 2. expected_status 与当前不符 → 409 + 当前状态回显
+    res = await jsonRequest('POST', `/api/dev-tasks/${taskId}/status`, {
+      status: 'done',
+      expected_status: 'backlog',
+      reason: '过期认领（应被拒）',
+    });
+    expect(res.status).toBe(409);
+    const conflict = (await res.json()) as { error: string; current_status: string };
+    expect(conflict.error).toBe('status conflict');
+    expect(conflict.current_status).toBe('todo');
+
+    // 3. 不传 expected_status → 行为不变（无条件流转，向后兼容）
+    res = await jsonRequest('POST', `/api/dev-tasks/${taskId}/status`, {
+      status: 'done',
+      reason: '无条件流转',
+    });
+    expect(res.status).toBe(200);
+
+    // 4. 两次成功流转都留了账（CAS 命中 1 条 + 无条件 1 条；409 不留账）
+    const changes = (await (
+      await app.request(`/api/status-changes?entityId=${taskId}`)
+    ).json()) as Array<Record<string, unknown>>;
+    expect(changes).toHaveLength(2);
+
+    // 5. 404 优先于 CAS 判定（任务不存在时不误报 409）
+    res = await jsonRequest('POST', '/api/dev-tasks/nope/status', {
+      status: 'done',
+      expected_status: 'todo',
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('并发认领模拟：同一 expected_status 的两次交错流转只有一次成功', async () => {
+    const projectId = await createProduct('Race Project');
+    const activityId = await createActivity(projectId, 'J');
+    const storyId = await createStory(activityId, 'S');
+    const taskId = await createDevTask(storyId, 'Race target');
+
+    // 两个 Agent 同时以 expected_status=backlog 认领同一任务
+    const claim = () =>
+      jsonRequest('POST', `/api/dev-tasks/${taskId}/status`, {
+        status: 'in_progress',
+        expected_status: 'backlog',
+        reason: '并发认领',
+      });
+    const [first, second] = await Promise.all([claim(), claim()]);
+
+    const statuses = await Promise.all([first.status, second.status]);
+    expect(statuses.sort()).toEqual([200, 409]);
+
+    // 任务状态只前进一次，账本只记一条
+    const detail = (await (
+      await app.request(`/api/dev-tasks/${taskId}`)
+    ).json()) as { status: string };
+    expect(detail.status).toBe('in_progress');
+    const changes = (await (
+      await app.request(`/api/status-changes?entityId=${taskId}`)
+    ).json()) as Array<Record<string, unknown>>;
+    expect(changes).toHaveLength(1);
+  });
+});
+
 describe('system modules 目录 + affected_modules 校验 (0006)', () => {
   it('upsert 幂等、列表按 product 隔离、引用校验只告警不阻断', async () => {
     const productId = await createProduct('模块目录产品');

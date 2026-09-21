@@ -9,3 +9,6 @@ export * from './types/user-story';
 export * from './types/milestone';
 export * from './types/dev-task';
 export * from './types/constitution';
+
+// Architecture context（§4 有效架构上下文过滤，CLI/Web 共用）
+export * from './architecture-context';

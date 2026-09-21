@@ -8,7 +8,10 @@ import { z } from 'zod';
 import { AdrRepository, createLogger } from '@x-cartographer/db';
 import { resolveAdrCreateStatus } from '../lib/constraint-impact';
 
-const adrStatusSchema = z.enum(['proposed', 'accepted', 'superseded', 'deprecated']);
+// §3.1 状态机：proposed → accepted | rejected；accepted → deprecated | superseded。
+// `rejected`（评估过、决定不做）必须可写入——否则该状态在 shared 类型/db schema/repo 里
+// 都是死的，设计文档里"记录被否决的决策"这条能力实际不可达。
+const adrStatusSchema = z.enum(['proposed', 'accepted', 'rejected', 'superseded', 'deprecated']);
 
 /** changes 结构校验（§3.2）：按类分组（tech_stack/architecture_principles/modules），各类内 upsert/remove 的 id 集合不得相交 */
 /** 单类变更集校验：upsert/remove 的 id 集合不得相交（§3.2） */

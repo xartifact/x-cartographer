@@ -25,6 +25,11 @@ import { MilestoneDialog } from './components/milestone-dialog';
 import { StoryCard } from './components/story-card';
 import { RoadmapTasksView } from './components/roadmap-tasks-view';
 import { StoryDetailPanel, StoryEditDialog } from '@/features/story-map/components';
+import {
+  aggregateMilestonePredictability,
+  flattenStories,
+  type MilestonePredictability,
+} from './lib/predictability';
 import type { UserStory, Milestone } from '@/types';
 
 interface RoadmapPageProps {
@@ -94,6 +99,15 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
   function estimateSum(stories: Array<{ estimation?: number }>) {
     return stories.reduce((sum, s) => sum + (s.estimation ?? 0), 0);
   }
+
+  /** 版本可预测性（US-112）：planned vs done，与 CLI overview 同口径 */
+  const predictabilityByMilestone = useMemo(() => {
+    const stats = aggregateMilestonePredictability(
+      flattenStories(project?.user_activities),
+      milestones.map((m) => m.id)
+    );
+    return new Map<string, MilestonePredictability>(stats.map((s) => [s.milestone_id, s]));
+  }, [project, milestones]);
 
 
 
@@ -261,6 +275,27 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
                     <div className="mt-1 text-xs text-muted-foreground">
                       {stories.length} 故事 · {estimateSum(stories)}h
                     </div>
+                    {/* PI 可预测性（US-112）：done/planned，cancelled 已剔除 */}
+                    {(() => {
+                      const p = predictabilityByMilestone.get(m.id);
+                      if (!p || p.planned_stories === 0) return null;
+                      const pct = Math.round((p.predictability ?? 0) * 100);
+                      return (
+                        <div className="mt-1 flex items-center gap-2 text-xs">
+                          <span className="text-muted-foreground">可预测性</span>
+                          <span className="font-medium">{pct}%</span>
+                          <span className="text-muted-foreground">
+                            ({p.done_stories}/{p.planned_stories} 故事)
+                          </span>
+                          <span className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
+                            <span
+                              className="block h-full bg-primary"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="flex gap-1">
                     <Button

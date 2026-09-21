@@ -4,18 +4,18 @@
  * 模块目录管理页面（约束空间·规矩，docs/design/domain-model.md §6.4.1）
  *
  * 用途是**系统设计**：看全貌、画依赖、做规划。因此本页的价值不在 CRUD 表单，
- * 而在把「谁依赖谁」摆到同一屏——两种视图是同一份数据的两个投影：
+ * 而在把「谁依赖谁」摆到同一屏——三种视图是同一份数据的三个投影：
  * - 列表（默认）：每行展示该模块依赖的模块（正向），适合逐条查阅/编辑
  * - 依赖图（`module-dependency-graph.tsx`）：整目录一张分层图，看拓扑全貌
+ * - 归属矩阵（`module-matrix`）：Story/Task × 模块的触及关系，看影响面（§4）
  * 详情抽屉展示反向引用（依赖它的模块）——影响面在这里才看得见。
  *
- * 模块 id 是人类可读 slug（非随机 id），故列表以等宽字体突出 id，
- * 它是 principles.module_ids / Story-Task.affected_modules 的引用键。
+ * 模块 id 是人类可读 slug（非随机 id），故列表以等宽字体突出 id。
  */
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Boxes, List, Network, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Boxes, Grid3x3, List, Network, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -34,6 +34,7 @@ import type { Product, SystemModule } from '@x-cartographer/shared';
 import { useDeleteSystemModule, useSystemModules, useUpsertSystemModule } from '@/lib/api/hooks';
 import { dependentsOf, moduleNameMap, type ModuleFormDraft } from '../lib/module-form';
 import { ModuleDependencyGraph } from './module-dependency-graph';
+import { ModuleMatrix } from '@/features/module-matrix';
 import { ModuleFormDialog, resolveDraftDependencies } from './module-form-dialog';
 
 interface SystemModulesPageProps {
@@ -55,7 +56,7 @@ export function SystemModulesPage({ project }: SystemModulesPageProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   /** 视图：列表（默认）/ 依赖图 */
-  const [view, setView] = useState<'list' | 'graph'>('list');
+  const [view, setView] = useState<'list' | 'graph' | 'matrix'>('list');
 
   const names = useMemo(() => moduleNameMap(modules), [modules]);
 
@@ -172,6 +173,15 @@ export function SystemModulesPage({ project }: SystemModulesPageProps) {
               <Network className="h-3.5 w-3.5" />
               依赖图
             </Button>
+            <Button
+              variant={view === 'matrix' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setView('matrix')}
+              className="gap-1.5"
+            >
+              <Grid3x3 className="h-3.5 w-3.5" />
+              归属矩阵
+            </Button>
           </div>
           {/* 搜索与计数只属于列表：依赖图刻意不按搜索词过滤——
               滤掉中间节点会让"谁依赖谁"失真 */}
@@ -223,6 +233,9 @@ export function SystemModulesPage({ project }: SystemModulesPageProps) {
             <ModuleDependencyGraph modules={modules} className="h-[600px]" />
           </CardContent>
         </Card>
+      ) : view === 'matrix' ? (
+        /* 矩阵不按搜索词过滤（同依赖图理由：滤掉行会让影响面失真） */
+        <ModuleMatrix project={project} modules={modules} />
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="flex h-40 items-center justify-center px-8 text-center text-sm text-muted-foreground">

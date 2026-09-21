@@ -26,9 +26,9 @@ xcart user-task delete <userTaskId>
 # 故事
 xcart story list --activity <activityId>              # 注意：--activity（活动），非 --journey
 xcart story info <storyId>                            # 含拆解出的任务
-xcart story create --activity <id> --title <t> [--priority high|medium|low] [--estimation <h>] [--ac "c1;c2"] [--tags a,b]
-xcart story update <id> [--title] [--priority] [--estimation] [--status] [--user-task <uid>|none] [--milestone <mid>|none] [--ac "a;b"]
-xcart story status <storyId> <status> [--reason]      # backlog|todo|in_progress|done|cancelled
+xcart story create --activity <id> --title <t> [--priority high|medium|low] [--estimation <h>] [--ac "c1;c2"] [--tags a,b] [--affected-modules m1,m2]
+xcart story update <id> [--title] [--priority] [--estimation] [--status] [--user-task <uid>|none] [--milestone <mid>|none] [--ac "a;b"] [--affected-modules m1,m2]
+xcart story status <storyId> <status> [--reason]      # backlog|todo|in_progress|accepted|cancelled（注意：故事无 done，验收通过是 accepted）
 xcart story delete <storyId>
 xcart story update <id> --user-task <userTaskId>            # 挂到活动下的操作步骤（故事地图第二层）；`--user-task none` 移出步骤
 xcart story update <id> --activity <activityId>            # 跨活动移动故事（order 自动追加到目标活动末尾）
@@ -40,6 +40,8 @@ xcart story bulk-create --activity <activityId> --file stories.json
 ## 技术宪法纪律（先读后写）
 
 实现/拆解前先执行 `xcart adr current --product <productId>`（或看 `xcart overview` 的 constitution 计数）确认架构约束；`[MUST]` 级原则直接约束本次实现方式。宪法未建立时（空数组）可建议负责人用 `xcart adr create` 沉淀首条决策。详见 skill `xcart-technical-constitution`。
+
+**拆解时标注影响模块（`--affected-modules`）**：把故事涉及的系统模块 slug 写进去（模块目录用 `xcart module list --project <id>` 查）。这不是行政手续——`xcart story info` 与 `xcart task info` 的 `architecture_context` 字段正是拿它做范围过滤，**没有标注就拿不到那个模块的架构原则**（`relevant_principles` 为空）。故事拆解阶段就该标，任务拆解时可继承故事的标注。
 
 ## 前置条件
 
@@ -74,10 +76,46 @@ xcart story bulk-create --activity <activityId> --file stories.json
 - 排期容量同理：一个 coding agent 一天可承载的 AI-Native 工时显著高于人工排期，勿按人工日估算。
 - 评估时把拆解出的任务 `estimation` 求和汇入故事，作为排期依据。
 
+## 写作纪律（命名与目标）
+
+故事地图的语义靠**词汇纪律**承载——命名一旦退化，地图就变回待办列表。三条硬规则：
+
+### 1. 活动 / 用户任务 = backbone 动词短语
+
+骨干层（活动、用户任务）是**用户动作**，不是系统模块、不是名词短语。
+
+| ✅ 正例 | ❌ 反例 | 问题 |
+|---|---|---|
+| 组织故事地图 / 拆解任务 / 规划发布 | 故事地图管理 / 任务系统 / 版本模块 | 名词短语——那是模块目录的词汇，不是用户动作 |
+| 调整顺序 / 筛选检索 / 发布切片 | 排序功能 / 搜索 / 切片 | 名词化，丢掉了"谁在做什么" |
+| 安装设备 / 配置设备 / 日常使用 | 设备管理 / 配置项 / 使用 | 抽象层级错乱，无法判断故事该落在哪一列 |
+
+判据：**骨干层的词应当能填进"用户在 ______"**。填不进去就不是骨干。
+
+### 2. `order` = 用户流程顺序，不是创建顺序
+
+`--order` 决定列的左右位置，语义是**用户叙事先后**（先安装才能配置，先配置才能使用）。
+不是"谁先建的就排前面"。新列插入时按流程位置给 order，而不是追加到末尾。
+
+### 3. `milestone.goal` 必须 SMART
+
+版本目标是**可判定是否达成**的承诺，不是愿望清单。
+
+| ✅ 正例 | ❌ 反例 | 问题 |
+|---|---|---|
+| 各旅程核心能力落地：故事地图、任务管理、排期、CLI/API 集成 | 把产品做得更好用 | 无法判定达成 |
+| 第三方可开发插件：共享打包预设、开发文档、运行时装卸载与 HMR | 完善插件生态 | 无边界（"完善"没有终点） |
+| i18n 时区/国际化、架构修复、日志存储优化 | 提升系统质量 | 不可验收 |
+
+判据：**看到 goal 能否写出退出信号**（"满足什么条件算完成"）。写不出就重写 goal。
+
+> 这三个纪律的失败模式相同：**用名词描述动作、用顺序描述优先级、用愿望描述目标**——
+> 结果是地图看起来完整，但没有任何一列能回答"为什么它在这里"。
+
 ## 校验值
 
 - `priority`: `high | medium | low`
-- `story status`: `backlog | todo | in_progress | done | cancelled`
+- `story status`: `backlog | todo | in_progress | accepted | cancelled`（**无 `done`**——故事是意图，验收通过记 `accepted`；研发任务的 `done` 是另一套状态机，两者词不同义不同）
 - `--ac` 用 `;` 分隔多条验收标准；`--tags`/`--tech-stack`/`--deps` 用 `,` 或 `;` 分隔。
 
 

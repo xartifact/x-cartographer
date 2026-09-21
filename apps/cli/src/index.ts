@@ -32,6 +32,10 @@ const DEFAULT_SERVER = 'http://localhost:8787';
 import { readFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import {
+  resolveEffectiveArchitectureContext,
+  type EffectiveArchitectureContext,
+} from '@x-cartographer/shared';
 
 // ─── 配置文件 ─────────────────────────────────────────────────
 // 路径：$XDG_CONFIG_HOME/xcart/config 或 ~/.config/xcart/config
@@ -173,6 +177,51 @@ function reqId(positional: string[], action: string): string {
 }
 function isObj(v: unknown): v is Record<string, any> {
   return typeof v === 'object' && v !== null;
+}
+
+// ─── 有效架构上下文（technical-constitution.md §4/§6）────────────────
+/** 由 activity 反查产品（story 详情只有 activity_id，宪法按产品取） */
+async function productIdOfActivity(activityId: string): Promise<string | null> {
+  const activity = await api(`/api/user-activities/${encodeURIComponent(activityId)}`).catch(() => null);
+  return isObj(activity) && typeof activity.product_id === 'string' ? activity.product_id : null;
+}
+
+/**
+ * 取宪法并做范围过滤（§4），供 story info / task info 展示。
+ *
+ * 历史态 vs 当前态（§3.3/§4）：**只有该里程碑被 ADR 锚定时**才用 as-of-milestone 历史态——
+ * §4 伪代码写的是「story.milestone_id 有 adr_id」，方向是 ADR 引用里程碑（§5：
+ * `xcart adr create --milestone` 手动关联，不自动快照）。故判据是「存在 milestone_id 指向
+ * 该版本的 ADR」，而不是「故事挂了版本」——后者会把所有挂版本的故事都拽回历史态，
+ * 结果永远看不到当前生效的宪法。
+ *
+ * 产品未知或宪法不可得时返回 null——不伪造空对象（"没有宪法"是事实，该显式缺席）。
+ */
+async function fetchArchitectureContext(
+  productId: string | null,
+  moduleScope: string[] | null | undefined,
+  milestoneId?: string | null
+): Promise<{ architecture_context: EffectiveArchitectureContext | null }> {
+  if (!productId) return { architecture_context: null };
+
+  let constitution: unknown = null;
+  if (milestoneId) {
+    const adrs = await api(`/api/adr-records?productId=${encodeURIComponent(productId)}`).catch(() => null);
+    const anchored = Array.isArray(adrs) && adrs.some((a) => a?.milestone_id === milestoneId);
+    if (anchored) {
+      constitution = await api(
+        `/api/adr-records/as-of-milestone?milestoneId=${encodeURIComponent(milestoneId)}`
+      ).catch(() => null);
+    }
+  }
+  if (!isObj(constitution)) {
+    constitution = await api(
+      `/api/adr-records/current?productId=${encodeURIComponent(productId)}`
+    ).catch(() => null);
+  }
+  if (!isObj(constitution)) return { architecture_context: null };
+
+  return { architecture_context: resolveEffectiveArchitectureContext(constitution, moduleScope) };
 }
 
 // ─── 命令实现 ─────────────────────────────────────────────────
@@ -351,7 +400,11 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const id = reqId(ctx.positional.slice(1), 'story info');
       const data = await api(`/api/stories/${id}`);
       const tasks = await api(`/api/dev-tasks?storyId=${encodeURIComponent(id)}`).catch(() => []);
-      const out = { ...data, tasks: Array.isArray(tasks) ? tasks : [] };
+      const architecture = await fetchArchitectureContext(
+        data.activity_id ? await productIdOfActivity(data.activity_id) : null,
+        data.affected_modules
+      );
+      const out = { ...data, tasks: Array.isArray(tasks) ? tasks : [], ...architecture };
       console.log(render(out, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
@@ -463,7 +516,26 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
     case 'info': {
       const id = reqId(ctx.positional.slice(1), 'task info');
       const data = await api(`/api/dev-tasks/${id}`);
-      console.log(render(data, ctx.format === 'table' ? 'json' : ctx.format));
+      // §4：scope 优先取任务自身 affected_modules，缺失时回落到所属故事（task 可只挂 module_id）
+      let scope = Array.isArray(data.affected_modules) && data.affected_modules.length
+        ? data.affected_modules
+        : null;
+      let milestoneId: string | null = null;
+      let productId: string | null = data.product_id ?? null;
+      if (data.story_id) {
+        const story = await api(`/api/stories/${encodeURIComponent(data.story_id)}`).catch(() => null);
+        if (isObj(story)) {
+          if (!scope && Array.isArray(story.affected_modules) && story.affected_modules.length) {
+            scope = story.affected_modules;
+          }
+          milestoneId = story.milestone_id ?? null;
+          if (!productId && story.activity_id) productId = await productIdOfActivity(story.activity_id);
+        }
+      }
+      if (!scope && data.module_id) scope = [data.module_id];
+      const architecture = await fetchArchitectureContext(productId, scope, milestoneId);
+      const out = { ...data, ...architecture };
+      console.log(render(out, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
     case 'create': {
@@ -493,7 +565,10 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       const assignee = opt(f, 'assignee'); if (assignee !== undefined) body.assignee = assignee;
       const status = opt(f, 'status');
       if (status !== undefined) {
-        const res = await api(`/api/dev-tasks/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
+        const statusBody: Record<string, unknown> = { status, reason: opt(f, 'reason') };
+        const expected = opt(f, 'expected-status');
+        if (expected !== undefined) statusBody.expected_status = expected;
+        const res = await api(`/api/dev-tasks/${id}/status`, 'POST', statusBody);
         if (Object.keys(body).length === 0) { console.log(render(res, ctx.format)); return; }
       }
       const data = await api(`/api/dev-tasks/${id}`, 'PATCH', body);
@@ -503,12 +578,25 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
     case 'status': {
       const id = reqId(ctx.positional.slice(1), 'task status <id> <status>');
       const status = ctx.positional[2];
-      if (!status) throw new Error('用法: xcart task status <id> <status> [--reason]');
+      if (!status) throw new Error('用法: xcart task status <id> <status> [--expected-status <s>] [--reason]');
       if (status === 'cancelled' && !opt(f, 'reason')) {
         throw new Error('取消（cancelled）必须提供 --reason（记录放弃依据）');
       }
-      const res = await api(`/api/dev-tasks/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
-      console.log(render(res, ctx.format));
+      const body: Record<string, unknown> = { status, reason: opt(f, 'reason') };
+      const expected = opt(f, 'expected-status');
+      if (expected !== undefined) body.expected_status = expected;
+      try {
+        const res = await api(`/api/dev-tasks/${id}/status`, 'POST', body);
+        console.log(render(res, ctx.format));
+      } catch (e) {
+        if (e instanceof Error && e.message.includes('409')) {
+          throw new Error(
+            `状态冲突（409）：任务已被并发修改，expected_status=${expected} 不匹配当前状态。` +
+            `请重新 task info ${id} 读取当前状态后再试；Agent 勿盲目重试（会掩盖并发认领）。`
+          );
+        }
+        throw e;
+      }
       break;
     }
     case 'delete': {
@@ -584,6 +672,41 @@ async function cmdMilestone(ctx: Ctx): Promise<void> {
         id: m.id, name: m.name, status: m.status, goal: m.goal ?? '', target_date: m.target_date ?? '',
       }));
       console.log(render(rows, ctx.format));
+      break;
+    }
+    case 'info': {
+      // 里程碑详情 + 锚定的 ADR + 该版本交付时刻的宪法摘要（§3.7/§5）。
+      // 权威方向是 ADR → milestone（adr_records.milestone_id）：milestone.adr_id 已作为死列删除
+      // （domain-model.md §6.5），故此处按「哪些 ADR 锚定在本版本」反查，不读里程碑上的字段。
+      const id = reqId(ctx.positional.slice(1), 'milestone info');
+      const productId = opt(f, 'product', 'project');
+      const milestones = await api(`/api/milestones?productId=${encodeURIComponent(productId ?? '')}`).catch(() => []);
+      const milestone = (Array.isArray(milestones) ? milestones : []).find((m) => m.id === id);
+      if (!milestone) {
+        console.log(`✗ 未找到版本 ${id}${productId ? `（产品 ${productId}）` : '（可用 --product 限定产品）'}`);
+        return;
+      }
+      const adrs = await api(`/api/adr-records?productId=${encodeURIComponent(milestone.product_id)}`).catch(() => []);
+      const anchored = (Array.isArray(adrs) ? adrs : []).filter((a) => a?.milestone_id === id);
+      let constitution: unknown = null;
+      if (anchored.length > 0) {
+        constitution = await api(
+          `/api/adr-records/as-of-milestone?milestoneId=${encodeURIComponent(id)}`
+        ).catch(() => null);
+      }
+      const out = {
+        ...milestone,
+        anchored_adrs: anchored.map((a) => ({ id: a.id, title: a.title, status: a.status, seq: a.seq })),
+        // 未锚定 ADR 时不展示宪法（明确的未关联状态，不是错误）——见 TASK-532
+        constitution_as_of: isObj(constitution)
+          ? {
+              tech_stack_count: (constitution.tech_stack ?? []).length,
+              principles_count: (constitution.architecture_principles ?? []).length,
+              modules_count: (constitution.modules ?? []).length,
+            }
+          : null,
+      };
+      console.log(render(out, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
     case 'create': {
@@ -941,9 +1064,65 @@ type TreeJourney = {
   id?: string; name?: string;
   stories?: Array<{ id?: string; title?: string; description?: string; status?: string;
     priority?: string; estimation?: number;
+    /** 故事所属版本（未排期为空/缺省） */
+    milestone_id?: string;
     /** 深树字段名是 dev_tasks（product.repository 的映射），非 tasks */
     dev_tasks?: Array<{ status?: string }> }>;
 };
+
+/** 单个版本的 planned vs done 统计（SAFe Program Predictability 口径，US-112） */
+export type MilestonePredictability = {
+  milestone_id: string;
+  planned_stories: number;
+  done_stories: number;
+  planned_estimation: number;
+  done_estimation: number;
+  /** done/planned 比值（0-1）；planned 为 0 时 null（不是 0——没有计划不等于达成 0） */
+  predictability: number | null;
+};
+
+/**
+ * 按版本聚合 planned vs done（故事数 + 估算工时）。
+ *
+ * 口径（US-112）：
+ * - planned = 挂在该版本下的故事（含 cancelled？**不含**——放弃的需求不应拉低可预测性，
+ *   它是范围的显式收缩，不是未达成。故 cancelled 从分子分母同时剔除）
+ * - done = 状态 accepted 的故事（故事侧收口语义，见 domain-saga §6.3）
+ * - estimation 缺失按 0 计（不猜）
+ * - 未排期故事（milestone_id 空）单独归入 `unassigned`，不混进任何版本的分母
+ */
+function aggregateByMilestone(activities: TreeJourney[]): {
+  byMilestone: Record<string, MilestonePredictability>;
+  unassigned: { planned_stories: number; done_stories: number; planned_estimation: number; done_estimation: number };
+} {
+  const byMilestone: Record<string, MilestonePredictability> = {};
+  const unassigned = { planned_stories: 0, done_stories: 0, planned_estimation: 0, done_estimation: 0 };
+
+  for (const activity of activities) {
+    for (const story of activity.stories ?? []) {
+      if ((story.status ?? 'backlog') === 'cancelled') continue;
+      const estimation = typeof story.estimation === 'number' ? story.estimation : 0;
+      const isDone = story.status === 'accepted';
+      const bucket = story.milestone_id
+        ? (byMilestone[story.milestone_id] ??= {
+            milestone_id: story.milestone_id,
+            planned_stories: 0, done_stories: 0, planned_estimation: 0, done_estimation: 0, predictability: null,
+          })
+        : unassigned;
+      bucket.planned_stories += 1;
+      bucket.planned_estimation += estimation;
+      if (isDone) {
+        bucket.done_stories += 1;
+        bucket.done_estimation += estimation;
+      }
+    }
+  }
+
+  for (const m of Object.values(byMilestone)) {
+    m.predictability = m.planned_stories > 0 ? Math.round((m.done_stories / m.planned_stories) * 100) / 100 : null;
+  }
+  return { byMilestone, unassigned };
+}
 
 /** 从项目树汇总统计（journeys/stories/tasks 计数与状态分布） */
 function summarizeTree(proj: Record<string, unknown>): {
@@ -952,6 +1131,8 @@ function summarizeTree(proj: Record<string, unknown>): {
   taskCount: number; doneTasks: number;
   taskStatus: Record<string, number>;
   storyStatus: Record<string, number>;
+  byMilestone: Record<string, MilestonePredictability>;
+  unassigned: { planned_stories: number; done_stories: number; planned_estimation: number; done_estimation: number };
 } {
   const activities: TreeJourney[] = (Array.isArray(proj.user_activities) ? proj.user_activities : []) as TreeJourney[];
   let storyCount = 0, doneStories = 0, taskCount = 0, doneTasks = 0;
@@ -972,7 +1153,8 @@ function summarizeTree(proj: Record<string, unknown>): {
       }
     }
   }
-  return { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus };
+  const { byMilestone, unassigned } = aggregateByMilestone(activities);
+  return { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus, byMilestone, unassigned };
 }
 
 async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
@@ -1030,13 +1212,16 @@ async function cmdOverview(ctx: Ctx): Promise<void> {
   const constObj = isObj(constitution) ? constitution : { tech_stack: [], architecture_principles: [], modules: [] };
   const principles = Array.isArray(constObj.architecture_principles) ? constObj.architecture_principles : [];
   const mustPrinciples = principles.filter((p: Record<string, unknown>) => p.strength === 'MUST').length;
-  const { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus } = summarizeTree(proj);
+  const { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus, byMilestone, unassigned } = summarizeTree(proj);
   if (ctx.format === 'json') {
     console.log(JSON.stringify({
       project_id: proj.id, name: proj.name,
       activities: activities.length, stories: storyCount, done_stories: doneStories,
       tasks: taskCount, done_tasks: doneTasks,
       task_status: taskStatus, story_status: storyStatus,
+      // 按版本的 planned vs done（US-112 PI 可预测性；cancelled 已剔除，未排期单列）
+      milestone_predictability: byMilestone,
+      unassigned_stories: unassigned,
       constitution: {
         tech_stack_count: Array.isArray(constObj.tech_stack) ? constObj.tech_stack.length : 0,
         principles_count: principles.length,
@@ -1046,8 +1231,11 @@ async function cmdOverview(ctx: Ctx): Promise<void> {
     }, null, 2));
     return;
   }
+  const predictabilityLines = Object.values(byMilestone)
+    .map((m) => `  - ${m.milestone_id}: ${m.done_stories}/${m.planned_stories} 故事（${m.done_estimation}/${m.planned_estimation}h）可预测性 ${m.predictability ?? '-'}`)
+    .join('\n');
   const md = `# ${proj.name} — 产品总览\n
-- 用户活动: ${activities.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 研发任务: ${taskCount}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n- 技术宪法: ${principles.length} 原则（MUST ${mustPrinciples}）/ ${Array.isArray(constObj.tech_stack) ? constObj.tech_stack.length : 0} 技术栈 / ${Array.isArray(constObj.modules) ? constObj.modules.length : 0} 模块\n`;
+- 用户活动: ${activities.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 研发任务: ${taskCount}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n- 技术宪法: ${principles.length} 原则（MUST ${mustPrinciples}）/ ${Array.isArray(constObj.tech_stack) ? constObj.tech_stack.length : 0} 技术栈 / ${Array.isArray(constObj.modules) ? constObj.modules.length : 0} 模块\n- 版本可预测性（done/planned，故事数）:\n${predictabilityLines || '  -（无已排期故事）'}\n`;
   console.log(md);
 }
 
@@ -1145,7 +1333,8 @@ function helpText(): string {
   xcart task info <id>
   xcart task create --story <id> --title <t> [--priority] [--estimation] [--deps a,b] [--tags a,b]
   xcart task update <id> [--title] [--status] [--assignee] [--priority] [--estimation]
-  xcart task status <id> <status> [--reason]
+  xcart task status <id> <status> [--expected-status <s>] [--reason]
+                                                # --expected-status 启用 CAS 乐观锁：与当前状态不符时返回 409（防并发认领冲突，Agent 收到 409 应重读状态而非重试）
   xcart task delete <id>
   xcart task next --project <id> [--assignee]   # 下一个可执行任务（拓扑规则）
   xcart task summary --project <id>             # 任务统计
@@ -1155,6 +1344,7 @@ function helpText(): string {
 
 版本 / 里程碑
   xcart milestone list --project <id>
+  xcart milestone info <id> [--product <pid>]      # 版本详情 + 锚定到本版本的 ADR + 交付时刻宪法摘要（未锚定则不展示）
   xcart milestone create --project <id> --name <n> [--goal] [--date] [--status]
   xcart milestone update <id> [--name] [--goal] [--date] [--status]
   xcart milestone delete <id>

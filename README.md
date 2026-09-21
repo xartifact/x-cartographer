@@ -9,8 +9,8 @@
 - **故事地图规划**：用户故事地图（Patton 语义：Product / 用户活动 → 用户任务 → 用户故事 + 研发任务），可视化画布（@xyflow/react），支持拖拽/筛选/版本切片
 - **任务拆解与排期**：故事拆解为研发任务，按里程碑（版本）排期，Roadmap 泳道视图
 - **研发任务管理**：状态流（backlog→todo→in_progress→in_review→testing→done）、乐观锁防并发冲突、依赖拓扑、`next` 可执行任务推荐、状态历史
-- **技术宪法（ADR 账本）**：架构原则（RFC 2119 强制力）/ 技术栈选型 / 模块目录，仅追加账本 + 按里程碑回溯历史架构
-- **面向 AI 集成**：REST API + API Token 认证、`xcart` CLI、**Agent Skills**、产品全景上下文导出（含技术宪法摘要）
+- **技术宪法（ADR 账本）**：把"怎么做"沉淀为可审计约束——架构原则（RFC 2119 强制力 MUST/SHOULD/MAY/MUST_NOT）、技术栈选型、系统模块目录。**仅追加账本**（除状态外不可变），当前态由 accepted 记录折叠而来，可按里程碑回溯历史架构；模块目录是独立一等实体（ADR 只引用、不定义）。关键设计：原则是**纯信息注入**，不拦截任何状态流转——它约束实现方式，不做审批门禁
+- **面向 AI 集成**：REST API + API Token 认证、`xcart` CLI、**Agent Skills**、产品全景上下文导出（含技术宪法全文）；`xcart ctx <taskId>` 给出动工前的上下文切片（意图/结构/规矩/依赖），`xcart story info` / `task info` 按模块范围过滤出相关架构原则
 
 ## 技术栈与架构
 
@@ -24,7 +24,7 @@
 | 测试 | bun:test（后端）+ vitest（前端单测）+ Playwright（e2e） |
 | 工具链 | oxlint / oxfmt |
 
-> 早期基于 Next.js + tRPC 的方案已迁移到 Vite + Hono，见 `docs/design/migration-to-vite-hono.md`；整体架构见 `docs/design/x-cartographer-architecture.md`。
+> 早期基于 Next.js + tRPC 的方案已迁移到 Vite + Hono，见 `docs/design/migration-to-vite-hono.md`；整体架构见 `docs/design/x-cartographer-architecture.md`；技术宪法（ADR）模型与消费契约见 `docs/design/technical-constitution.md`，域划分（约束/工作/证据三空间）见 `docs/design/domain-model.md`。
 
 ## Monorepo 结构
 
@@ -75,15 +75,21 @@ cd apps/cli && bun link
 # 直接可执行（脚本解析推荐加 --format json）
 xcart project list
 xcart project info --id <projectId>
-xcart journey list --project <projectId>
-xcart story list --journey <journeyId>
-xcart story create --journey <journeyId> --title "..." --priority high
+xcart activity list --project <productId>      # 用户活动（故事地图骨干；journey 为过时别名）
+xcart story list --activity <activityId>
+xcart story create --activity <activityId> --title "..." --priority high
 xcart task list --story <storyId>
 xcart task next --project <projectId>          # 下一个可执行任务
 xcart task status <taskId> in_progress --reason "开始"
+xcart task status <taskId> done --expected-status in_progress   # CAS 乐观锁：防并发认领冲突（不符返回 409）
 xcart milestone list --project <projectId>
-xcart overview --project <projectId>           # 项目总览
-xcart context export <projectId>               # 全景 Markdown（供 LLM）
+xcart module list --project <projectId>        # 系统模块目录（技术宪法的结构词汇）
+xcart adr current --project <projectId>        # 当前生效技术宪法（架构原则/技术栈/模块）
+xcart adr create --project <projectId> --title <t> --context <c> --decision <d> --file changes.json
+xcart overview --project <projectId>           # 项目总览（含技术宪法计数）
+xcart context export <projectId>               # 全景 Markdown（含技术宪法节，供 LLM）
+xcart ctx <taskId>                             # 任务上下文切片（意图/结构/规矩/依赖）
+xcart trace <story|module|adr> <id>            # 约束追溯链
 xcart skill install                            # 安装 Skills 到 .claude/skills
 xcart --help
 ```
@@ -107,8 +113,9 @@ xcart --help
 | Skill | 作用 |
 |---|---|
 | `skills/xcart-project-overview/SKILL.md` | 查询项目/版本/全景上下文，供 LLM 评审规划 |
-| `skills/xcart-story-breakdown/SKILL.md` | 旅程/故事维护、需求拆分为故事、版本排期 |
-| `skills/xcart-task-management/SKILL.md` | 任务生命周期、`task next` 可执行任务、统计与历史 |
+| `skills/xcart-story-breakdown/SKILL.md` | 活动/故事维护、需求拆分为故事、版本排期、影响模块标注 |
+| `skills/xcart-task-management/SKILL.md` | 任务生命周期、`task next` 可执行任务、CAS 并发认领、统计与历史 |
+| `skills/xcart-technical-constitution/SKILL.md` | 技术宪法：读取当前态/回溯演进历史、创建 ADR、维护模块目录 |
 
 一键安装到 Claude Code（`xcart` 面向 Claude Code 优化；`--dir` 可自定义安装目录）：
 

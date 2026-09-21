@@ -22,6 +22,7 @@ import { JourneysRoutePage } from './routes/products/$productId.journeys';
 import { StoriesRoutePage } from './routes/products/$productId.stories';
 import { UserTasksRoutePage } from './routes/products/$productId.user-tasks';
 import { SystemModulesRoutePage } from './routes/products/$productId.modules';
+import { ConstitutionRoutePage } from './routes/products/$productId.constitution';
 export interface RouterContext {
   queryClient: QueryClient;
 }
@@ -116,6 +117,12 @@ const projectModulesRoute = createRoute({
   component: SystemModulesRoutePage,
 });
 
+const projectConstitutionRoute = createRoute({
+  getParentRoute: () => projectLayoutRoute,
+  path: '/constitution',
+  component: ConstitutionRoutePage,
+});
+
 
 // ─── 路由树 ──────────────────────────────────────────────
 const routeTree = rootRoute.addChildren([
@@ -133,6 +140,7 @@ const routeTree = rootRoute.addChildren([
     projectStoriesRoute,
     projectUserTasksRoute,
     projectModulesRoute,
+    projectConstitutionRoute,
   ]),
 ]);
 
