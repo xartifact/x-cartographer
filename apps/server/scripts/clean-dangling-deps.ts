@@ -11,6 +11,11 @@
  * （账本 0 条），任何猜测性重连都是编造依赖关系。
  *
  * 幂等：重跑时已无悬空边 → 无操作。
+ *
+ * **本脚本是本地/直连库工具，不接受 `--server`**（直连 `ensureDb()`：`XPR_DB_DIR`
+ * 或 `cwd/data/pglite`）。此前传 `--server` 会被**静默忽略**，在空库上跑出
+ * 「悬空边 0 条 → 无需处理」——操作者据此误判生产干净。故此处对空库拒绝给结论。
+ * 要审计远端网关请用 `audit-dependency-graph.ts --server <url>`（只读）。
  */
 import { sql } from 'drizzle-orm';
 import { ensureDb } from '@x-cartographer/db';
@@ -43,6 +48,17 @@ async function main(): Promise<void> {
 
   console.log(DRY_RUN ? '=== DRY-RUN ===' : '=== 清理悬空依赖边 ===');
   console.log(`当前悬空边 ${before.length} 条，依赖边总数 ${beforeTotal}\n`);
+
+  // 空库直接判「无悬空边」是危险假阴性：XPR_DB_DIR 未设/指错时会新建空库并伪报
+  // 干净（实测：带 --server 跑生产清理，输出「0 条，无需处理」而生产有 11 条）。
+  const taskCount0 = Number((await rows(`SELECT COUNT(*)::int AS n FROM dev_tasks`))[0].n);
+  const dataDir = process.env.XPR_DB_DIR ?? `${process.cwd()}/data/pglite`;
+  if (taskCount0 === 0) {
+    console.error(`✗ 该库 0 条任务，无法判断——请确认 XPR_DB_DIR 指向真实数据目录。`);
+    console.error(`  当前解析：${dataDir}`);
+    console.error(`  远端网关请改用：bun scripts/audit-dependency-graph.ts --server <url>`);
+    process.exit(3);
+  }
 
   if (before.length === 0) {
     console.log('无悬空边，无需处理');
