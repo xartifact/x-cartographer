@@ -4,7 +4,7 @@
 export * from './db/schema';
 
 // Database client
-export { ensureDb, getDb, rowsOf } from './db/client';
+export { ensureDb, getDb, closeDb, rowsOf } from './db/client';
 export type { DbInstance } from './db/client';
 
 // Repositories

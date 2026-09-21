@@ -15,6 +15,14 @@ const log = createLogger('db');
 const g = globalThis as typeof globalThis & {
   __xpr_db?: DbInstance;
   __xpr_dbInitPromise?: Promise<void>;
+  /**
+   * 底层驱动的原始句柄（PGlite 实例 / postgres-js 客户端）。
+   * 仅用于 `closeDb()` 显式关闭——drizzle 包装层不暴露统一的关闭入口。
+   * 不存它的话，测试结束时 PGlite 的 worker/文件句柄无人释放，bun 测试运行器
+   * 会判定「通过但有未清理资源」并以退出码 99 结束（0 失败却非 0 退出），
+   * 使任何以退出码判定成败的 CI 步骤失败。
+   */
+  __xpr_raw?: { close?: () => Promise<void>; end?: () => Promise<void> };
 };
 
 const TABLE_SQLS = [
@@ -255,6 +263,8 @@ async function openPGlite(pgliteDir: string): Promise<DbInstance> {
     for (const sql of TABLE_SQLS) {
       await pglite.exec(sql);
     }
+    // 记下原始句柄供 closeDb() 释放（见 g.__xpr_raw 注释：不释放会让测试以 99 退出）
+    g.__xpr_raw = pglite as unknown as { close?: () => Promise<void> };
     return drizzlePglite(pglite, { schema });
   } catch (err) {
     log.error('db.pglite_open_failed', {
@@ -300,6 +310,7 @@ async function initializeDb(): Promise<void> {
     for (const stmt of TABLE_SQLS) {
       await sql.unsafe(stmt);
     }
+    g.__xpr_raw = sql as unknown as { end?: () => Promise<void> };
     g.__xpr_db = drizzlePostgres(sql, { schema }) as unknown as DbInstance;
     log.info('db.ready', { type: 'postgresql' });
   } else {
@@ -322,6 +333,34 @@ export async function ensureDb(): Promise<DbInstance> {
   }
   await g.__xpr_dbInitPromise;
   return g.__xpr_db!;
+}
+
+/**
+ * 关闭数据库连接并清空单例（**测试收尾用**）。
+ *
+ * 为什么必须有：`ensureDb()` 打开 PGlite（内嵌 Postgres，带 worker 与文件句柄）后，
+ * 若进程退出前无人释放，bun 测试运行器会判定「通过但有未清理资源」并以**退出码 99**
+ * 结束——0 失败却非 0 退出，使任何以退出码判定成败的 CI 步骤失败（实测 apps/server
+ * 的 api.test.ts：43 测试全过但 exit 99；加本函数后 exit 0）。
+ *
+ * 关闭方式封装在此处而非让调用方摸内部字段：PGlite 用 `close()`、postgres-js 用
+ * `end()`，两者名字不同且属实现细节。**不要**用 process.exit(0) 绕过——那会掩盖
+ * 真实的未清理异步错误，本函数的目的正是让它们能被暴露。
+ *
+ * 幂等：未初始化或重复调用均安全。
+ */
+export async function closeDb(): Promise<void> {
+  const raw = g.__xpr_raw;
+  g.__xpr_db = undefined;
+  g.__xpr_dbInitPromise = undefined;
+  g.__xpr_raw = undefined;
+  if (!raw) return;
+  try {
+    if (raw.close) await raw.close();
+    else if (raw.end) await raw.end();
+  } catch (err) {
+    log.warn('db.close_failed', { error: err instanceof Error ? err.message : String(err) });
+  }
 }
 
 export function getDb(): DbInstance {

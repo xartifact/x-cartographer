@@ -10,7 +10,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { sql } from 'drizzle-orm';
-import { ensureDb } from '@x-cartographer/db';
+import { ensureDb, closeDb } from '@x-cartographer/db';
 import { createApp } from '../app';
 
 // 强制走 PGlite（若环境里存在 DATABASE_URL，测试会误连 PostgreSQL）
@@ -103,7 +103,10 @@ beforeAll(async () => {
   await ensureDb();
 });
 
-afterAll(() => {
+afterAll(async () => {
+  // 必须显式关闭 PGlite：否则 worker/文件句柄无人释放，bun 测试运行器以退出码 99
+  // 结束（0 失败却非 0 退出），使以退出码判定成败的 CI 步骤失败。
+  await closeDb();
   process.chdir(originalCwd);
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });

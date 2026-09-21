@@ -1,8 +1,11 @@
 name: CI
 
 on:
+  # 与 docker-build.yml 对齐：本仓库日常开发在 feat/**（fix/** 亦常用），
+  # 只挂 main/develop 会让日常提交完全不经过质量门禁（实测：最近 8 次
+  # feat/core push 只有 Docker 流水线在跑，CI 一次都没触发）。
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'feat/**', 'fix/**']
   pull_request:
     branches: [main, develop]
 
@@ -41,8 +44,13 @@ jobs:
       - name: Typecheck CLI
         run: bunx tsc --noEmit -p apps/cli/tsconfig.json
 
-      - name: Run server API tests
-        run: bun test apps/server/src/__tests__/
+      - name: Lint
+        run: bun run lint
+
+      # 走根 test 脚本（server + CLI）：CLI 的 flag 接线测试是拦住「flag 宣传但未
+      # 解析」那类 bug 的唯一防线，单跑 server 目录会把它漏掉。
+      - name: Run server + CLI tests
+        run: bun run test
 
       - name: Run web unit tests
         run: bunx vitest run --config apps/web/vitest.config.ts
