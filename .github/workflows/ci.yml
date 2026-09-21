@@ -52,5 +52,7 @@ jobs:
       - name: Run server + CLI tests
         run: bun run test
 
+      # 走包内脚本：vitest 的 include 是相对配置文件的 src/**，从仓库根执行会
+      # 找不到测试文件（且误收 e2e 的 Playwright spec 与别处的 bun:test 文件）
       - name: Run web unit tests
-        run: bunx vitest run --config apps/web/vitest.config.ts
+        run: bun run --cwd apps/web test
