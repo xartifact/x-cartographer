@@ -65,7 +65,12 @@ export const productsRoutes = new Hono()
   // DELETE /api/products/:id
   .delete('/:id', async (c) => {
     const repository = getProductRepository();
-    return c.json(await repository.delete(c.req.param('id')));
+    // 与全站其余 DELETE 统一为 { success: true }：此前返回裸 true，是唯一例外——
+    // 调用方按统一约定读 res.success 时，只有 products 拿到 undefined。
+    // 保持幂等语义（不存在的 id 同样 200），与其余 6 条 DELETE 路由及 GET /:id
+    // 的「查不到返回 200 + null」一致；只有 products 报 404 会是新的不一致。
+    await repository.delete(c.req.param('id'));
+    return c.json({ success: true });
   })
   // PUT /api/products/full (事务写全树)
   // 注：zod v4.4.3 的 z.object+z.record 对此 payload 形状有非确定性误判（最小复现存档于重设计 PR 调查记录），改用结构防御检查

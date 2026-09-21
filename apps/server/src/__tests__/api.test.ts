@@ -200,10 +200,10 @@ describe('products CRUD', () => {
       (body.settings as { auto_save: boolean }).auto_save
     ).toBe(false);
 
-    // delete（返回 JSON true）
+    // delete（与全站其余 DELETE 统一：{ success: true }，此前是裸 true）
     res = await app.request(`/api/products/${id}`, { method: 'DELETE' });
     expect(res.status).toBe(200);
-    expect(await res.json()).toBe(true);
+    expect(await res.json()).toEqual({ success: true });
 
     res = await app.request(`/api/products/${id}`);
     expect(res.status).toBe(200);
@@ -220,7 +220,7 @@ describe('products CRUD', () => {
       method: 'DELETE',
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toBe(true);
+    expect(await res.json()).toEqual({ success: true });
 
     const activities = (await (
       await app.request(`/api/user-activities?productId=${projectId}`)
@@ -235,6 +235,45 @@ describe('products CRUD', () => {
     const taskRes = await app.request(`/api/dev-tasks/${taskId}`);
     expect(taskRes.status).toBe(200);
     expect(await taskRes.text()).toBe('');
+  });
+
+  /**
+   * DELETE 响应形状契约：全站统一 { success: true }。
+   * products 此前是唯一例外（裸 true）——调用方按统一约定读 res.success 时，
+   * 只有它拿到 undefined。断言「所有 DELETE 路由形状一致」而非逐个硬编码，
+   * 新增路由时这条测试会自然覆盖。
+   */
+  it('所有 DELETE 路由返回统一形状 { success: true }', async () => {
+    const projectId = await createProduct('DELETE 形状');
+    const activityId = await createActivity(projectId, 'A');
+    const storyId = await createStory(activityId, 'S');
+    const taskId = await createDevTask(storyId, 'T');
+    const ms = await jsonRequest('POST', '/api/milestones', {
+      product_id: projectId, name: 'v',
+    });
+    const msId = ((await ms.json()) as { id: string }).id;
+    const ut = await jsonRequest('POST', '/api/user-tasks', { activityId, name: 'UT' });
+    const utId = ((await ut.json()) as { id: string }).id;
+    const mod = await jsonRequest('PUT', '/api/system-modules/del-mod', {
+      id: 'del-mod', product_id: projectId, name: 'M', depends_on: [],
+    });
+    expect(mod.status).toBe(200);
+
+    const targets = [
+      `/api/dev-tasks/${taskId}`,
+      `/api/user-tasks/${utId}`,
+      `/api/stories/${storyId}`,
+      `/api/milestones/${msId}`,
+      `/api/user-activities/${activityId}`,
+      `/api/system-modules/del-mod?productId=${projectId}`,
+      `/api/products/${projectId}`,
+    ];
+    for (const path of targets) {
+      const res = await app.request(path, { method: 'DELETE' });
+      expect(res.status).toBe(200);
+      // 形状必须与其余路由一致：不是裸 true / null / 空 body
+      expect(await res.json()).toEqual({ success: true });
+    }
   });
 });
 

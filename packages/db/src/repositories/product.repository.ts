@@ -251,10 +251,11 @@ export class ProductRepository {
     await db.update(products).set(updateData).where(eq(products.id, id));
   }
 
-  async delete(id: string): Promise<boolean> {
+  // 返回 void，与其余 6 个仓库的 delete() 一致：唯一调用方（DELETE 路由）不读
+  // 返回值，布尔结果零读者——留着会让读代码的人以为删除成败有分支处理。
+  async delete(id: string): Promise<void> {
     const db = await ensureDb();
-    const result = await db.delete(products).where(eq(products.id, id));
-    return (result.affectedRows ?? 1) > 0;
+    await db.delete(products).where(eq(products.id, id));
   }
 
   async search(query: string): Promise<Product[]> {
