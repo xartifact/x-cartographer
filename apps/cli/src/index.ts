@@ -1392,16 +1392,32 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       if (!existsSync(skillsDir)) throw new Error(`skills 目录不存在: ${skillsDir}`);
       const dirs = readdirSync(skillsDir).filter((d) => !d.startsWith('.'));
       const installed: string[] = [];
+      // 陈旧检测：目标里已有同名 skill 且内容与源不同 → 该副本过期，本次是"更新"。
+      // 用户级目录（~/.claude/skills 等）不在仓库管辖内，会静默陈旧数月
+      // （实测 8-23 的副本仍含已废除的 --type、且缺第 4 份 skill）——回执必须说出来。
+      const updated: string[] = [];
       for (const t of targets) {
         for (const d of dirs) {
           const dest = `${t}/${d}`;
+          const destFile = `${dest}/SKILL.md`;
+          if (existsSync(destFile)) {
+            const same = readFileSync(destFile, 'utf-8') === readFileSync(`${skillsDir}/${d}/SKILL.md`, 'utf-8');
+            if (!same) updated.push(`${d}（${t}）`);
+          }
           mkdirSync(dest, { recursive: true });
           cpSync(`${skillsDir}/${d}`, dest, { recursive: true });
         }
         installed.push(t);
       }
       // 回执给绝对路径：调用方才能确认装到了哪里（此前只回显输入原样）
-      console.log(render({ installed_to: installed, skills: dirs }, ctx.format));
+      console.log(render({
+        installed_to: installed,
+        skills: dirs,
+        ...(updated.length ? { updated_stale: updated } : {}),
+      }, ctx.format));
+      if (updated.length && ctx.format !== 'json') {
+        console.log(`\n注意：${updated.length} 份副本此前陈旧，已更新为当前源。`);
+      }
       break;
     }
   }
