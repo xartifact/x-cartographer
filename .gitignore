@@ -32,8 +32,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# bun
-bun.lock
+# bun：bun.lock **必须入库**——CI 与 Dockerfile 都用 `bun install --frozen-lockfile`，
+# 该模式要求存在且最新的锁文件；忽略它会让 CI 直接失败（实测 run 35615634754：
+# "lockfile had changes, but lockfile is frozen"）。同时它是 ci.yml 缓存 key 的输入
+# （hashFiles('bun.lock')），不入库则缓存永不命中。
 
 # PGlite local data
 data/pglite/
