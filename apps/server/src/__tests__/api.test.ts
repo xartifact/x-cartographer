@@ -1943,5 +1943,50 @@ describe('字段落库审计：写入的每个字段都必须读得回来', () =
     expect(adrRead.alternatives_considered).toBe('ALT');
     expect(adrRead.milestone_id).toBe(msId);
     expect(adrRead.module_ids).toEqual(['audit-mod']);
+
+    // ── 其余实体的 PATCH 路径（同属静默丢弃高发区）──
+    await jsonRequest('PATCH', `/api/milestones/${msId}`, {
+      name: '审计版本改', goal: 'GOAL2', target_date: '2027-06-30', status: 'completed',
+    });
+    const msPatched = (await (await app.request(`/api/milestones?productId=${pid}`)).json() as Array<Record<string, unknown>>)
+      .find((m) => m.id === msId)!;
+    expect(msPatched.name).toBe('审计版本改');
+    expect(msPatched.goal).toBe('GOAL2');
+    expect(msPatched.status).toBe('completed');
+    // 日期以 ISO 时间戳存回（2027-06-30T00:00:00.000Z），比对到日即可
+    expect(String(msPatched.target_date).slice(0, 10)).toBe('2027-06-30');
+    await jsonRequest('PATCH', `/api/user-activities/${activityId}`, {
+      name: '审计活动改', description: 'AD2', order: 12,
+    });
+    const actPatched = (await (await app.request(`/api/user-activities?productId=${pid}`)).json() as Array<Record<string, unknown>>)
+      .find((a) => a.id === activityId)!;
+    expect(actPatched.name).toBe('审计活动改');
+    expect(actPatched.description).toBe('AD2');
+    expect(actPatched.order).toBe(12);
+
+    await jsonRequest('PATCH', `/api/user-tasks/${utId}`, {
+      name: '审计步骤改', description: 'SD2', order: 8,
+    });
+    const utPatched = (await (await app.request(`/api/user-tasks?activityId=${activityId}`)).json() as Array<Record<string, unknown>>)
+      .find((u) => u.id === utId)!;
+    expect(utPatched.name).toBe('审计步骤改');
+    expect(utPatched.description).toBe('SD2');
+    expect(utPatched.order).toBe(8);
+
+    await jsonRequest('PUT', '/api/system-modules/audit-mod', {
+      id: 'audit-mod', product_id: pid, name: '审计模块改', path: 'apps/audit2',
+      responsibility: 'R2', depends_on: [],
+    });
+    const modPatched = (await (await app.request(`/api/system-modules/audit-mod?productId=${pid}`)).json()) as Record<string, unknown>;
+    expect(modPatched.name).toBe('审计模块改');
+    expect(modPatched.path).toBe('apps/audit2');
+    expect(modPatched.responsibility).toBe('R2');
+
+    await jsonRequest('PATCH', `/api/products/${pid}`, {
+      name: '落库审计产品改', description: 'PD2',
+    });
+    const prodPatched = (await (await app.request(`/api/products/${pid}`)).json()) as Record<string, unknown>;
+    expect(prodPatched.name).toBe('落库审计产品改');
+    expect(prodPatched.description).toBe('PD2');
   });
 });
