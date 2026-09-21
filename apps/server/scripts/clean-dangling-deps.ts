@@ -18,15 +18,17 @@
  * 要审计远端网关请用 `audit-dependency-graph.ts --server <url>`（只读）。
  */
 import { sql } from 'drizzle-orm';
-import { ensureDb } from '@x-cartographer/db';
+import { ensureDb, rowsOf } from '@x-cartographer/db';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const db = await ensureDb();
 
-const rows = async (q: string): Promise<Array<Record<string, unknown>>> => {
-  const r: unknown = await db.execute(sql.raw(q));
-  return (r as { rows: Array<Record<string, unknown>> }).rows;
-};
+// 必须用共享的 rowsOf()：PGlite 的 execute() 返回 { rows: [...] }，postgres-js
+// （生产 DATABASE_URL）返回**裸数组**。此前本地 cast `(r as {rows}).rows` 只在
+// PGlite 下成立，在生产上 .rows 为 undefined → 实测对本脚本在生产容器内 dry-run
+// 直接 TypeError（「生产专用工具在生产上不可用」）。
+const rows = async (q: string): Promise<Array<Record<string, unknown>>> =>
+  rowsOf(await db.execute(sql.raw(q)));
 
 /** 悬空边明细：任务 → 其依赖数组中不存在的 ID */
 async function findDangling(): Promise<Array<{ task_id: string; dangling: string; title: string }>> {

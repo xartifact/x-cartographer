@@ -12,7 +12,7 @@
  *
  * 用法：bun run packages/db/scripts/migrate-story-map.ts [--db-dir <pglite 目录>]
  */
-import { ensureDb } from '../src/db/client';
+import { ensureDb, rowsOf } from '../src/db/client';
 import { sql, type SQL } from 'drizzle-orm';
 
 const args = process.argv.slice(2);
@@ -36,8 +36,11 @@ const ACTIVITIES = [
 
 // ── 连接（复用 client.ts 的健壮打开逻辑）─────────────────────────
 let db: Awaited<ReturnType<typeof ensureDb>>;
+// 必须走 rowsOf()：PGlite 的 execute() 返回 { rows: [...] }，postgres-js（生产
+// DATABASE_URL）返回**裸数组**。本地 cast 只在 PGlite 下成立，生产上 .rows 为
+// undefined（同类事故已在 client.ts:288 注释里记载过一次）。
 const q = async <T>(query: SQL): Promise<T[]> =>
-  ((await db.execute(query)) as unknown as { rows: T[] }).rows;
+  rowsOf(await db.execute(query)) as T[];
 
 async function main() {
   db = await ensureDb();
