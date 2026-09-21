@@ -396,6 +396,42 @@ describe('stories CRUD + status flow', () => {
     // 的 beforeEach 清库，但同一 it 内创建 product/activity/story 也会各记一条）
     expect(all.length).toBeGreaterThanOrEqual(2);
   });
+
+  /**
+   * story create 此前不接受 userTaskId / milestoneId（schema 未声明，zod 静默剥离）：
+   * 正向推演要求「先声明步骤，再往下放故事」（domain-model §8 Q3），Agent 在 create
+   * 时顺带挂步骤/版本的写法会静默失效，只能再补一次 PATCH——多一次往返且容易漏，
+   * 漏了就表现为「故事没排期 / 没归步骤」。
+   */
+  it('story create 接受 userTaskId 与 milestoneId（曾静默剥离）', async () => {
+    const projectId = await createProduct('create 字段产品');
+    const activityId = await createActivity(projectId, 'create 字段活动');
+    await jsonRequest('POST', '/api/user-tasks', { activityId, name: '步骤' });
+    const steps = (await (
+      await app.request(`/api/user-tasks?activityId=${activityId}`)
+    ).json()) as Array<{ id: string }>;
+    const ms = await jsonRequest('POST', '/api/milestones', {
+      product_id: projectId, name: 'v-create',
+    });
+    const { id: msId } = (await ms.json()) as { id: string };
+
+    const res = await jsonRequest('POST', '/api/stories', {
+      activityId,
+      title: '一次成型',
+      priority: 'medium',
+      userTaskId: steps[0]!.id,
+      milestoneId: msId,
+    });
+    expect(res.status).toBe(201);
+    const { id: storyId } = (await res.json()) as { id: string };
+
+    const story = (await (await app.request(`/api/stories/${storyId}`)).json()) as {
+      user_task_id: string | null;
+      milestone_id: string | null;
+    };
+    expect(story.user_task_id).toBe(steps[0]!.id);
+    expect(story.milestone_id).toBe(msId);
+  });
 });
 
 describe('dev-tasks CRUD + topological next', () => {
@@ -799,6 +835,46 @@ describe('dev-tasks CRUD + topological next', () => {
     expect(t.completed_at).toBeTruthy();
     // 没有证据表明"开始过"——不猜（避免把未开始的任务记成已开始）
     expect(t.started_at).toBeUndefined();
+  });
+
+  /**
+   * 字段落库回归：本项目反复出现「API 接受字段但静默丢弃」——命令返回 200
+   * success，调用方以为改了，实际没写。历史实例：CLI --activity / --affected-modules
+   * / --assignee / --module，server 端 dev-tasks PATCH 的 affectedModules。
+   *
+   * 静态分析对本类缺陷误报/漏报都多（route 映射了但 repo 没写、schema 没声明但
+   * update 支持），只能靠**行为验证**：写可辨识值再读回比对。
+   */
+  it('PATCH 的每个字段都真的落库（曾：priority 在仓库层被静默丢弃）', async () => {
+    const projectId = await createProduct('字段落库产品');
+    const activityId = await createActivity(projectId, '字段落库活动');
+    const storyId = await createStory(activityId, '字段落库故事');
+    const taskId = await createDevTask(storyId, '字段落库任务');
+
+    const read = async (): Promise<Record<string, unknown>> =>
+      (await (await app.request(`/api/dev-tasks/${taskId}`)).json()) as Record<string, unknown>;
+
+    const before = await read();
+    expect(before.priority).toBe('P2'); // createDevTask 默认
+
+    // priority：route 有映射但 repository.update() 漏了该分支 → 此前静默不变
+    let res = await jsonRequest('PATCH', `/api/dev-tasks/${taskId}`, { priority: 'P0' });
+    expect(res.status).toBe(200);
+    expect((await read()).priority).toBe('P0');
+
+    // 其余字段一并钉死（同一批 if 链，改动时不易漏）
+    res = await jsonRequest('PATCH', `/api/dev-tasks/${taskId}`, {
+      title: '改名', description: '新描述', estimation: 13, tags: ['x'], assignee: 'bob',
+      affectedModules: ['mod-x'],
+    });
+    expect(res.status).toBe(200);
+    const after = await read();
+    expect(after.title).toBe('改名');
+    expect(after.description).toBe('新描述');
+    expect(after.estimation).toBe(13);
+    expect(after.tags).toEqual(['x']);
+    expect(after.assignee).toBe('bob');
+    expect(after.affected_modules).toEqual(['mod-x']);
   });
 });
 
@@ -1746,5 +1822,126 @@ describe('validation failures return 400', () => {
 
     // 合法依赖不误伤：新模块依赖既有模块（不闭合环）应通过
     expect((await put('mz', ['mx'])).status).toBe(200);
+  });
+});
+
+/**
+ * 全字段落库审计：本项目最高频的缺陷类型是「API 接受字段但静默丢弃」——命令返回
+ * 200/201 success，调用方以为写入生效，实际未落库。已发生实例（7 次）：
+ *   CLI --activity / --affected-modules / --assignee / --module / --module-id、
+ *   server dev-tasks PATCH affectedModules（camelCase/snake_case 不匹配）、
+ *   server dev-tasks PATCH priority（route 映射了但 repo 未写）、
+ *   story create 缺 userTaskId/milestoneId（schema 未声明，zod 静默剥离）。
+ *
+ * 为什么不能用静态分析替代：route 映射了但 repo 没写、schema 没声明但 update 支持，
+ * 两种形态静态扫描都判不准（本项目实测误报率高）。故此处做**行为验证**：写可辨识
+ * 值 → 读回比对。覆盖 7 类实体 × create/patch 两条写入路径。
+ */
+describe('字段落库审计：写入的每个字段都必须读得回来', () => {
+  it('story / dev-task / milestone / module / activity / user-task / adr 全字段', async () => {
+    const pid = await createProduct('落库审计产品');
+    const act = await jsonRequest('POST', '/api/user-activities', {
+      productId: pid, name: '审计活动', description: 'AD', order: 7,
+    });
+    const activityId = ((await act.json()) as { id: string }).id;
+    const ut = await jsonRequest('POST', '/api/user-tasks', {
+      activityId, name: '审计步骤', description: 'SD', order: 3,
+    });
+    const utId = (await ut.json() as { id: string }).id;
+    const ms = await jsonRequest('POST', '/api/milestones', {
+      product_id: pid, name: '审计版本', goal: 'GOAL', target_date: '2026-12-31', status: 'active',
+    });
+    const msId = (await ms.json() as { id: string }).id;
+    await jsonRequest('PUT', '/api/system-modules/audit-mod', {
+      id: 'audit-mod', product_id: pid, name: '审计模块', path: 'apps/audit', responsibility: 'R',
+    });
+
+    // ── story create：含归属字段（一次成型）──
+    const sc = await jsonRequest('POST', '/api/stories', {
+      activityId, title: 'S1', description: 'SD', priority: 'high', estimation: 5,
+      acceptanceCriteria: ['AC1', 'AC2'], tags: ['t1'], affectedModules: ['audit-mod'],
+      userTaskId: utId, milestoneId: msId,
+    });
+    expect(sc.status).toBe(201);
+    const storyId = (await sc.json() as { id: string }).id;
+    const s1 = (await (await app.request(`/api/stories/${storyId}`)).json()) as Record<string, unknown>;
+    expect(s1.title).toBe('S1');
+    expect(s1.priority).toBe('high');
+    expect(s1.estimation).toBe(5);
+    expect(s1.acceptance_criteria).toEqual(['AC1', 'AC2']);
+    expect(s1.tags).toEqual(['t1']);
+    expect(s1.affected_modules).toEqual(['audit-mod']);
+    expect(s1.user_task_id).toBe(utId);
+    expect(s1.milestone_id).toBe(msId);
+
+    // ── story patch：改挂另一个版本 ──
+    const ms2 = await jsonRequest('POST', '/api/milestones', { product_id: pid, name: '审计版本2' });
+    const ms2Id = (await ms2.json() as { id: string }).id;
+    await jsonRequest('PATCH', `/api/stories/${storyId}`, {
+      title: 'S2', description: 'SD2', priority: 'low', estimation: 9,
+      acceptanceCriteria: ['AC9'], tags: ['t9'], affectedModules: ['audit-mod'],
+      milestoneId: ms2Id, order: 11,
+    });
+    const s2 = (await (await app.request(`/api/stories/${storyId}`)).json()) as Record<string, unknown>;
+    expect(s2.title).toBe('S2');
+    expect(s2.priority).toBe('low');
+    expect(s2.estimation).toBe(9);
+    expect(s2.acceptance_criteria).toEqual(['AC9']);
+    expect(s2.tags).toEqual(['t9']);
+    expect(s2.milestone_id).toBe(ms2Id);
+
+    // ── dev-task create / patch（priority 曾静默丢弃）──
+    const tc = await jsonRequest('POST', '/api/dev-tasks', {
+      storyId, title: 'K1', description: 'KD', priority: 'P1', estimation: 7, tags: ['kt'],
+    });
+    const taskId = (await tc.json() as { id: string }).id;
+    const t1 = (await (await app.request(`/api/dev-tasks/${taskId}`)).json()) as Record<string, unknown>;
+    expect(t1.title).toBe('K1');
+    expect(t1.priority).toBe('P1');
+    expect(t1.estimation).toBe(7);
+    expect(t1.tags).toEqual(['kt']);
+    expect(t1.story_id).toBe(storyId);
+
+    await jsonRequest('PATCH', `/api/dev-tasks/${taskId}`, {
+      title: 'K2', description: 'KD2', priority: 'P0', estimation: 2,
+      tags: ['kt2'], affectedModules: ['audit-mod'], assignee: 'alice',
+    });
+    const t2 = (await (await app.request(`/api/dev-tasks/${taskId}`)).json()) as Record<string, unknown>;
+    expect(t2.title).toBe('K2');
+    expect(t2.priority).toBe('P0');
+    expect(t2.estimation).toBe(2);
+    expect(t2.tags).toEqual(['kt2']);
+    expect(t2.affected_modules).toEqual(['audit-mod']);
+    expect(t2.assignee).toBe('alice');
+
+    // ── milestone / module / activity / user-task ──
+    const msRead = (await (await app.request(`/api/milestones?productId=${pid}`)).json() as Array<Record<string, unknown>>)
+      .find((m) => m.id === msId)!;
+    expect(msRead.goal).toBe('GOAL');
+    expect(msRead.status).toBe('active');
+    expect(msRead.target_date).toBeTruthy();
+
+    const modRead = (await (await app.request(`/api/system-modules/audit-mod?productId=${pid}`)).json()) as Record<string, unknown>;
+    expect(modRead.path).toBe('apps/audit');
+    expect(modRead.responsibility).toBe('R');
+
+    const actRead = (await (await app.request(`/api/user-activities?productId=${pid}`)).json() as Array<Record<string, unknown>>)
+      .find((a) => a.id === activityId)!;
+    expect(actRead.description).toBe('AD');
+    expect(actRead.order).toBe(7);
+
+    const adr = await jsonRequest('POST', '/api/adr-records', {
+      product_id: pid, title: '审计ADR', context: 'C', decision: 'D',
+      consequences: 'CONS', alternatives_considered: 'ALT', milestone_id: msId, module_ids: ['audit-mod'],
+    });
+    const adrId = (await adr.json() as { id: string }).id;
+    const adrRead = (await (await app.request(`/api/adr-records/${adrId}`)).json()) as Record<string, unknown>;
+    expect(adrRead.title).toBe('审计ADR');
+    expect(adrRead.context).toBe('C');
+    expect(adrRead.decision).toBe('D');
+    expect(adrRead.consequences).toBe('CONS');
+    expect(adrRead.alternatives_considered).toBe('ALT');
+    expect(adrRead.milestone_id).toBe(msId);
+    expect(adrRead.module_ids).toEqual(['audit-mod']);
   });
 });

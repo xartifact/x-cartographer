@@ -33,6 +33,10 @@ export class StoryRepository {
       acceptanceCriteria: dto.acceptance_criteria,
       tags: dto.tags,
       affectedModules: dto.affected_modules ?? [],
+      // create 时可一并挂步骤/版本（此前只能靠后续 PATCH：正向推演要求
+      // 「先声明步骤，再往下放故事」，Agent 一次写入即可完成挂载）
+      userTaskId: dto.user_task_id ?? null,
+      milestoneId: dto.milestone_id ?? null,
       provenance: dto.provenance ?? 'agent_inferred',
       status: 'backlog',
       order: 0,

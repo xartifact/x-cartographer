@@ -422,6 +422,10 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       // update 分支解析它——等于把该纪律挂在一个不存在的开关上
       const affected = splitList(opt(f, 'affected-modules', 'modules')); if (affected) body.affectedModules = affected;
       const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
+      // create 即可挂步骤/版本（正向推演：先声明步骤再放故事）。服务端 createStorySchema
+      // 已支持，此前 CLI 未暴露 → Agent 只能 create 后再 PATCH，多一次往返且容易漏。
+      const ut = opt(f, 'user-task'); if (ut !== undefined) body.userTaskId = ut === 'none' ? null : ut;
+      const ms = opt(f, 'milestone'); if (ms !== undefined) body.milestoneId = ms === 'none' ? null : ms;
       const data = await api('/api/stories', 'POST', body);
       console.log(render(data, ctx.format));
       break;
@@ -1463,7 +1467,7 @@ function helpText(): string {
   xcart story list --activity <id>
   xcart story update <id> [--title] [--priority] [--status] [--activity <id>] [--user-task <id>|none] [--milestone <id>|none] [--estimation]
   xcart story move <id> <activityId>            # 跨活动移动故事（= update --activity）
-  xcart story create --activity <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b] [--affected-modules m1,m2]
+  xcart story create --activity <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b] [--affected-modules m1,m2] [--user-task <id>] [--milestone <id>]
   xcart story status <id> <status> [--reason]
   xcart story delete <id>
   xcart story bulk-create --activity <id> --file stories.json

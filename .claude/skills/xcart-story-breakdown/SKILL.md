@@ -26,7 +26,7 @@ xcart user-task delete <userTaskId>
 # 故事
 xcart story list --activity <activityId>              # 注意：--activity（活动），非 --journey
 xcart story info <storyId>                            # 含拆解出的任务
-xcart story create --activity <id> --title <t> [--priority high|medium|low] [--estimation <h>] [--ac "c1;c2"] [--tags a,b] [--affected-modules m1,m2]
+xcart story create --activity <id> --title <t> [--priority high|medium|low] [--estimation <h>] [--ac "c1;c2"] [--tags a,b] [--affected-modules m1,m2] [--user-task <uid>] [--milestone <mid>]
 xcart story update <id> [--title] [--priority] [--estimation] [--status] [--user-task <uid>|none] [--milestone <mid>|none] [--ac "a;b"] [--affected-modules m1,m2]
 xcart story status <storyId> <status> [--reason]      # backlog|todo|in_progress|accepted|cancelled（注意：故事无 done，验收通过是 accepted）
 xcart story delete <storyId>

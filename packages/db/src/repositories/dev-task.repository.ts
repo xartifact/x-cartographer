@@ -85,6 +85,9 @@ export class DevTaskRepository {
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.description !== undefined) updateData.description = dto.description;
+    // priority 曾漏在这一链里：route 映射了 dto.priority，但仓库层无对应分支，
+    // 于是 PATCH {"priority":"P0"} 返回 200 success 而库里值不变（静默丢弃）。
+    if (dto.priority !== undefined) updateData.priority = dto.priority;
     if (dto.estimation !== undefined) updateData.estimation = dto.estimation;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.dependencies !== undefined) updateData.dependencies = dto.dependencies;

@@ -104,6 +104,10 @@ export interface CreateUserStoryDTO {
   acceptance_criteria: string[];
   tags: string[];
   affected_modules?: string[];
+  /** create 时即可挂步骤（正向推演：先声明步骤再放故事，domain-model §8 Q3） */
+  user_task_id?: string | null;
+  /** create 时即可排期（挂在版本切片线下） */
+  milestone_id?: string | null;
   provenance?: Provenance;
 }
 

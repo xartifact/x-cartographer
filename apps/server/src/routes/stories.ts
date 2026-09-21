@@ -21,6 +21,11 @@ const createStorySchema = z.object({
   acceptanceCriteria: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
   affectedModules: z.array(z.string()).default([]),
+  // create 也接受这两个归属：正向推演要求「先声明步骤，再往下放故事」
+  // （domain-model §8 Q3），Agent 在 create 时顺带挂步骤/版本；此前 schema 未声明
+  // 它们，zod 静默剥离 → 201 但两字段为 null（只能再补一次 PATCH，容易漏）
+  userTaskId: z.string().nullable().optional(),
+  milestoneId: z.string().nullable().optional(),
   provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).default('agent_inferred'),
 });
 
@@ -110,6 +115,13 @@ export const storiesRoutes = new Hono()
   // POST /api/stories
   .post('/', zValidator('json', createStorySchema), async (c) => {
     const input = c.req.valid('json');
+    // 跨域引用校验（§5 + 产品作用域）：create 也能挂步骤/版本，同样须同活动/同产品
+    const violation = await validateStoryRefs(null, {
+      activityId: input.activityId,
+      milestoneId: input.milestoneId,
+      userTaskId: input.userTaskId,
+    });
+    if (violation) return c.json(violation, 400);
     // 短 ID（US-001 形态）：故事地图窄列里可完整显示，且便于人工引用
     const id = await generateShortId('story');
     await storyRepo.create(id, {
@@ -121,6 +133,8 @@ export const storiesRoutes = new Hono()
       acceptance_criteria: input.acceptanceCriteria,
       tags: input.tags,
       affected_modules: input.affectedModules,
+      user_task_id: input.userTaskId,
+      milestone_id: input.milestoneId,
       provenance: input.provenance,
     });
     // 约束写入协议（§4.1 方案 B）：创建 UserStory 是高影响写入，直接生效 + 账本留痕

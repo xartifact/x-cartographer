@@ -92,4 +92,20 @@ describe('CLI flag 接线：宣传的 flag 必须真的进请求体', () => {
     expect(reqs[0]!.body?.acceptanceCriteria).toEqual(['c1', 'c2']);
     expect(reqs[0]!.body?.tags).toEqual(['x', 'y']);
   });
+
+  it('story create --user-task / --milestone 送 userTaskId / milestoneId（create 即可挂载）', async () => {
+    const reqs = await runCli([
+      'story', 'create', '--activity', 'A1', '--title', 'T',
+      '--user-task', 'UT-1', '--milestone', 'MS-1',
+    ]);
+    expect(reqs[0]!.method).toBe('POST');
+    expect(reqs[0]!.body?.userTaskId).toBe('UT-1');
+    expect(reqs[0]!.body?.milestoneId).toBe('MS-1');
+  });
+
+  it('task update --priority 送 priority（曾仅存在于 help，未进请求体）', async () => {
+    const reqs = await runCli(['task', 'update', 'T1', '--priority', 'P0']);
+    expect(reqs[0]!.method).toBe('PATCH');
+    expect(reqs[0]!.body).toEqual({ priority: 'P0' });
+  });
 });
