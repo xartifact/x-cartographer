@@ -82,3 +82,38 @@ describe('buildModuleMatrix（relationship-visualization.md §4）', () => {
     expect(m.unlabeledCount).toBe(1);
   });
 });
+
+describe('模块范围回落链（必须与 CLI task info 的 §4 解析一致）', () => {
+  it('任务无 affected_modules 时回落到自身 module_id（否则矩阵看不见，task info 却给出原则）', () => {
+    const m = buildModuleMatrix(MODULES, [], [{ id: 'T-1', title: '任务', module_id: 'cli' }]);
+    expect(m.rows).toEqual([{ id: 'T-1', title: '任务', kind: 'task', modules: ['cli'] }]);
+    expect(m.unlabeledCount).toBe(0);
+  });
+
+  it('任务无标注也无 module_id 时继承所属故事的 affected_modules', () => {
+    const m = buildModuleMatrix(MODULES, [], [
+      { id: 'T-1', title: '任务', story_affected_modules: ['gateway'] },
+    ]);
+    expect(m.rows[0].modules).toEqual(['gateway']);
+  });
+
+  it('优先级：自身 affected_modules > 故事标注 > module_id', () => {
+    const m = buildModuleMatrix(MODULES, [], [
+      {
+        id: 'T-1', title: '任务',
+        affected_modules: ['web-spa'],
+        story_affected_modules: ['gateway'],
+        module_id: 'cli',
+      },
+      { id: 'T-2', title: '任务2', affected_modules: [], story_affected_modules: ['gateway'], module_id: 'cli' },
+      { id: 'T-3', title: '任务3', affected_modules: [], story_affected_modules: [], module_id: 'cli' },
+    ]);
+    expect(m.rows.map((r) => r.modules)).toEqual([['web-spa'], ['gateway'], ['cli']]);
+  });
+
+  it('三者皆无才算未标注（计入缺口提示）', () => {
+    const m = buildModuleMatrix(MODULES, [], [{ id: 'T-1', title: '任务' }]);
+    expect(m.rows).toEqual([]);
+    expect(m.unlabeledCount).toBe(1);
+  });
+});

@@ -18,7 +18,7 @@ import { AlertTriangle, Filter } from 'lucide-react';
 import { Badge, Card, CardContent, CardHeader, CardTitle, Button } from '@x-cartographer/ui';
 import { cn } from '@/lib/utils';
 import type { Product, SystemModule } from '@x-cartographer/shared';
-import { buildModuleMatrix, rowHasModule, type MatrixRow } from '../lib/build-module-matrix';
+import { buildModuleMatrix, rowHasModule, type MatrixRow, type MatrixSource } from '../lib/build-module-matrix';
 
 export interface ModuleMatrixProps {
   /** 当前产品（含活动→故事→研发任务深树，矩阵数据源） */
@@ -35,13 +35,20 @@ export function ModuleMatrix({ project, modules, className }: ModuleMatrixProps)
 
   /** 从产品深树收集故事与任务（深树一次取全，勿逐 story 拉接口） */
   const { stories, tasks } = React.useMemo(() => {
-    const s: Array<{ id: string; title: string; affected_modules?: string[] | null }> = [];
-    const t: Array<{ id: string; title: string; affected_modules?: string[] | null }> = [];
+    const s: MatrixSource[] = [];
+    const t: MatrixSource[] = [];
     for (const activity of project.user_activities ?? []) {
       for (const story of activity.stories ?? []) {
         s.push({ id: story.id, title: story.title, affected_modules: story.affected_modules });
         for (const task of story.dev_tasks ?? []) {
-          t.push({ id: task.id, title: task.title, affected_modules: task.affected_modules });
+          t.push({
+            id: task.id,
+            title: task.title,
+            affected_modules: task.affected_modules,
+            module_id: task.module_id,
+            // 继承故事的标注：与 CLI task info 的回落链一致（§4）
+            story_affected_modules: story.affected_modules,
+          });
         }
       }
     }

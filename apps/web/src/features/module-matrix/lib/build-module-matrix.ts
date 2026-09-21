@@ -43,11 +43,38 @@ export interface ModuleMatrixData {
   unlabeledCount: number;
 }
 
-/** 建矩阵的最小输入形状：只关心 id/title/affected_modules */
+/** 建矩阵的最小输入形状 */
 export interface MatrixSource {
   id: string;
   title: string;
+  /** 影响面标注（可多个）；空时回落 `module_id` */
   affected_modules?: string[] | null;
+  /** 主锚模块（唯一）；与 CLI task info 的回落链一致 */
+  module_id?: string | null;
+  /** 任务专用：所属故事（用于继承故事的 affected_modules） */
+  story_affected_modules?: string[] | null;
+}
+
+/**
+ * 解析实体的模块范围——**必须与 CLI `fetchArchitectureContext` 的回落链一致**
+ * （affected_modules → story.affected_modules → module_id）。
+ *
+ * 不一致会造成"同一任务在 task info 里看得到架构原则、在矩阵里却不存在"的自相矛盾——
+ * 矩阵的定义就是 §4 过滤算法的人类可读投影，两者的 scope 必须同源。
+ */
+function resolveScope(item: MatrixSource): string[] {
+  const norm = (list?: string[] | null) =>
+    (list ?? [])
+      .filter((m): m is string => typeof m === 'string')
+      .map((m) => m.trim())
+      .filter((m) => m.length > 0);
+
+  const own = norm(item.affected_modules);
+  if (own.length) return own;
+  const fromStory = norm(item.story_affected_modules);
+  if (fromStory.length) return fromStory;
+  const anchor = norm(item.module_id ? [item.module_id] : []);
+  return anchor;
 }
 
 /**
@@ -69,10 +96,7 @@ export function buildModuleMatrix(
 
   const collect = (items: readonly MatrixSource[], kind: 'story' | 'task') => {
     for (const item of items) {
-      const mods = (item.affected_modules ?? [])
-        .filter((m): m is string => typeof m === 'string')
-        .map((m) => m.trim())
-        .filter((m) => m.length > 0);
+      const mods = resolveScope(item);
       if (mods.length === 0) {
         unlabeledCount += 1;
         continue;
