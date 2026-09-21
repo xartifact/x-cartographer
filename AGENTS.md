@@ -142,6 +142,9 @@ Key constraints:
 
 - **深树一次取全**：`GET /api/products/:id` 返回 `user_activities[].stories[].dev_tasks[]`（含 `story.milestone_id`）。统计/排期视图直接消费该树，**勿**逐 story 拉 `dev-task list` 凑数（有 N+1 前科，2026-09 又复现于 CLI `task summary`，已修）。注意深树字段名是 **`dev_tasks`**（非 `tasks`）。
 - **API 输出形状一律 snake_case**：所有 `/api/*` 端点返回 snake_case 键（`story_id`/`affected_modules`）。请求体用 camelCase，由路由层映射到 DTO——**直接透传 input 会导致字段被仓库层静默丢弃**（dev-tasks PATCH 曾因此丢 `affectedModules`）。
+- **写入字段必须有行为测试（本项目最高频缺陷）**：「API 接受字段但静默丢弃」已发生 7+ 次——命令返回 200/201 `success`，调用方以为写入生效、实际未落库。静态分析判不准（route 映射了但仓库没写、schema 未声明但 update 支持，两种形态都会误报），**只有行为验证能暴露**。故 `apps/server/src/__tests__/api.test.ts` 的「字段落库审计」套件逐字段写可辨识值再读回比对，覆盖 7 类实体 × create/patch；新增可写字段时一并加断言。CLI 侧的对应防线是 `apps/cli/src/__tests__/flag-wiring.test.ts`（宣传的 flag 必须真的进请求体）。
+- **DELETE 响应形状统一 `{ success: true }`**，幂等（不存在的 id 同样 200，与 `GET /:id`「查不到返回 200 + null」一致）——**不要**给单个路由加 404，那会制造新的唯一例外。已由「所有 DELETE 路由返回统一形状」用例遍历全部路由守卫。
+- **查不到时 CLI 必须给可读错误**：服务端对未知 id 返回 `200 + null`，CLI 直接解引用会抛 `null is not an object` 这类裸 JS 错误（调用方无法区分「id 写错」与「系统故障」）。取响应后先 `isObj` 守卫再访问字段（范式见 `cmdProduct` info / `cmdDevTask` info / `cmdDevTask` summary）。
 - **CLI 与 web 数据一致性**：CLI 连 `~/.config/xcart/config` 的 gateway（生产 `http://100.80.110.125:8787`）；web 开发经 Vite proxy，目标由 `VITE_PROXY_TARGET`（`apps/web/.env`，已 gitignore）控制，`vite.config.ts` 用 `loadEnv` 读取。
 
 ## 本地开发环境
