@@ -249,6 +249,8 @@ async function cmdProduct(ctx: Ctx): Promise<void> {
       const id = opt(f, 'id', 'project') ?? ctx.positional[1];
       if (!id) throw new Error('用法: xcart project info --id <id>');
       const data = await api(`/api/products/${id}`);
+      // 不存在的 id 返回 null（200）：静默打印 "null" 会被误读为「产品存在但字段全空」
+      if (!isObj(data)) throw new Error(`产品不存在: ${id}`);
       console.log(render(data, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
@@ -399,6 +401,8 @@ async function cmdStory(ctx: Ctx): Promise<void> {
     case 'info': {
       const id = reqId(ctx.positional.slice(1), 'story info');
       const data = await api(`/api/stories/${id}`);
+      // 同 task info：不存在的 id 返回 null，此前取 data.activity_id 直接抛裸 JS 错误
+      if (!isObj(data)) throw new Error(`故事不存在: ${id}`);
       const tasks = await api(`/api/dev-tasks?storyId=${encodeURIComponent(id)}`).catch(() => []);
       const architecture = await fetchArchitectureContext(
         data.activity_id ? await productIdOfActivity(data.activity_id) : null,
@@ -547,6 +551,9 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
     case 'info': {
       const id = reqId(ctx.positional.slice(1), 'task info');
       const data = await api(`/api/dev-tasks/${id}`);
+      // 不存在的 id 时服务端返回 null（200），此前直接取 data.affected_modules →
+      // 抛「null is not an object」这种裸 JS 错误，看不出是 id 写错还是系统故障。
+      if (!isObj(data)) throw new Error(`任务不存在: ${id}`);
       // §4：scope 优先取任务自身 affected_modules，缺失时回落到所属故事（task 可只挂 module_id）
       let scope = Array.isArray(data.affected_modules) && data.affected_modules.length
         ? data.affected_modules
@@ -680,6 +687,9 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       // （story_id=null，domain-model §2.5），曾致统计系统性偏低。
       // 故事计数仍走深树（故事必然挂在活动下，深树完备）。
       const proj = await api(`/api/products/${productId}`);
+      // 与 context export / overview 对齐：不存在的产品此前直接进 summarizeTree，
+      // 在 proj.user_activities 处抛裸 JS 错误（统计类命令应先给可读提示）
+      if (!isObj(proj) || !proj.id) throw new Error(`项目不存在: ${productId}`);
       const all = await api(`/api/dev-tasks/all?productId=${encodeURIComponent(productId)}`);
       const tasks: Array<Record<string, unknown>> = Array.isArray(all) ? all : [];
       const { storyCount, doneStories, storyStatus, taskStatus } =

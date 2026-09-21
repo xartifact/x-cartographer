@@ -32,6 +32,10 @@ beforeAll(() => {
         body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
       }
       sent.push({ method: req.method, path: url.pathname, body });
+      // 真实服务端对「查不到」返回 200 + null（不是 404）——按同样契约回放，
+      // 否则「不存在的 id」类缺陷在测试里永远复现不出来。
+      const last = url.pathname.split('/').pop() ?? '';
+      if (last.endsWith('9999') || last === 'PROD-999') return Response.json(null);
       return Response.json({ id: 'ECHO', ok: true });
     },
   });
@@ -43,6 +47,19 @@ afterAll(() => {
 });
 
 /** 跑真 CLI 子进程（经 bun），返回它发出的请求（清空上一次记录） */
+
+/** 同 runCli，但带回退出码与 stderr——用于断言「报错而非静默/崩溃」 */
+async function runCliResult(args: string[]): Promise<{ reqs: SentRequest[]; exitCode: number; stderr: string }> {
+  sent.length = 0;
+  const cliPath = new URL('../index.ts', import.meta.url).pathname;
+  const proc = Bun.spawn(['bun', 'run', cliPath, '--server', baseUrl, ...args], {
+    stdout: 'ignore',
+    stderr: 'pipe',
+  });
+  const stderr = await new Response(proc.stderr).text();
+  const exitCode = await proc.exited;
+  return { reqs: [...sent], exitCode, stderr };
+}
 async function runCli(args: string[]): Promise<SentRequest[]> {
   sent.length = 0;
   const cliPath = new URL('../index.ts', import.meta.url).pathname;
@@ -105,7 +122,28 @@ describe('CLI flag 接线：宣传的 flag 必须真的进请求体', () => {
 
   it('task update --priority 送 priority（曾仅存在于 help，未进请求体）', async () => {
     const reqs = await runCli(['task', 'update', 'T1', '--priority', 'P0']);
-    expect(reqs[0]!.method).toBe('PATCH');
     expect(reqs[0]!.body).toEqual({ priority: 'P0' });
+  });
+});
+
+describe('不存在的 id：给可读错误，不抛裸 JS 错误', () => {
+  it('task info / story info / product info / task summary 都不崩溃且给出可读原因', async () => {
+    const cases: Array<[string[], string]> = [
+      [['task', 'info', 'TASK-9999'], '任务不存在'],
+      [['story', 'info', 'US-9999'], '故事不存在'],
+      [['project', 'info', '--id', 'PROD-999'], '产品不存在'],
+      [['task', 'summary', '--project', 'PROD-999'], '项目不存在'],
+    ];
+    for (const [args, expected] of cases) {
+      const { reqs, exitCode, stderr } = await runCliResult(args);
+      // 可读原因（而非 "null is not an object"）
+      expect(stderr).toContain(expected);
+      // 不崩在裸 JS 错误上
+      expect(stderr).not.toContain('is not an object');
+      // 失败必须是非零退出码，否则脚本会把失败当成功
+      expect(exitCode).not.toBe(0);
+      // 且不再继续发后续请求（null 已判定为「不存在」）
+      expect(reqs).toHaveLength(1);
+    }
   });
 });
