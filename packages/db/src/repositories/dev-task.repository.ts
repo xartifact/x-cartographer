@@ -1,7 +1,33 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { ensureDb } from '../db/client';
 import { devTasks } from '../db/schema/dev-tasks';
 import type { CreateDevTaskDTO, UpdateDevTaskDTO } from '@x-cartographer/shared';
+
+/**
+ * 状态流转要维护的 started_at / completed_at（由新状态派生 + COALESCE 保序，
+ * 单语句完成，不破坏 CAS 原子性——故无需先读旧行）。
+ *
+ * 两列此前无任何写入路径：唯一写它们的是 `PUT /api/products/full`（CLI 无命令，
+ * P5 下 agent 不可达），故生产 593 条任务、472 条 done 全部为空——UI「完成时间」
+ * 分支是死代码。语义：
+ * - 进入「进行中」组（in_progress / in_review / testing）→ startedAt 首次置位
+ *   （COALESCE 保留更早的开始时间：重开不清，活确实开始过）
+ * - 进入 done → completedAt = now()
+ * - 其余（backlog / todo / cancelled，含从 done 退回）→ completedAt 清空
+ *   （不是"已完成"）
+ *
+ * 直接 backlog→done 只记完成时间、不伪造开始时间（没有证据表明开始过，不猜）。
+ */
+function statusTimestamps(
+  newStatus: string
+): { startedAt?: Date | null | ReturnType<typeof sql>; completedAt?: Date | null } {
+  if (newStatus === 'done') return { completedAt: new Date() };
+  if (newStatus === 'in_progress' || newStatus === 'in_review' || newStatus === 'testing') {
+    return { startedAt: sql`coalesce(${devTasks.startedAt}, now())`, completedAt: null };
+  }
+  // backlog / todo / cancelled：不是"已完成"
+  return { completedAt: null };
+}
 
 /**
  * 研发任务（DevTask）repository —— 原 TaskRepository 正名。
@@ -84,7 +110,7 @@ export class DevTaskRepository {
       : eq(devTasks.id, id);
     const moved = await db
       .update(devTasks)
-      .set({ status: newStatus, updatedAt: new Date() })
+      .set({ status: newStatus, ...statusTimestamps(newStatus), updatedAt: new Date() })
       .where(condition)
       .returning({ id: devTasks.id });
     return moved.length > 0;

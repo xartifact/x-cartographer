@@ -928,7 +928,16 @@ async function cmdAdr(ctx: Ctx): Promise<void> {
       const id = reqId(ctx.positional.slice(1), 'adr status <id> <status>');
       const status = ctx.positional[2];
       if (!status) throw new Error('用法: xcart adr status <id> <status> [--reason]');
-      const res = await api(`/api/adr-records/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
+      // §4.4：升格为 accepted 必须带理由（状态机即权限模型，无法静默自我许可）。
+      // 与 task/story 的 cancelled 同类校验——服务端也拦，此处提前给可读提示。
+      const reason = opt(f, 'reason');
+      if (status === 'accepted' && !reason) {
+        throw new Error(
+          '升格（accepted）必须提供 --reason（记录升格依据）：' +
+          `xcart adr status ${id} accepted --reason "<依据>"`
+        );
+      }
+      const res = await api(`/api/adr-records/${id}/status`, 'POST', { status, reason });
       console.log(render(res, ctx.format));
       break;
     }
@@ -1357,9 +1366,13 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
     }
     case 'install': {
       const { cpSync, existsSync, mkdirSync, readdirSync } = await import('node:fs');
+      const { resolve, isAbsolute } = await import('node:path');
+      // repoRoot 是绝对路径（由 import.meta.url 推出）。--dir 的相对路径必须按它
+      // 解析：fs 对相对路径按 process.cwd() 解析，导致 `--cwd apps/cli` 调用时
+      // 装到 apps/cli/.claude/skills（静默装错位置，调用方以为已安装）。
       const explicit = opt(f, 'dir');
       const targets = explicit
-        ? [explicit]
+        ? [isAbsolute(explicit) ? explicit : resolve(repoRoot, explicit)]
         : [`${repoRoot}.claude/skills`];
       if (!existsSync(skillsDir)) throw new Error(`skills 目录不存在: ${skillsDir}`);
       const dirs = readdirSync(skillsDir).filter((d) => !d.startsWith('.'));
@@ -1372,6 +1385,7 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
         }
         installed.push(t);
       }
+      // 回执给绝对路径：调用方才能确认装到了哪里（此前只回显输入原样）
       console.log(render({ installed_to: installed, skills: dirs }, ctx.format));
       break;
     }

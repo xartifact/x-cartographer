@@ -138,9 +138,24 @@ export const adrRecordsRoutes = new Hono()
     );
   })
   // POST /api/adr-records/:id/status（状态流转 + 账本）
+  // §4.4 核心约束：`proposed → accepted` 必须带 reason——状态机即权限模型，
+  // 「提议生效必须留痕且显式，无法静默自我许可」。无理由升格会让 changes 进入
+  // 生效折叠（§3.3）而账本无法审计，正是该条要防的情形。
+  // 其余流转（deprecated / superseded / rejected）不强制，避免扩大约束范围。
   .post('/:id/status', zValidator('json', transitionStatusSchema), async (c) => {
     const id = c.req.param('id');
     const input = c.req.valid('json');
+    if (input.status === 'accepted' && !input.reason?.trim()) {
+      return c.json(
+        {
+          error: 'reason_required',
+          detail:
+            '升格为 accepted 必须提供 reason（domain-model §4.4：状态机即权限模型，' +
+            '提议生效必须留痕且显式）。用法：xcart adr status <id> accepted --reason "<依据>"',
+        },
+        400
+      );
+    }
     try {
       await adrRepo.transitionStatus(id, input.status, input.reason);
       return c.json({ success: true });

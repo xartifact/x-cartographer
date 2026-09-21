@@ -729,6 +729,74 @@ describe('dev-tasks CRUD + topological next', () => {
     });
     expect(res.status).toBe(410);
   });
+  /**
+   * dev_tasks.started_at / completed_at 只有状态流转语义上该写它，但 POST /:id/status
+   * 此前从不触碰这两列（生产 593 条 / 472 done，两列皆 0 填充）；
+   * 唯一写入路径 PUT /api/products/full CLI 无命令（P5：agent 唯一通道是 CLI），
+   * 实际不可达——UI「完成时间」分支成为死代码。
+   */
+  it('状态流转维护 started_at / completed_at', async () => {
+    const projectId = await createProduct('时间戳产品');
+    const act = await createActivity(projectId, '时间戳活动');
+    const story = await createStory(act, '时间戳故事');
+    const id = await createDevTask(story, '时间戳任务');
+
+    const read = async (): Promise<{ started_at?: string; completed_at?: string }> => {
+      const res = await app.request(`/api/dev-tasks/${id}`);
+      return (await res.json()) as { started_at?: string; completed_at?: string };
+    };
+    const move = async (status: string) => {
+      const res = await jsonRequest('POST', `/api/dev-tasks/${id}/status`, {
+        status,
+        reason: `-> ${status}`,
+      });
+      expect(res.status).toBe(200);
+    };
+
+    // 新建：两列皆空（backlog 尚未开始、也未完成）
+    expect((await read()).started_at).toBeUndefined();
+    expect((await read()).completed_at).toBeUndefined();
+
+    // 进入进行中 → 记开始时间
+    await move('in_progress');
+    const started = await read();
+    expect(started.started_at).toBeTruthy();
+    expect(started.completed_at).toBeUndefined();
+
+    // 完成 → 记完成时间，开始时间保留
+    await move('done');
+    const done = await read();
+    expect(done.completed_at).toBeTruthy();
+    expect(done.started_at).toBe(started.started_at);
+
+    // 重开 → 清完成时间（不再是"已完成"），开始时间保留（活确实开始过）
+    await move('in_progress');
+    const reopened = await read();
+    expect(reopened.completed_at).toBeUndefined();
+    expect(reopened.started_at).toBe(started.started_at);
+
+    // 再次完成 → 重新记完成时间
+    await move('done');
+    expect((await read()).completed_at).toBeTruthy();
+
+    // done → cancelled 也要清（取消后不是已完成）
+    await move('cancelled');
+    expect((await read()).completed_at).toBeUndefined();
+  });
+
+  it('直接 backlog→done 只记完成时间，不伪造开始时间', async () => {
+    const projectId = await createProduct('直通产品');
+    const act = await createActivity(projectId, '直通活动');
+    const story = await createStory(act, '直通故事');
+    const id = await createDevTask(story, '直通任务');
+
+    await jsonRequest('POST', `/api/dev-tasks/${id}/status`, { status: 'done' });
+    const res = await app.request(`/api/dev-tasks/${id}`);
+    const t = (await res.json()) as { started_at?: string; completed_at?: string };
+    expect(t.completed_at).toBeTruthy();
+    // 没有证据表明"开始过"——不猜（避免把未开始的任务记成已开始）
+    expect(t.started_at).toBeUndefined();
+  });
 });
 
 describe('dev-task CAS 乐观锁（task-claim-concurrency.md）', () => {
@@ -1473,6 +1541,65 @@ describe('ADR 创建落点：高影响非人主张落 proposed (§4.1/§4.4)', (
     ).json()) as { architecture_principles: Array<{ id: string }> };
     expect(after.architecture_principles.map((p) => p.id)).toEqual(['no-llm']);
   });
+
+  /**
+   * §4.4 核心约束：「升格动作 proposed → accepted **必须带 `--reason`**」，
+   * 洞察是「提议生效必须留痕且显式，无法静默自我许可」。
+   *
+   * 回归：transitionStatusSchema.reason 曾是 optional，可无理由升格 ADR 使其
+   * changes 进入生效折叠（§3.3）且账本无理由——正是要防的自我许可。
+   * 同库既有对照：status-changes/ratify 用 z.string().min(1)。
+   */
+  it('升格到 accepted 必须带 reason；其他流转可省', async () => {
+    const productId = await createProduct('ADR 升格理由产品');
+    const created = await jsonRequest('POST', '/api/adr-records', adrBody(productId, {
+      changes: {
+        architecture_principles: {
+          upsert: [{ id: 'must-have-reason', strength: 'MUST', statement: '测试原则' }],
+        },
+      },
+    }));
+    const { id: adrId } = (await created.json()) as { id: string };
+
+    // 无 reason 升格 → 400（此前 200，静默自我许可）
+    const noReason = await jsonRequest('POST', `/api/adr-records/${adrId}/status`, {
+      status: 'accepted',
+    });
+    expect(noReason.status).toBe(400);
+
+    // 空字符串同样拒绝
+    const emptyReason = await jsonRequest('POST', `/api/adr-records/${adrId}/status`, {
+      status: 'accepted',
+      reason: '',
+    });
+    expect(emptyReason.status).toBe(400);
+
+    // 拒绝后该 ADR 仍未生效（不能因失败写入而部分生效）
+    const constitution = (await (
+      await app.request(`/api/adr-records/current?productId=${productId}`)
+    ).json()) as { architecture_principles: unknown[] };
+    expect(constitution.architecture_principles).toEqual([]);
+
+    // 带 reason 才放行
+    const ok = await jsonRequest('POST', `/api/adr-records/${adrId}/status`, {
+      status: 'accepted',
+      reason: '人复核通过',
+    });
+    expect(ok.status).toBe(200);
+
+    // 账本留下该理由（§4.4「永远可查」）
+    const ledger = (await (
+      await app.request(`/api/status-changes?entityId=${adrId}`)
+    ).json()) as Array<{ new_status: string; reason: string | null }>;
+    expect(ledger.some((l) => l.new_status === 'accepted' && l.reason === '人复核通过')).toBe(true);
+
+    // 非升格流转（deprecated）可省略 reason——不扩大约束范围
+    const deprecate = await jsonRequest('POST', `/api/adr-records/${adrId}/status`, {
+      status: 'deprecated',
+    });
+    expect(deprecate.status).toBe(200);
+  });
+
 });
 
 

@@ -28,7 +28,8 @@ xcart module delete <slug> --project <productId>
 xcart adr create --product <productId> --title <t> --context <c> --decision <d> \
   [--status proposed|accepted] [--supersedes <oldAdrId>] [--milestone <id>] [--modules a,b] \
   [--file changes.json]                              # changes: {tech_stack:{upsert,remove}, architecture_principles:{...}}
-xcart adr status <adrId> <status> [--reason <r>]     # proposed→accepted→(superseded|deprecated)
+xcart adr status <adrId> <status> --reason <r>       # proposed→accepted→(superseded|deprecated)
+                                                     # 升格 accepted 必带 --reason（服务端 400 + CLI 前置校验）
 ```
 
 **「当前态」vs「演进历史」——最容易搞混的一对**：
