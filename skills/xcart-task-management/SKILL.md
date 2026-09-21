@@ -10,16 +10,21 @@ description: 在 X-Cartographer 中管理用户故事拆解出的研发任务（
 ## 命令
 
 ```bash
-xcart dev-task list --story <storyId>
+# 两种锚定（domain-model §2.5）：① --story = 有用户价值的工作项
+#                          ② --product + --module-id = 工程治理类（重构/技术债，不进故事地图）
+xcart dev-task list --story <storyId> | --product <productId> | --module-id <slug>
 xcart task info <taskId>
 xcart task create --story <storyId> --title <t> [--priority P0|P1|P2|P3] [--estimation <h>] [--description] [--deps id1,id2] [--tags a,b]
-xcart task update <taskId> [--title] [--priority] [--estimation] [--assignee] [--status] [--tags]
+xcart task create --product <productId> --module-id <slug> --title <t> [--priority] [--estimation] [--tags a,b]
+xcart task update <taskId> [--title] [--priority] [--estimation] [--assignee] [--status] [--tags] [--module-id <slug>] [--story <id>|none]
 xcart task status <taskId> <status> [--expected-status <s>] [--reason]  # backlog|todo|in_progress|in_review|testing|done|cancelled
-xcart task next --project <projectId> [--assignee]   # 下一个可执行任务（仅 todo 且依赖已完成）
-xcart task summary --project <projectId>             # 任务状态统计/完成率
-xcart task bulk-create --story <storyId> --file tasks.json
+xcart task next --project <projectId> [--assignee]   # 下一个可执行任务（仅 todo 且依赖已完成；两种锚定都参与）
+xcart task summary --project <projectId>             # 任务状态统计/完成率（含 module_anchored 计数）
+xcart task bulk-create --story <storyId> --file tasks.json | --product <productId> --module-id <slug> --file tasks.json
 xcart status history <taskId>                        # 状态变更历史（含原因/变更人）
 ```
+
+**`--module-id` vs `--affected-modules`**：前者是**唯一主锚**（这个工作项属于哪个模块），后者是**影响面标注**（可多个，信息性）。工程治理类任务用前者。
 
 ## 技术宪法纪律（先读后写）
 
@@ -39,6 +44,20 @@ xcart status history <taskId>                        # 状态变更历史（含�
 - **并发认领必须用 CAS**：多 Agent 协作时，认领/流转加 `--expected-status <当前状态>`。服务端把条件推到 SQL WHERE（`packages/db/src/repositories/dev-task.repository.ts` 的 `compareAndSetStatus`），不匹配时返回 **409**（响应含 `current_status`）。收到 409 的正确反应是**重新 `task info` 读取当前状态**再决定是否推进——**不要盲目重试**：两个 Agent 都重试会让双方都以为拿到了独占任务，重复推进同一份工作。不加 `--expected-status` 时行为不变（无条件流转，向后兼容）。
 - **动工前看 `task info` 的 `architecture_context`**（若非空）：它按模块范围过滤出该任务相关的架构原则（`relevant_principles`）与模块（`relevant_modules`），`[MUST]` 级尤其要遵守。**但这只是信息提示，不是拦截性门禁**——没有需要确认的清单，也不存在"未读宪法就不许完成任务"的机制（自证/复核机制已明确排除在技术宪法范围外）。原则为空通常意味着任务与故事都没标 `affected_modules`，而不是"没有约束"。
 - **任务的架构上下文来源**：`task.affected_modules` → 回落 `story.affected_modules` → 回落 `task.module_id`；三者皆无则只剩全局原则。要让 `task info` 显示模块专属原则，拆解时就用 `story update --affected-modules` 或 `task update --affected-modules` 标注。
+
+- **任务有两种锚定，都要会用**（`docs/design/domain-model.md` §2.5）：
+  - **故事锚定**（默认）：有用户价值的工作项，`--story <id>`。产品归属经 `story → activity → product` 派生，出现在故事地图上。
+  - **模块锚定**（工程治理类）：重构、技术债、架构一致性这类**用户不关心**的工作，用 `--product <id> --module-id <slug>`（`story_id` 为空）。产品归属靠 `product_id` 直连，**不出现在故事地图上**——不要为了让它可见而硬编进某个故事。
+  - `task next` / `task summary` / `task list --product` / `context export` **都覆盖这两种锚定**；任务依赖也可以跨锚定（模块锚定任务依赖故事锚定任务，反之亦然）。
+
+
+- **写 `--deps` 会被校验，违规直接 400**（`docs/design/domain-model.md` §2.4「必须无环」/ §5「无悬空」）：
+  - **悬空**：依赖的任务必须存在，否则 `dangling_dependency` → 该任务会**永久不出队**（`next` 的完成集合永不含这个 ID）。
+  - **自环**：任务不能依赖自身（`self_dependency`）。
+  - **成环**：A→B 后再写 B→A（含间接 A→B→C→A）会被拒（`dependency_cycle`，报错给出环路径）。
+  - 这三类是**结构性损坏**（任务永久不可执行），故拒绝写入——与 `affected_modules` 的「悬空只告警不阻断」不同。
+  - 存量损坏用只读审计查看：`bun apps/server/scripts/audit-dependency-graph.ts [--server <url>]`（退出码 0 无问题 / 1 悬空或自环 / 2 有环 / 3 库为空）。
+    悬空边清理：`bun apps/server/scripts/clean-dangling-deps.ts`；**环需人工裁定**删哪条边，服务端不自动改写。
 
 ## 典型工作流
 

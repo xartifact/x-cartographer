@@ -13,7 +13,7 @@
  * ctx 是任务视角的工作上下文——两者共享 join 逻辑，读路径互补。
  * 纯读、零裁决（§3.5）。
  */
-import { ensureDb, rowsOf, AdrRepository, foldConstitution } from '@x-cartographer/db';
+import { ensureDb, rowsOf, AdrRepository } from '@x-cartographer/db';
 import { sql } from 'drizzle-orm';
 
 export interface CtxResult {
@@ -154,13 +154,15 @@ export async function buildTaskContext(taskId: string): Promise<CtxResult | null
     }
   }
 
-  // 4. 规矩：涉事模块上的架构原则（ADR 折叠后的当前态 principles；ADR 本体的
+  // 4. 规矩：涉事模块上的架构原则（ADR 折叠后的**生效**当前态 principles；ADR 本体的
   //    module_ids 标注涉事范围—— principles 无 module_ids = 项目全局生效 §3.5）
+  //
+  //    必须走 getEffectiveConstitution（内含 §3.3 的 acceptedAt 过滤）：
+  //    曾直接 foldConstitution(listByProject(...))，绕过过滤，把 proposed ADR 的
+  //    changes 当生效约束注入（与 adr current / task info 给出相反事实）。
   const principles: CtxResult['principles'] = [];
   if (productId) {
-    const adrRepo = new AdrRepository();
-    const records = await adrRepo.listByProject(productId);
-    const folded = foldConstitution(records);
+    const folded = await new AdrRepository().getEffectiveConstitution(productId);
     for (const p of folded.architecture_principles) {
       const pMods = p.module_ids ?? [];
       if (pMods.length === 0 || pMods.some((m) => modIds.has(m))) {

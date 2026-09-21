@@ -48,11 +48,17 @@ function applyChanges(maps: ConstitutionMaps, record: AdrRecord): void {
 }
 
 /**
- * 折叠算法（纯函数，§3.3）：records 必须已按 seq 升序排列，
+ * 折叠算法（**模块私有**，§3.3）：records 必须已按 seq 升序排列，
  * 依次应用每条 ADR 的 changes（upsert set / remove delete），
  * 返回"当前态"投影。modules 恒为空数组——调用方负责从 system_modules 表补齐。
+ *
+ * **刻意不导出**：本函数不感知 `acceptedAt`——喂什么就折叠什么，自身无法区分
+ * "已生效"与"仍是提案"。曾作为公开导出被 ctx 直接调用
+ * （`foldConstitution(listByProject(...))`），绕过 §3.3「只折叠已 accepted」，
+ * 把 proposed ADR 的 changes 当生效约束注入。折叠的唯一合法入口是下方仓库方法，
+ * 它们都过 `acceptedAt` 过滤。
  */
-export function foldConstitution(records: AdrRecord[]): CurrentConstitution {
+function foldConstitution(records: AdrRecord[]): CurrentConstitution {
   const maps: ConstitutionMaps = {
     techStack: new Map(),
     principles: new Map(),
@@ -198,12 +204,18 @@ export class AdrRepository {
   }
 
   /**
-   * 当前态查询（§3.3）：折叠只看 acceptedAt，不看当前 status——
+   * 生效宪法投影（§3.3 折叠 + **acceptedAt 过滤**，不含模块目录）。
+   *
+   * "哪些 ADR 算数"的唯一判定处：折叠只看 acceptedAt，不看当前 status——
    * deprecated/superseded 标签不影响已生效的 changes（§3.1 反例：
-   * "不再是权威说法" ≠ "撤销引入的状态"）；rejected 从未 accept，天然排除。
-   * 只要求 changes 非空的记录参与折叠。
+   * "不再是权威说法" ≠ "撤销引入的状态"）；rejected / proposed 从未 accept，
+   * 天然排除（§4.4 状态机即权限模型）。只折叠 changes 非空的记录。
+   *
+   * 与 `getCurrentConstitution` 的区别：不查 system_modules 表。供只消费
+   * principles / tech_stack 的读路径使用（如 ctx，它自带 depended_by 反查），
+   * 避免多一次模块查询。
    */
-  async getCurrentConstitution(projectId: string): Promise<CurrentConstitution> {
+  async getEffectiveConstitution(projectId: string): Promise<CurrentConstitution> {
     const records = await this.listByProject(projectId);
     const folded: AdrRecord[] = [];
     for (const r of records) {
@@ -211,8 +223,15 @@ export class AdrRepository {
       if ((await this.acceptedAt(r.id, r)) === null) continue;
       folded.push(r);
     }
-    const constitution = foldConstitution(folded);
-    // 模块目录自 0006 起是独立表（非折叠产物），当前态直接取表内容
+    return foldConstitution(folded);
+  }
+
+  /**
+   * 当前态查询（§3.3）= 生效宪法投影 + 模块目录。
+   * 模块目录自 0006 起是独立表（非折叠产物），当前态直接取表内容。
+   */
+  async getCurrentConstitution(projectId: string): Promise<CurrentConstitution> {
+    const constitution = await this.getEffectiveConstitution(projectId);
     constitution.modules = await new SystemModuleRepository().findByProductId(projectId);
     return constitution;
   }

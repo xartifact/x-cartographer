@@ -12,11 +12,8 @@ import {
   StatusChangeRepository,
   getProductRepository,
 } from '@x-cartographer/db';
-import {
-  TaskStatus,
-  TaskPriority,
-  type DevTask,
-} from '@x-cartographer/shared';
+import { TaskStatus, TaskPriority } from '@x-cartographer/shared';
+import { validateDependencies, dependencyViolationResponse } from '../lib/dependency-graph';
 
 const createDevTaskSchema = z.object({
   storyId: z.string().optional(),
@@ -59,6 +56,14 @@ const allTasksQuerySchema = z.object({
   priority: z.nativeEnum(TaskPriority).optional(),
   /** 按模块锚定过滤（§6.7 方案 B：工程治理任务的主锚） */
   moduleId: z.string().optional(),
+  /** 按产品过滤：任务的产品归属取自带 product_id，缺失时经 story→activity 反查 */
+  productId: z.string().optional(),
+});
+
+const nextQuerySchema = z.object({
+  productId: z.string(),
+  /** 只看指派给某人的任务；缺省不按 assignee 过滤 */
+  assignee: z.string().optional(),
 });
 
 
@@ -119,34 +124,53 @@ export const devTasksRoutes = new Hono()
     return c.json((await taskRepo.findByStoryId(storyId)).map(toJson));
   })
   // GET /api/dev-tasks/next?productId= (拓扑规则)
-  .get('/next', async (c) => {
-    const productId = c.req.query('productId');
-    if (!productId) return c.json({ error: 'productId required' }, 400);
+  //
+  // 两种锚定都要参与（domain-model §2.5）：① 故事锚定（深树可达）② 模块锚定
+  // （story_id=null，只能经 product_id 定位）。此前只遍历深树，模块锚定任务
+  // **永远不出队**——todo 也拿不到，工程治理分支闭环断裂（生产实证 39 条）。
+  //
+  // 顺序：先深树（活动→故事→任务，保持既有推荐次序），再模块锚定（按创建序），
+  // 保证同一状态下结果稳定可复现。
+  .get('/next', zValidator('query', nextQuerySchema), async (c) => {
+    const { productId, assignee } = c.req.valid('query');
     const productRepo = getProductRepository();
     const product = await productRepo.findById(productId);
     if (!product) return c.json(null);
 
-    const completedIds = new Set<string>();
+    // 全量任务行是唯一数据源：深树看不到模块锚定任务，混用两种形状还会让
+    // toJson 的入参类型对不上。深树只用来定**顺序**。
+    const allTasks = await taskRepo.findAllTasks();
+    const rowById = new Map(allTasks.map((t) => [t.id, t]));
+    // ① 故事锚定：保持既有深树推荐次序（活动→故事→任务）
+    const treeOrdered: typeof allTasks = [];
     for (const activity of product.user_activities) {
       for (const story of activity.stories || []) {
-        for (const task of story.dev_tasks || []) {
-          if (task.status === TaskStatus.DONE || task.status === TaskStatus.CANCELLED) {
-            completedIds.add(task.id);
-          }
+        for (const t of story.dev_tasks || []) {
+          const row = rowById.get(t.id);
+          if (row) treeOrdered.push(row);
         }
       }
     }
+    // ② 模块锚定：不挂 story，产品归属只能靠 product_id（§2.5 恢复该列的原因），
+    //    按创建序排列，保证同一状态下推荐结果稳定可复现
+    const moduleAnchored = allTasks
+      .filter((t) => t.storyId === null && t.productId === productId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-    for (const activity of product.user_activities) {
-      for (const story of activity.stories || []) {
-        for (const task of story.dev_tasks || []) {
-          if (task.status === TaskStatus.TODO) {
-            const deps = task.dependencies ?? [];
-            if (deps.length === 0 || deps.every((depId) => completedIds.has(depId))) {
-              return c.json(task);
-            }
-          }
-        }
+    const candidates = [...treeOrdered, ...moduleAnchored];
+    const completedIds = new Set(
+      candidates
+        .filter((t) => t.status === TaskStatus.DONE || t.status === TaskStatus.CANCELLED)
+        .map((t) => t.id)
+    );
+
+    for (const task of candidates) {
+      if (task.status !== TaskStatus.TODO) continue;
+      if (assignee !== undefined && task.assignee !== assignee) continue;
+      // 依赖判定跨两种锚定：只需被依赖任务已完成，不要求与本任务同锚定方式
+      const deps = task.dependencies ?? [];
+      if (deps.length === 0 || deps.every((depId) => completedIds.has(depId))) {
+        return c.json(toJson(task));
       }
     }
     return c.json(null);
@@ -157,7 +181,7 @@ export const devTasksRoutes = new Hono()
   // 脱离 story 的工程治理任务（§6.7 方案 B 迁锚后 story_id=null），曾致它们从
   // 本视图消失。product 优先取任务自带的 product_id，否则经 story→activity 反查。
   .get('/all', zValidator('query', allTasksQuerySchema), async (c) => {
-    const { status, priority, moduleId } = c.req.valid('query');
+    const { status, priority, moduleId, productId } = c.req.valid('query');
     const tasks = await taskRepo.findAllTasks();
     const products = await getProductRepository().findAll();
     const productById = new Map(products.map((p) => [p.id, p]));
@@ -184,6 +208,9 @@ export const devTasksRoutes = new Hono()
       if (moduleId && t.moduleId !== moduleId) continue;
       const row = toJson(t as never);
       const pid = t.productId ?? (t.storyId ? productIdByStory.get(t.storyId) : undefined) ?? '';
+      // 产品过滤按**解析后**的归属判定：模块锚定任务只有 product_id，
+      // 故事锚定任务可能两者皆备，故不能用 t.productId 直接比。
+      if (productId && pid !== productId) continue;
       const story = t.storyId ? storyById.get(t.storyId) : undefined;
       result.push({
         ...row,
@@ -203,6 +230,12 @@ export const devTasksRoutes = new Hono()
   // POST /api/dev-tasks
   .post('/', zValidator('json', createDevTaskSchema), async (c) => {
     const input = c.req.valid('json');
+    // 依赖图校验（§2.4 必须无环 / §5 无悬空）：新建任务尚不被依赖，无环可成，
+    // 但仍须拒绝悬空引用——悬空依赖会让它永久不出队
+    const violation = dependencyViolationResponse(
+      await validateDependencies(null, input.dependencies)
+    );
+    if (violation) return c.json(violation, 400);
     const id = await generateShortId('devTask');
     await taskRepo.create(id, {
       story_id: input.storyId,
@@ -236,6 +269,13 @@ export const devTasksRoutes = new Hono()
     if (input.storyId !== undefined) dto.story_id = input.storyId;
     if (input.productId !== undefined) dto.product_id = input.productId;
     if (input.moduleId !== undefined) dto.module_id = input.moduleId;
+    // 依赖图校验（§2.4/§5）：悬空 → 永久阻塞；自环/成环 → 破坏 DAG
+    if (input.dependencies !== undefined) {
+      const violation = dependencyViolationResponse(
+        await validateDependencies(c.req.param('id'), input.dependencies)
+      );
+      if (violation) return c.json(violation, 400);
+    }
     // 模块引用存在性校验（告警不阻断；产品上下文经 story→activity 解析）
     let moduleWarning: string[] = [];
     if (input.affectedModules !== undefined) {

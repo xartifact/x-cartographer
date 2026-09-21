@@ -16,8 +16,9 @@ xcart product list                       # 所有产品（id/name/description/�
 xcart project info --id <productId>      # 单个产品详情（含活动 + 版本）
 xcart activity list --product <productId>    # 某产品的所有活动（journey 为 deprecated alias）
 xcart milestone list --project <productId>   # 某产品的所有版本
-xcart overview --project <productId>     # 产品总览：活动/故事/任务数、完成情况、状态分布
-xcart context export <productId>         # 导出全景 Markdown（需求/故事/任务/排期统计）
+xcart overview --project <productId>     # 产品总览：活动/故事/任务数、完成情况、状态分布、宪法计数
+xcart context export <productId>         # 导出全景 Markdown（含技术宪法节：技术栈/架构原则/模块目录）
+xcart adr current --project <productId>  # 当前生效技术宪法全文（原则/技术栈/模块）——了解技术基线
 ```
 
 ## 技术宪法纪律（先读后写）
@@ -35,13 +36,14 @@ xcart context export <productId>         # 导出全景 Markdown（需求/故事
 
 1. **发现产品**：`xcart product list` → 选中目标 `productId`。
 2. **理解结构**：`xcart project info --id <id>` 查看活动布局；`xcart activity list` / `xcart milestone list` 加深。
-3. **提供评审上下文**：`xcart context export <productId>`（Markdown）→ 直接粘贴给 LLM。
-4. **机械读取**：所有命令加 `--format json` 以 JSON 解析。
+3. **了解技术基线**：`xcart overview` 看宪法计数（`constitution.principles_count`/`must_principles_count`）→ 有原则时用 `xcart adr current --product <id>` 看全文；`[MUST]` 级直接约束后续实现。
+4. **提供评审上下文**：`xcart context export <productId>`（Markdown）→ 直接粘贴给 LLM；导出内容已含技术宪法节，无需另外拼接。
+5. **机械读取**：所有命令加 `--format json` 以 JSON 解析。
 
 ## 效率提示（agent 用）
 
-- `overview --format json` 返回结构化统计（`{ journeys, stories, tasks, task_status, ... }`），单次 API 完成，**不要**逐个 story 拉 `task list` 凑统计。
-- `context export <id>` 默认输出 Markdown（`--format json` 得结构数据）；树内已含任务明细，无需再查 `task list`。
+- `overview --format json` 返回结构化统计（`{ activities, stories, tasks, task_status, constitution, ... }`），单次 API 完成，**不要**逐个 story 拉 `task list` 凑统计。`constitution` 字段是宪法摘要计数（`principles_count`/`must_principles_count`/`tech_stack_count`/`modules_count`）——它只是**计数**，要看原则正文用 `xcart adr current`。
+- `context export <id>` 默认输出 Markdown（`--format json` 得结构数据）；树内已含任务明细，无需再查 `task list`。Markdown 内含「技术宪法」节（技术栈/架构原则/模块目录），JSON 的 `constitution` 字段是三者的完整内容——因此导出的上下文**自带架构基线**，给 LLM 评审时不必另外附 ADR。
 - `project list` 的 description 截断至 60 字；查全量描述用 `project info --id`。
 
 ## 排期评估（AI-Native 研发工时）
@@ -55,11 +57,27 @@ xcart context export <productId>         # 导出全景 Markdown（需求/故事
   - 完整模块 → 1-2 小时
 - 向 LLM 提供评审上下文时，指出估算基于 AI-Native 工作流评估，避免误读为人力排期。
 
+## 版本目标写作纪律（milestone.goal 必须 SMART）
+
+版本目标是**可判定是否达成**的承诺，不是愿望清单。评审/新建版本时按此把关：
+
+| ✅ 正例 | ❌ 反例 | 问题 |
+|---|---|---|
+| 各旅程核心能力落地：故事地图、任务管理、排期、CLI/API 集成 | 把产品做得更好用 | 无法判定达成 |
+| 第三方可开发插件：共享打包预设、开发文档、运行时装卸载与 HMR | 完善插件生态 | 无边界（"完善"没有终点） |
+| 进行中功能收尾 + 新流程需求：筛选/状态历史/文档/任务排期视图 | 提升系统质量 | 不可验收 |
+
+判据：**看到 goal 能否写出退出信号**（"满足什么条件算完成"）。写不出就重写 goal。
+
+配套指标：`xcart overview --format json` 的 `milestone_predictability` 给出每版本
+planned vs done（故事数 + 估算工时，cancelled 已剔除）——**目标是承诺、比值是兑现情况**，
+两者一起看才能校准后续版本规划（US-112 PI 可预测性）。
+
 ## 输出契约（--format json 片段）
 
 `project list` → `[{ "id", "name", "description"(截断), "journeys" }]`
-`overview` → `{ "project_id", "name", "journeys", "stories", "done_stories", "tasks", "done_tasks", "task_status", "story_status" }`
-`context export`：默认 Markdown；`--format json` → `{ "project"(精简), "milestones", "journeys"(树含故事任务) }`
+`overview` → `{ "project_id", "name", "activities", "stories", "done_stories", "tasks", "done_tasks", "task_status", "story_status", "constitution": { "tech_stack_count", "principles_count", "must_principles_count", "modules_count" } }`
+`context export`：默认 Markdown（含技术宪法节）；`--format json` → `{ "product"(精简), "milestones", "constitution"(完整:{tech_stack,architecture_principles,modules}), "activities"(树含故事任务) }`
 
 
 ## Agent 效率提示（数据统计与解析）

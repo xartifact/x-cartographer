@@ -504,11 +504,23 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
   const f = ctx.flags;
   switch (sub) {
     case 'list': {
+      // 三种检索路径：--story（故事锚定）/ --module-id（模块锚定，§2.5）/ --product（全部）
       const storyId = opt(f, 'story', 'storyId');
-      if (!storyId) throw new Error('用法: xcart dev-task list --story <id>');
-      const data = await api(`/api/dev-tasks?storyId=${encodeURIComponent(storyId)}`);
+      const productId = opt(f, 'product', 'project');
+      const moduleId = opt(f, 'module-id', 'moduleId');
+      if (!storyId && !productId && !moduleId) {
+        throw new Error('用法: xcart dev-task list --story <id> | --product <id> | --module-id <slug>');
+      }
+      const params = new URLSearchParams();
+      if (productId) params.set('productId', productId);
+      if (moduleId) params.set('moduleId', moduleId);
+      const data = productId || moduleId
+        ? await api(`/api/dev-tasks/all?${params}`)
+        : await api(`/api/dev-tasks?storyId=${encodeURIComponent(storyId!)}`);
       const rows = (Array.isArray(data) ? data : []).map((t) => ({
-        id: t.id, title: t.title, type: t.type, priority: t.priority, status: t.status, estimation: t.estimation, assignee: t.assignee ?? '',
+        id: t.id, title: t.title, priority: t.priority, status: t.status,
+        estimation: t.estimation, assignee: t.assignee ?? '',
+        anchor: t.story_id ? `story:${t.story_id}` : (t.module_id ? `module:${t.module_id}` : '-'),
       }));
       console.log(render(rows, ctx.format));
       break;
@@ -539,13 +551,26 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       break;
     }
     case 'create': {
+      // 两种锚定（domain-model §2.5）：① --story（有用户价值的工作项）
+      // ② --product + --module-id（工程治理类：重构/技术债，不编入故事地图）
+      const story = opt(f, 'story', 'storyId');
+      const product = opt(f, 'product', 'project');
+      const moduleId = opt(f, 'module-id', 'moduleId');
+      if (!story && !(product && moduleId)) {
+        throw new Error(
+          '用法: xcart task create --story <storyId> … ' +
+          '| --product <productId> --module-id <slug> …（工程治理类任务，story_id 为空）'
+        );
+      }
       const body: Record<string, unknown> = {
-        storyId: req(f, 'story', 'storyId'),
         title: req(f, 'title'),
         description: opt(f, 'description') ?? '',
         priority: opt(f, 'priority') ?? 'P2',
         estimation: Number(opt(f, 'estimation') ?? '0'),
       };
+      if (story) body.storyId = story;
+      if (product) body.productId = product;
+      if (moduleId) body.moduleId = moduleId;
       const deps = splitList(opt(f, 'deps', 'dependencies')); if (deps) body.dependencies = deps;
       const tags = splitList(opt(f, 'tags')); if (tags) body.tags = tags;
       const data = await api('/api/dev-tasks', 'POST', body);
@@ -562,6 +587,22 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       const deps = opt(f, 'deps');
       if (deps !== undefined) body.dependencies = splitList(deps);
       const affected = splitList(opt(f, 'affected-modules', 'modules')); if (affected) body.affectedModules = affected;
+      // 模块主锚（工程治理类）：与 affected_modules 不同——那是影响面标注，这是唯一主锚
+      const moduleId = opt(f, 'module-id', 'moduleId'); if (moduleId !== undefined) body.moduleId = moduleId;
+      const productId = opt(f, 'product', 'project'); if (productId !== undefined) body.productId = productId;
+      const storyId = opt(f, 'story'); if (storyId !== undefined) body.storyId = storyId === 'none' ? null : storyId;
+      // 解挂 story 后产品归属只剩 product_id：若它为空，任务会从**所有**产品视图
+      // （next / summary / overview / /all?productId=）消失——静默变孤儿。
+      // 与 create 的两种锚定要求对齐：要么挂 story，要么给出 product（工程治理类再带 module）。
+      if (storyId === 'none' && productId === undefined) {
+        const current = await api(`/api/dev-tasks/${id}`).catch(() => null);
+        if (isObj(current) && !current.product_id) {
+          throw new Error(
+            `解挂 story 会让 ${id} 失去产品归属（product_id 为空），它将从所有产品视图中消失。` +
+            `请同时给出 --product <productId>（工程治理类建议再带 --module-id <slug>）。`
+          );
+        }
+      }
       const assignee = opt(f, 'assignee'); if (assignee !== undefined) body.assignee = assignee;
       const status = opt(f, 'status');
       if (status !== undefined) {
@@ -616,36 +657,61 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
     }
     case 'summary': {
       const productId = req(f, 'product', 'project');
-      // 深树一次取全（GET /api/products/:id 已含 activities→stories→dev_tasks），
-      // 此前逐 activity 拉 stories、再逐 story 拉 tasks 构成 N+1（违反 AGENTS.md
-      // 「深树一次取全…勿逐 story 拉 task list 凑数」）。
+      // 任务计数以 `/all`（repo 全量）为权威：深树看不到模块锚定任务
+      // （story_id=null，domain-model §2.5），曾致统计系统性偏低。
+      // 故事计数仍走深树（故事必然挂在活动下，深树完备）。
       const proj = await api(`/api/products/${productId}`);
-      const { taskCount, taskStatus } = summarizeTree(proj as Record<string, unknown>);
-      const count = (s: string) => taskStatus[s] ?? 0;
+      const all = await api(`/api/dev-tasks/all?productId=${encodeURIComponent(productId)}`);
+      const tasks: Array<Record<string, unknown>> = Array.isArray(all) ? all : [];
+      const { storyCount, doneStories, storyStatus, taskStatus } =
+        summarizeTree(proj as Record<string, unknown>, tasks);
+      // 其中不挂 story 的（工程治理类）单列——故事地图看不到它们，混在一起会让人以为漏了数据
+      const moduleAnchored = tasks.filter((t) => t.story_id === null).length;
       const summary = {
         product_id: productId,
-        total: taskCount,
+        stories: storyCount,
+        done_stories: doneStories,
+        story_status: storyStatus,
+        total: tasks.length,
         by_status: {
-          backlog: count('backlog'), todo: count('todo'), in_progress: count('in_progress'),
-          in_review: count('in_review'), testing: count('testing'), done: count('done'), cancelled: count('cancelled'),
+          backlog: taskStatus.backlog ?? 0,
+          todo: taskStatus.todo ?? 0,
+          in_progress: taskStatus.in_progress ?? 0,
+          in_review: taskStatus.in_review ?? 0,
+          testing: taskStatus.testing ?? 0,
+          done: taskStatus.done ?? 0,
+          cancelled: taskStatus.cancelled ?? 0,
         },
-        done_ratio: taskCount ? Math.round((count('done') / taskCount) * 100) : 0,
+        module_anchored: moduleAnchored,
+        done_ratio: tasks.length
+          ? Math.round(((taskStatus.done ?? 0) / tasks.length) * 100)
+          : 0,
       };
       console.log(render(summary, ctx.format === 'table' ? 'json' : ctx.format));
       break;
     }
     case 'bulk-create': {
-      const storyId = req(f, 'story', 'storyId');
+      // 与 create 一致支持两种锚定：--story 或 --product + --module-id
+      const storyId = opt(f, 'story', 'storyId');
+      const productId = opt(f, 'product', 'project');
+      const moduleId = opt(f, 'module-id', 'moduleId');
+      if (!storyId && !(productId && moduleId)) {
+        throw new Error(
+          '用法: xcart task bulk-create --story <storyId> --file tasks.json ' +
+          '| --product <productId> --module-id <slug> --file tasks.json'
+        );
+      }
       const file = req(f, 'file');
       const items: unknown[] = JSON.parse((await import('node:fs')).readFileSync(file, 'utf-8'));
       const created: unknown[] = [];
       for (const it of items) {
         if (!isObj(it) || typeof it.title !== 'string') throw new Error(`bulk-create 文件条目需含 title: ${JSON.stringify(it)}`);
         const res = await api('/api/dev-tasks', 'POST', {
-          storyId,
+          ...(storyId ? { storyId } : {}),
+          ...(productId ? { productId } : {}),
+          ...(moduleId ? { moduleId } : {}),
           title: it.title,
           description: it.description ?? '',
-          type: it.type ?? 'technical_task',
           priority: it.priority ?? 'P2',
           estimation: Number(it.estimation ?? 0),
           dependencies: it.dependencies ?? [],
@@ -1124,8 +1190,17 @@ function aggregateByMilestone(activities: TreeJourney[]): {
   return { byMilestone, unassigned };
 }
 
-/** 从项目树汇总统计（journeys/stories/tasks 计数与状态分布） */
-function summarizeTree(proj: Record<string, unknown>): {
+/**
+ * 汇总统计（故事来自项目深树，任务来自 `/all` 全量）。
+ *
+ * **任务必须外部传入**：深树（user_activities[].stories[].dev_tasks[]）看不到
+ * 模块锚定的工程治理任务（story_id=null，domain-model §2.5），只按深树统计会
+ * 系统性漏掉它们。故事必然挂在活动下，深树对故事是完备的，故仍从树取。
+ */
+function summarizeTree(
+  proj: Record<string, unknown>,
+  tasks: Array<Record<string, unknown>>
+): {
   activities: TreeJourney[];
   storyCount: number; doneStories: number;
   taskCount: number; doneTasks: number;
@@ -1135,26 +1210,28 @@ function summarizeTree(proj: Record<string, unknown>): {
   unassigned: { planned_stories: number; done_stories: number; planned_estimation: number; done_estimation: number };
 } {
   const activities: TreeJourney[] = (Array.isArray(proj.user_activities) ? proj.user_activities : []) as TreeJourney[];
-  let storyCount = 0, doneStories = 0, taskCount = 0, doneTasks = 0;
-  const taskStatus: Record<string, number> = {};
+  let storyCount = 0, doneStories = 0;
   const storyStatus: Record<string, number> = {};
   for (const j of activities) {
-    const stories = Array.isArray(j.stories) ? j.stories : [];
-    for (const s of stories) {
+    for (const s of Array.isArray(j.stories) ? j.stories : []) {
       storyCount++;
       const ss = s.status ?? 'backlog';
       storyStatus[ss] = (storyStatus[ss] ?? 0) + 1;
       if (ss === 'accepted') doneStories++;
-      for (const t of Array.isArray(s.dev_tasks) ? s.dev_tasks : []) {
-        taskCount++;
-        const ts = t.status ?? 'backlog';
-        taskStatus[ts] = (taskStatus[ts] ?? 0) + 1;
-        if (ts === 'done') doneTasks++;
-      }
     }
   }
+  const taskStatus: Record<string, number> = {};
+  let doneTasks = 0;
+  for (const t of tasks) {
+    const ts = String(t.status ?? 'backlog');
+    taskStatus[ts] = (taskStatus[ts] ?? 0) + 1;
+    if (ts === 'done') doneTasks++;
+  }
   const { byMilestone, unassigned } = aggregateByMilestone(activities);
-  return { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus, byMilestone, unassigned };
+  return {
+    activities, storyCount, doneStories,
+    taskCount: tasks.length, doneTasks, taskStatus, storyStatus, byMilestone, unassigned,
+  };
 }
 
 async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
@@ -1166,7 +1243,9 @@ async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
     tech_stack: [], architecture_principles: [], modules: [],
   }));
   const constObj = isObj(constitution) ? constitution : { tech_stack: [], architecture_principles: [], modules: [] };
-  const { activities: treeActivities, storyCount, taskCount, doneTasks } = summarizeTree(proj);
+  const all = await api(`/api/dev-tasks/all?productId=${encodeURIComponent(projectId)}`).catch(() => []);
+  const allTasks: Array<Record<string, unknown>> = Array.isArray(all) ? all : [];
+  const { activities: treeActivities, storyCount, taskCount, doneTasks } = summarizeTree(proj, allTasks);
   const activityBlocks: string[] = [];
   for (const j of treeActivities) {
     const stories = Array.isArray(j.stories) ? j.stories : [];
@@ -1188,16 +1267,34 @@ async function cmdContextExport(projectId: string, fmt: Format): Promise<void> {
 ### 技术栈\n${techLines.join('\n') || '-（暂无）'}\n
 ### 架构原则\n${principleLines.join('\n') || '-（暂无）'}\n
 ### 模块目录\n${moduleLines.join('\n') || '-（暂无）'}\n`;
+  // 模块锚定的工程治理任务不在故事地图里（story_id=null，§2.5）——必须单列，
+  // 否则它们只出现在总数里，读者无法定位（「总数 39 但地图上找不到」）
+  const governance = allTasks.filter((t) => t.story_id === null);
+  const governanceSection = governance.length
+    ? `## 工程治理任务（模块锚定，不在故事地图内）\n${
+        governance
+          .map((t) => `- [${t.status}] **${t.title}** (${t.id}, 模块=${t.module_id ?? '-'}, ${t.estimation ?? 0}h)`)
+          .join('\n')
+      }\n`
+    : '';
   const md = `# ${proj.name} — 全景上下文\n
 > 产品: ${proj.id} | 描述: ${proj.description ?? '-'}\n
 ## 统计\n
-- 用户活动: ${treeActivities.length} | 故事: ${storyCount} | 研发任务: ${taskCount}（完成 ${doneTasks}）\n
+- 用户活动: ${treeActivities.length} | 故事: ${storyCount} | 研发任务: ${taskCount}（完成 ${doneTasks}，其中模块锚定 ${governance.length}）\n
 - 发布: ${(Array.isArray(milestones) ? milestones : []).map((m) => `${m.name}(${m.status})`).join(', ') || '-'}\n
 ${constitutionSection}
+${governanceSection}
 ## 故事地图（用户活动 × 用户故事）\n
 ${activityBlocks.join('\n\n')}\n`;
   if (fmt === 'markdown') console.log(md);
-  else if (fmt === 'json') console.log(JSON.stringify({ product: { id: proj.id, name: proj.name, description: proj.description }, milestones, constitution: constObj, activities: treeActivities }, null, 2));
+  else if (fmt === 'json') console.log(JSON.stringify({
+    product: { id: proj.id, name: proj.name, description: proj.description },
+    milestones,
+    constitution: constObj,
+    activities: treeActivities,
+    // 与 activities 并列（而非嵌进某个活动）——它们不属任何活动列
+    module_anchored_tasks: governance,
+  }, null, 2));
   else console.log(JSON.stringify(md, null, 2));
 }
 
@@ -1212,12 +1309,16 @@ async function cmdOverview(ctx: Ctx): Promise<void> {
   const constObj = isObj(constitution) ? constitution : { tech_stack: [], architecture_principles: [], modules: [] };
   const principles = Array.isArray(constObj.architecture_principles) ? constObj.architecture_principles : [];
   const mustPrinciples = principles.filter((p: Record<string, unknown>) => p.strength === 'MUST').length;
-  const { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus, byMilestone, unassigned } = summarizeTree(proj);
+  // 任务计数走 /all（repo 全量）：深树看不到模块锚定任务（§2.5）
+  const all = await api(`/api/dev-tasks/all?productId=${encodeURIComponent(projectId)}`).catch(() => []);
+  const allTasks: Array<Record<string, unknown>> = Array.isArray(all) ? all : [];
+  const { activities, storyCount, doneStories, taskCount, doneTasks, taskStatus, storyStatus, byMilestone, unassigned } = summarizeTree(proj, allTasks);
+  const moduleAnchored = allTasks.filter((t) => t.story_id === null).length;
   if (ctx.format === 'json') {
     console.log(JSON.stringify({
       project_id: proj.id, name: proj.name,
       activities: activities.length, stories: storyCount, done_stories: doneStories,
-      tasks: taskCount, done_tasks: doneTasks,
+      tasks: taskCount, done_tasks: doneTasks, module_anchored_tasks: moduleAnchored,
       task_status: taskStatus, story_status: storyStatus,
       // 按版本的 planned vs done（US-112 PI 可预测性；cancelled 已剔除，未排期单列）
       milestone_predictability: byMilestone,
@@ -1235,7 +1336,7 @@ async function cmdOverview(ctx: Ctx): Promise<void> {
     .map((m) => `  - ${m.milestone_id}: ${m.done_stories}/${m.planned_stories} 故事（${m.done_estimation}/${m.planned_estimation}h）可预测性 ${m.predictability ?? '-'}`)
     .join('\n');
   const md = `# ${proj.name} — 产品总览\n
-- 用户活动: ${activities.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 研发任务: ${taskCount}（完成 ${doneTasks}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n- 技术宪法: ${principles.length} 原则（MUST ${mustPrinciples}）/ ${Array.isArray(constObj.tech_stack) ? constObj.tech_stack.length : 0} 技术栈 / ${Array.isArray(constObj.modules) ? constObj.modules.length : 0} 模块\n- 版本可预测性（done/planned，故事数）:\n${predictabilityLines || '  -（无已排期故事）'}\n`;
+- 用户活动: ${activities.length}\n- 故事: ${storyCount}（完成 ${doneStories}）\n- 研发任务: ${taskCount}（完成 ${doneTasks}，其中模块锚定 ${moduleAnchored}）\n- 任务状态: ${JSON.stringify(taskStatus)}\n- 故事状态: ${JSON.stringify(storyStatus)}\n- 技术宪法: ${principles.length} 原则（MUST ${mustPrinciples}）/ ${Array.isArray(constObj.tech_stack) ? constObj.tech_stack.length : 0} 技术栈 / ${Array.isArray(constObj.modules) ? constObj.modules.length : 0} 模块\n- 版本可预测性（done/planned，故事数）:\n${predictabilityLines || '  -（无已排期故事）'}\n`;
   console.log(md);
 }
 
@@ -1329,16 +1430,19 @@ function helpText(): string {
   xcart user-task delete <id>
 
 研发任务（DevTask；task 为 deprecated alias）
-  xcart dev-task list --story <id>
+  两种锚定（domain-model §2.5）：① --story（有用户价值的工作项）
+                           ② --product + --module-id（工程治理类：重构/技术债，不进故事地图）
+  xcart dev-task list --story <id> | --product <id> | --module-id <slug>
   xcart task info <id>
   xcart task create --story <id> --title <t> [--priority] [--estimation] [--deps a,b] [--tags a,b]
-  xcart task update <id> [--title] [--status] [--assignee] [--priority] [--estimation]
+  xcart task create --product <id> --module-id <slug> --title <t> [--priority] [--estimation]
+  xcart task update <id> [--title] [--status] [--assignee] [--priority] [--estimation] [--module-id <slug>] [--story <id>|none] [--product <id>]
   xcart task status <id> <status> [--expected-status <s>] [--reason]
                                                 # --expected-status 启用 CAS 乐观锁：与当前状态不符时返回 409（防并发认领冲突，Agent 收到 409 应重读状态而非重试）
   xcart task delete <id>
-  xcart task next --project <id> [--assignee]   # 下一个可执行任务（拓扑规则）
-  xcart task summary --project <id>             # 任务统计
-  xcart task bulk-create --story <id> --file tasks.json
+  xcart task next --project <id> [--assignee]   # 下一个可执行任务（拓扑规则；两种锚定都参与）
+  xcart task summary --project <id>             # 任务统计（含 module_anchored 计数）
+  xcart task bulk-create --story <id> --file tasks.json | --product <id> --module-id <slug> --file tasks.json
 
 注：任务无 --type 参数（type 字段已废除，交付性质由 --tags 承载，如 architecture-enabler/implementation/refactor/bug）。
 

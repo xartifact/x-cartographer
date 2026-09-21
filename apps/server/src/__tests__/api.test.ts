@@ -517,6 +517,206 @@ describe('dev-tasks CRUD + topological next', () => {
     expect(changes[1].new_status).toBe('todo');
   });
 
+  /**
+   * domain-model §2.5：工程治理类工作（重构/技术债）走**模块锚定**——
+   * story_id=null + module_id 主锚 + product_id 直连，不强行编入故事地图。
+   *
+   * 回归：/next 曾只遍历 product.user_activities.stories.dev_tasks 深树，
+   * 深树看不到脱离 story 的任务，于是这类任务**永远不出队**（todo 也拿不到），
+   * 工程治理分支闭环断裂。生产实证：PROD-007 有 39 条 story_id=null 的任务。
+   */
+  it('模块锚定任务（story_id=null）参与 next 拓扑推荐，且依赖判定跨两种锚定', async () => {
+    const projectId = await createProduct('治理拓扑产品');
+    const activityId = await createActivity(projectId, '治理活动');
+    const storyId = await createStory(activityId, '治理对照故事');
+    // 故事锚定的上游任务 —— 模块锚定任务依赖它，验证依赖判定不因锚定方式断裂
+    const upstream = await createDevTask(storyId, '故事锚定上游');
+    const gov = await jsonRequest('POST', '/api/dev-tasks', {
+      productId: projectId,
+      moduleId: 'gov-mod',
+      title: '模块锚定任务',
+      description: '工程治理类',
+      priority: 'P1',
+      estimation: 2,
+      dependencies: [upstream],
+    });
+    expect(gov.status).toBe(201);
+    const { id: govId } = (await gov.json()) as { id: string };
+
+    const next = async (): Promise<Record<string, unknown> | null> => {
+      const res = await app.request(`/api/dev-tasks/next?productId=${projectId}`);
+      expect(res.status).toBe(200);
+      return (await res.json()) as Record<string, unknown> | null;
+    };
+
+    // 上游先就绪：深树任务照常出队
+    await jsonRequest('POST', `/api/dev-tasks/${upstream}/status`, { status: 'todo' });
+    expect((await next())?.id).toBe(upstream);
+
+    // 上游完成 → 模块锚定任务解除阻塞，必须成为候选（修前恒为 null）
+    await jsonRequest('POST', `/api/dev-tasks/${upstream}/status`, { status: 'done' });
+    await jsonRequest('POST', `/api/dev-tasks/${govId}/status`, { status: 'todo' });
+    const picked = await next();
+    expect(picked?.id).toBe(govId);
+    expect(picked?.story_id).toBeNull();
+    expect(picked?.module_id).toBe('gov-mod');
+  });
+
+  it('next 对已无候选的产品仍返回 null（模块锚定任务全部完成时）', async () => {
+    const projectId = await createProduct('治理清空产品');
+    const res = await jsonRequest('POST', '/api/dev-tasks', {
+      productId: projectId, moduleId: 'only-mod',
+      title: '唯一治理任务', description: 'd', priority: 'P2', estimation: 1,
+    });
+    const { id } = (await res.json()) as { id: string };
+    await jsonRequest('POST', `/api/dev-tasks/${id}/status`, { status: 'todo' });
+    const first = await app.request(`/api/dev-tasks/next?productId=${projectId}`);
+    expect(((await first.json()) as Record<string, unknown>).id).toBe(id);
+
+    await jsonRequest('POST', `/api/dev-tasks/${id}/status`, { status: 'done' });
+    const after = await app.request(`/api/dev-tasks/next?productId=${projectId}`);
+    expect(await after.json()).toBeNull();
+  });
+
+  /**
+   * `--assignee` 是 CLI help 与 skill 长期宣传的 flag，但服务端从未读取它
+   * （静默忽略，永不过滤）。此处钉死契约：只返回指派给该人的候选。
+   */
+  it('next 按 assignee 过滤：无匹配返回 null，不匹配者不出队', async () => {
+    const projectId = await createProduct('assignee 产品');
+    const r = await jsonRequest('POST', '/api/dev-tasks', {
+      productId: projectId, moduleId: 'assignee-mod',
+      title: '指派任务', description: 'd', priority: 'P2', estimation: 1,
+    });
+    const { id } = (await r.json()) as { id: string };
+    await jsonRequest('PATCH', `/api/dev-tasks/${id}`, { assignee: 'alice' });
+    await jsonRequest('POST', `/api/dev-tasks/${id}/status`, { status: 'todo' });
+
+    const forAlice = await app.request(
+      `/api/dev-tasks/next?productId=${projectId}&assignee=alice`
+    );
+    expect(((await forAlice.json()) as Record<string, unknown>).id).toBe(id);
+
+    // 换个人：任务仍 todo 但不该出队
+    const forBob = await app.request(
+      `/api/dev-tasks/next?productId=${projectId}&assignee=bob`
+    );
+    expect(await forBob.json()).toBeNull();
+
+    // 不带 filter 时忽略 assignee，照常出队
+    const noFilter = await app.request(`/api/dev-tasks/next?productId=${projectId}`);
+    expect(((await noFilter.json()) as Record<string, unknown>).id).toBe(id);
+  });
+
+  /**
+   * domain-model §2.4「工作 → 工作：DevTask 依赖 DAG，允许，**必须无环**」
+   * + §5「无悬空：引用的实体必须存在」。
+   *
+   * 回归：dependencies 此前无任何写入校验——悬空/自环/成环全部被接受。
+   * 悬空边尤其致命：next 的 completedIds 永不含它，deps.every(completed) 恒 false，
+   * 该任务**永久不出队**且无诊断（生产实测 11 条悬空边）。
+   */
+  describe('依赖图写入校验（悬空 / 自环 / 成环）', () => {
+    it('拒绝悬空依赖：指向不存在的任务', async () => {
+      const projectId = await createProduct('依赖校验产品');
+      const res = await jsonRequest('POST', '/api/dev-tasks', {
+        productId: projectId, moduleId: 'dep-mod',
+        title: '悬空依赖任务', description: 'd', priority: 'P2', estimation: 1,
+        dependencies: ['TASK-9999'],
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string; detail?: unknown };
+      expect(JSON.stringify(body)).toContain('TASK-9999');
+    });
+
+    it('拒绝自环：任务依赖自身', async () => {
+      const projectId = await createProduct('自环产品');
+      const created = await jsonRequest('POST', '/api/dev-tasks', {
+        productId: projectId, moduleId: 'self-mod',
+        title: '自环任务', description: 'd', priority: 'P2', estimation: 1,
+      });
+      const { id } = (await created.json()) as { id: string };
+      // create 时 id 尚未生成，故自环只能经 PATCH 产生
+      const patch = await jsonRequest('PATCH', `/api/dev-tasks/${id}`, {
+        dependencies: [id],
+      });
+      expect(patch.status).toBe(400);
+      expect(JSON.stringify(await patch.json())).toContain(id);
+    });
+
+    it('拒绝成环：A→B 后再写 B→A', async () => {
+      const projectId = await createProduct('成环产品');
+      const act = await createActivity(projectId, '成环活动');
+      const story = await createStory(act, '成环故事');
+      const a = await createDevTask(story, '环任务 A');
+      const b = await createDevTask(story, '环任务 B', [a]);
+      // B 依赖 A 合法；反向再依赖就成环
+      const patch = await jsonRequest('PATCH', `/api/dev-tasks/${a}`, {
+        dependencies: [b],
+      });
+      expect(patch.status).toBe(400);
+      expect(JSON.stringify(await patch.json())).toContain(a);
+    });
+
+    it('拒绝间接成环：A→B→C 后再写 C→A', async () => {
+      const projectId = await createProduct('间接成环产品');
+      const act = await createActivity(projectId, '间接活动');
+      const story = await createStory(act, '间接故事');
+      const a = await createDevTask(story, '间接 A');
+      const b = await createDevTask(story, '间接 B', [a]);
+      const c = await createDevTask(story, '间接 C', [b]);
+      const patch = await jsonRequest('PATCH', `/api/dev-tasks/${a}`, {
+        dependencies: [c],
+      });
+      expect(patch.status).toBe(400);
+    });
+
+    it('合法 DAG 写入不受影响（回归）', async () => {
+      const projectId = await createProduct('合法依赖产品');
+      const act = await createActivity(projectId, '合法活动');
+      const story = await createStory(act, '合法故事');
+      const a = await createDevTask(story, '合法 A');
+      const b = await createDevTask(story, '合法 B', [a]);
+      const c = await createDevTask(story, '合法 C', [a, b]);
+      const res = await jsonRequest('GET', `/api/dev-tasks/${c}`);
+      const cTask = (await res.json()) as { dependencies: string[] };
+      expect(cTask.dependencies.sort()).toEqual([a, b].sort());
+    });
+  });
+
+  /**
+   * `/all?productId=` 是 CLI 统计（summary/overview/context export）的数据源，
+   * 产品过滤必须按**解析后**的归属判定：模块锚定任务只有 product_id，
+   * 故事锚定任务经 story→activity 反查——两种都要正确归属。
+   */
+  it('dev-tasks/all 按产品过滤，两种锚定的归属都正确', async () => {
+    type AllTaskRow = { title: string; product: { id: string } | null };
+    const pidA = await createProduct('归属产品 A');
+    const pidB = await createProduct('归属产品 B');
+    const actA = await createActivity(pidA, 'A 活动');
+    const storyA = await createStory(actA, 'A 故事');
+    await createDevTask(storyA, 'A 故事锚定任务');
+    await jsonRequest('POST', '/api/dev-tasks', {
+      productId: pidA, moduleId: 'a-mod',
+      title: 'A 模块锚定任务', description: 'd', priority: 'P2', estimation: 1,
+    });
+    await jsonRequest('POST', '/api/dev-tasks', {
+      productId: pidB, moduleId: 'b-mod',
+      title: 'B 模块锚定任务', description: 'd', priority: 'P2', estimation: 1,
+    });
+
+    const onlyA = await app.request(`/api/dev-tasks/all?productId=${pidA}`);
+    const rowsA = (await onlyA.json()) as AllTaskRow[];
+    expect(rowsA).toHaveLength(2);
+    expect(rowsA.every((t) => t.product?.id === pidA)).toBe(true);
+    expect(rowsA.map((t) => t.title).sort()).toEqual(['A 故事锚定任务', 'A 模块锚定任务']);
+
+    const onlyB = await app.request(`/api/dev-tasks/all?productId=${pidB}`);
+    const rowsB = (await onlyB.json()) as AllTaskRow[];
+    expect(rowsB).toHaveLength(1);
+    expect(rowsB[0]!.title).toBe('B 模块锚定任务');
+  });
+
   it('status endpoint 404s for unknown dev-task', async () => {
     const res = await jsonRequest('POST', '/api/dev-tasks/nope/status', {
       status: 'done',
@@ -973,6 +1173,64 @@ describe('任务上下文切片 ctx（P2：Agent 的实际输入面）', () => {
     };
     expect(ctx.story).toBeNull();
     expect(ctx.modules[0]!.responsibility).toBe('治理职责');
+  });
+
+  /**
+   * §3.3 折叠只看 acceptedAt：proposed ADR 的 changes 未升格即未生效。
+   *
+   * 回归：ctx 曾用 foldConstitution(listByProject(...)) 裸折叠，绕过 acceptedAt 过滤，
+   * 于是 proposed 的原则被当作生效约束注入——与 adr current / task info 给出相反事实
+   * （生产实证 ADR-006：ctx 见 9 条，adr current 见 0 条）。
+   */
+  it('proposed ADR 的原则不进入 ctx（未升格即未生效），升格后才出现', async () => {
+    const productId = await createProduct('ctx 宪法产品');
+    const activityId = await createActivity(productId, 'ctx 宪法活动');
+    const storyId = await createStory(activityId, 'ctx 宪法故事');
+    const taskId = await createDevTask(storyId, 'ctx 宪法任务');
+    await jsonRequest('PUT', '/api/system-modules/ctx-const', {
+      id: 'ctx-const', product_id: productId, name: '宪法模块', depends_on: [],
+    });
+    const adrBody = (extra: Record<string, unknown> = {}) => ({
+      product_id: productId,
+      title: 'ctx 原则',
+      context: 'c',
+      decision: 'd',
+      changes: {
+        architecture_principles: {
+          upsert: [{ id: 'ctx-rule', strength: 'MUST', statement: '尚未升格的原则' }],
+        },
+      },
+      ...extra,
+    });
+
+    // 非人主张、未指定 status → 落 proposed：不得出现于任何读路径
+    const created = await jsonRequest('POST', '/api/adr-records', adrBody());
+    expect(created.status).toBe(201);
+    const { id: adrId } = (await created.json()) as { id: string };
+
+    const before = (await (await jsonRequest('GET', `/api/ctx/${taskId}`)).json()) as {
+      principles: Array<{ id: string }>;
+    };
+    expect(before.principles.map((p) => p.id)).not.toContain('ctx-rule');
+
+    // 显式升格（须带理由）后，同一读路径才应看到它
+    const promote = await jsonRequest('POST', `/api/adr-records/${adrId}/status`, {
+      status: 'accepted',
+      reason: '人复核通过',
+    });
+    expect(promote.status).toBe(200);
+
+    const after = (await (await jsonRequest('GET', `/api/ctx/${taskId}`)).json()) as {
+      principles: Array<{ id: string; strength: string }>;
+    };
+    expect(after.principles.map((p) => p.id)).toContain('ctx-rule');
+    // 与权威读路径（adr current）保持同一事实
+    const constitution = (await (
+      await jsonRequest('GET', `/api/adr-records/current?productId=${productId}`)
+    ).json()) as { architecture_principles: Array<{ id: string }> };
+    expect(after.principles.map((p) => p.id).sort()).toEqual(
+      constitution.architecture_principles.map((p) => p.id).sort()
+    );
   });
 });
 

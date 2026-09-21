@@ -4,7 +4,7 @@ export { StoryRepository } from './story.repository';
 export { DevTaskRepository } from './dev-task.repository';
 export { MilestoneRepository } from './milestone.repository';
 export { StatusChangeRepository } from './status-change.repository';
-export { AdrRepository, foldConstitution } from './adr.repository';
+export { AdrRepository } from './adr.repository';
 export { SystemModuleRepository } from './system-module.repository';
 export type { SystemModuleInput } from './system-module.repository';
 export { AppSettingsRepository } from './app-settings.repository';
