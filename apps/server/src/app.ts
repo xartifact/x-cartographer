@@ -118,8 +118,28 @@ export const app = new Hono()
   .use('/tasks/*', gone('tasks', 'dev-tasks'))
 
   .onError((err, c) => {
-    log.error('api.error', { message: err instanceof Error ? err.message : String(err) });
-    return c.json({ error: err instanceof Error ? err.message : 'Internal error' }, 500);
+    const message = err instanceof Error ? err.message : String(err);
+    // 外键违例（Postgres 23503）= 调用方引用了不存在的实体，是**确定性 4xx**，
+    // 不是服务端故障。此前一律 500 且把原始 SQL（表名/列名/参数）回吐给调用方——
+    // 既泄露 schema，又让 agent 把确定性失败当可重试错误盲目重试。
+    // 与 dependency-graph 的悬空依赖（400 dangling_dependency）保持同类语义。
+    //
+    // 注意错误是**两层**的：drizzle 用 DrizzleQueryError 包住驱动错误并把原始错误
+    // 放在 `cause`（errors.js: `this.cause = cause`），故须沿 cause 链取 code。
+    const pgCode = (err as { code?: string } | null)?.code
+      ?? (err as { cause?: { code?: string } } | null)?.cause?.code;
+    if (pgCode === '23503') {
+      log.warn('api.foreign_key_violation', { message });
+      return c.json(
+        {
+          error: 'foreign_key_violation',
+          detail: '引用了不存在的实体（domain-model §5「无悬空」）。请核对请求中的 ID 是否真实存在。',
+        },
+        400
+      );
+    }
+    log.error('api.error', { message });
+    return c.json({ error: message }, 500);
   })
 
   .notFound((c) => c.json({ error: 'Not found' }, 404));

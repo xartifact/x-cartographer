@@ -32,6 +32,10 @@ xcart adr status <adrId> <status> --reason <r>       # proposed→accepted→(su
                                                      # 升格 accepted 必带 --reason（服务端 400 + CLI 前置校验）
 ```
 
+`--depends-on` 写入会被校验（domain-model §2.4「约束 → 约束：允许，但不得成环」+ §5「无悬空」）：
+依赖必须指向**本产品目录内**的真实模块，且不得成环或自依赖，否则 400
+（`unknown_module_dependency` / `module_dependency_cycle` / `self_dependency`）。
+
 **「当前态」vs「演进历史」——最容易搞混的一对**：
 
 | 想知道什么 | 用哪个命令 |

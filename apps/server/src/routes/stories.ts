@@ -10,6 +10,7 @@ import { Priority } from '@x-cartographer/shared';
 import { findDanglingModuleRefs, productIdOfActivity } from '../lib/module-refs';
 import { assessConstraintImpact } from '../lib/constraint-impact';
 import { recordConstraintWrite } from '../lib/constraint-ledger';
+import { validateStoryRefs } from '../lib/story-refs';
 
 const createStorySchema = z.object({
   activityId: z.string(),
@@ -157,6 +158,15 @@ export const storiesRoutes = new Hono()
         impact: assessConstraintImpact({ entity: 'story', action: 'update', fields }),
         fields,
       });
+    }
+    // 跨域引用校验（§5 无悬空 + 实体均有产品作用域）：版本须同产品、步骤须同活动
+    if (input.milestoneId !== undefined || input.userTaskId !== undefined || input.activityId !== undefined) {
+      const violation = await validateStoryRefs(c.req.param('id'), {
+        activityId: input.activityId,
+        milestoneId: input.milestoneId,
+        userTaskId: input.userTaskId,
+      });
+      if (violation) return c.json(violation, 400);
     }
     // 模块引用存在性校验（告警不阻断——§3.5「纯信息，无服务端裁决」）
     let moduleWarning: string[] = [];

@@ -1636,4 +1636,112 @@ describe('validation failures return 400', () => {
     expect(res.status).toBe(400);
 
   });
+
+  /**
+   * 引用不存在的实体 = 调用方的确定性错误，必须 4xx 且**不回吐 SQL**。
+   *
+   * 回归：5 个创建端点的外键违例此前一律 500，响应体是原始 SQL 语句
+   * （含表名、全部列名、参数值）——既泄露 schema，又让客户端无法区分
+   * 「自己传错 ID」与「服务端故障」，agent 会按可重试错误盲目重试。
+   */
+  it('外键违例返回 4xx 且不回吐 SQL（不泄露 schema）', async () => {
+    const cases: Array<[string, Record<string, unknown>]> = [
+      ['/api/dev-tasks', { storyId: 'US-9999', title: 't', description: 'd', priority: 'P2', estimation: 1 }],
+      ['/api/stories', { activityId: 'UA-9999', title: 't', priority: 'medium' }],
+      ['/api/user-activities', { productId: 'PROD-9999', name: 'x' }],
+      ['/api/user-tasks', { activityId: 'UA-9999', name: 'x' }],
+      ['/api/adr-records', { product_id: 'PROD-9999', title: 'a', context: 'c', decision: 'd' }],
+    ];
+    for (const [url, body] of cases) {
+      const res = await jsonRequest('POST', url, body);
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.status).toBeLessThan(500);
+      const text = JSON.stringify(await res.json());
+      // 不回吐 SQL 与列名
+      expect(text).not.toContain('Failed query');
+      expect(text).not.toContain('insert into');
+      expect(text.toLowerCase()).not.toContain('dev_tasks');
+      expect(text.toLowerCase()).not.toContain('user_stories');
+    }
+  });
+
+  /**
+   * domain-model §5「无悬空」+ 实体均有产品作用域：故事不得挂他产品的版本、
+   * 不得挂他活动下的步骤。实测两者此前均 200 接受，导致排期统计跨产品混入、
+   * 故事地图步骤分组自相矛盾（故事属 A 列却挂 B 列步骤，A 列步骤区为空）。
+   */
+  it('故事跨域引用被拒：他产品版本 / 他活动步骤', async () => {
+    const pidA = await createProduct('跨域产品 A');
+    const pidB = await createProduct('跨域产品 B');
+    const actA = await createActivity(pidA, 'A 活动');
+    const actB = await createActivity(pidB, 'B 活动');
+    const storyA = await createStory(actA, 'A 故事');
+
+    // B 产品的版本
+    const ms = await jsonRequest('POST', '/api/milestones', {
+      product_id: pidB, name: 'B 的版本',
+    });
+    const { id: msB } = (await ms.json()) as { id: string };
+    const crossMs = await jsonRequest('PATCH', `/api/stories/${storyA}`, {
+      milestoneId: msB,
+    });
+    expect(crossMs.status).toBe(400);
+
+    // B 活动下的步骤
+    await jsonRequest('POST', '/api/user-tasks', { activityId: actB, name: 'B 步骤' });
+    const stepsB = (await (
+      await app.request(`/api/user-tasks?activityId=${actB}`)
+    ).json()) as Array<{ id: string }>;
+    const crossStep = await jsonRequest('PATCH', `/api/stories/${storyA}`, {
+      userTaskId: stepsB[0]!.id,
+    });
+    expect(crossStep.status).toBe(400);
+
+    // 同产品版本 + 同活动步骤仍可挂（不误伤）
+    const msA = await jsonRequest('POST', '/api/milestones', {
+      product_id: pidA, name: 'A 的版本',
+    });
+    const { id: msAId } = (await msA.json()) as { id: string };
+    await jsonRequest('POST', '/api/user-tasks', { activityId: actA, name: 'A 步骤' });
+    const stepsA = (await (
+      await app.request(`/api/user-tasks?activityId=${actA}`)
+    ).json()) as Array<{ id: string }>;
+    const ok = await jsonRequest('PATCH', `/api/stories/${storyA}`, {
+      milestoneId: msAId,
+      userTaskId: stepsA[0]!.id,
+    });
+    expect(ok.status).toBe(200);
+  });
+
+  /**
+   * domain-model §2.4「约束 → 约束：允许，但不得成环」+ §5 无环规则。
+   * 任务依赖已校验（TASK-622），模块依赖此前无校验——实测 mx→my 后再 my→mx
+   * 被 200 接受，模块依赖图（dagre 分层布局）会拿到无意义的环。
+   */
+  it('system_modules.depends_on 拒绝成环', async () => {
+    const pid = await createProduct('模块环产品');
+    const put = (id: string, deps: string[]) =>
+      jsonRequest('PUT', `/api/system-modules/${id}`, {
+        id, product_id: pid, name: id, depends_on: deps,
+      });
+
+    expect((await put('mx', [])).status).toBe(200);
+    expect((await put('my', ['mx'])).status).toBe(200);
+
+    // my→mx 已存在，再写 mx→my 成环
+    const cycle = await put('mx', ['my']);
+    expect(cycle.status).toBe(400);
+    expect(JSON.stringify(await cycle.json())).toContain('mx');
+
+    // 自环
+    const self = await put('mx', ['mx']);
+    expect(self.status).toBe(400);
+
+    // 悬空依赖同样拒绝（引用的模块必须存在）
+    const dangling = await put('mx', ['nope']);
+    expect(dangling.status).toBe(400);
+
+    // 合法依赖不误伤：新模块依赖既有模块（不闭合环）应通过
+    expect((await put('mz', ['mx'])).status).toBe(200);
+  });
 });

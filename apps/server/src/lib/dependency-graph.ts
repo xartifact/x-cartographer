@@ -19,6 +19,7 @@
  */
 import { sql } from 'drizzle-orm';
 import { ensureDb, rowsOf } from '@x-cartographer/db';
+import { findCycleThrough } from './graph';
 
 export interface DependencyViolations {
   /** 引用了不存在的任务 ID（§5 无悬空） */
@@ -77,34 +78,7 @@ export async function validateDependencies(
   return { dangling, selfDep, cycle };
 }
 
-/**
- * 从 `start` 出发深度优先，找一条回到 `start` 的路径（含首尾）。
- * 找到即返回路径（如 `['A','B','A']`），无环返回 null。
- */
-function findCycleThrough(edges: Map<string, string[]>, start: string): string[] | null {
-  const stack: string[] = [];
-  const onPath = new Set<string>();
-  const visited = new Set<string>();
-
-  const dfs = (node: string): string[] | null => {
-    stack.push(node);
-    onPath.add(node);
-    for (const next of edges.get(node) ?? []) {
-      if (next === start) {
-        return [...stack, start];
-      }
-      if (onPath.has(next) || visited.has(next)) continue;
-      const found = dfs(next);
-      if (found) return found;
-    }
-    stack.pop();
-    onPath.delete(node);
-    visited.add(node);
-    return null;
-  };
-
-  return dfs(start);
-}
+/** 环检测复用共享原语（见 graph.ts：模块依赖也用它，避免两份实现漂移） */
 
 /** 把违规转成 400 响应体（错误信息必须指明具体 ID，否则调用方无从修复） */
 export function dependencyViolationResponse(

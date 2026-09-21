@@ -43,6 +43,16 @@ xcart story bulk-create --activity <activityId> --file stories.json
 
 **拆解时标注影响模块（`--affected-modules`）**：把故事涉及的系统模块 slug 写进去（模块目录用 `xcart module list --project <id>` 查）。这不是行政手续——`xcart story info` 与 `xcart task info` 的 `architecture_context` 字段正是拿它做范围过滤，**没有标注就拿不到那个模块的架构原则**（`relevant_principles` 为空）。故事拆解阶段就该标，任务拆解时可继承故事的标注。
 
+**引用会被校验，跨域写入直接 400**（`docs/design/domain-model.md` §5「无悬空」+ 实体均有产品作用域）：
+
+- **版本必须与故事同产品**：`--milestone` 只接受本产品的版本，否则 `cross_product_milestone`。
+  排期与可预测性按版本聚合，跨产品挂载会让该版本的分母混入他产品故事。
+- **步骤必须与故事同活动**：`--user-task` 只接受本活动下的步骤，否则 `cross_activity_user_task`。
+  地图按活动分列、再按步骤分组渲染，跨活动挂载会让故事在自己的步骤区不可见。
+- **引用的实体必须存在**：引用不存在的版本/步骤/活动/产品 → `foreign_key_violation`（400）。
+  同时**故事必须归属一个活动**（`activity_id` 必填）：解挂会让它及其研发任务从所有视图消失。
+
+
 ## 前置条件
 
 - X-Cartographer gateway 需在运行（默认 `http://localhost:8787`）。
