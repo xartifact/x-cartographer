@@ -19,6 +19,8 @@ xcart milestone list --project <productId>   # 某产品的所有版本
 xcart overview --project <productId>     # 产品总览：活动/故事/任务数、完成情况、状态分布、宪法计数
 xcart context export <productId>         # 导出全景 Markdown（含技术宪法节：技术栈/架构原则/模块目录）
 xcart adr current --project <productId>  # 当前生效技术宪法全文（原则/技术栈/模块）——了解技术基线
+xcart trace <story|module|adr> <id>       # 约束追溯链：意图→结构→规矩→实现（纯读）
+xcart skill list | install [--dir <p>]    # 列出/安装 skills/*.SKILL.md 到 agent 目录
 ```
 
 ## 技术宪法纪律（先读后写）
@@ -38,7 +40,12 @@ xcart adr current --project <productId>  # 当前生效技术宪法全文（原�
 2. **理解结构**：`xcart project info --id <id>` 查看活动布局；`xcart activity list` / `xcart milestone list` 加深。
 3. **了解技术基线**：`xcart overview` 看宪法计数（`constitution.principles_count`/`must_principles_count`）→ 有原则时用 `xcart adr current --product <id>` 看全文；`[MUST]` 级直接约束后续实现。
 4. **提供评审上下文**：`xcart context export <productId>`（Markdown）→ 直接粘贴给 LLM；导出内容已含技术宪法节，无需另外拼接。
-5. **机械读取**：所有命令加 `--format json` 以 JSON 解析。
+5. **追溯某条约束的来龙去脉**：`xcart trace <story|module|adr> <id>` 输出四段链（意图→结构→规矩→实现）——比逐个命令拼装快，且是「这条需求被哪些约束管着、落在哪些模块、由哪些任务实现」的主路径。
+6. **机械读取**：所有命令加 `--format json` 以 JSON 解析。
+
+> **保持本 skill 为最新**：skill 是 Agent 的唯一入口（P5），但副本可能落后于仓库源
+> `skills/`。`xcart skill list` 查看已安装路径；`xcart skill install` 从源重新同步
+> （默认装到仓库内 `.claude/skills`，`--dir <path>` 指定其他目录）。
 
 ## 效率提示（agent 用）
 

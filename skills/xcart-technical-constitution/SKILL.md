@@ -30,7 +30,21 @@ xcart adr create --product <productId> --title <t> --context <c> --decision <d> 
   [--file changes.json]                              # changes: {tech_stack:{upsert,remove}, architecture_principles:{...}}
 xcart adr status <adrId> <status> --reason <r>       # proposed→accepted→(superseded|deprecated)
                                                      # 升格 accepted 必带 --reason（服务端 400 + CLI 前置校验）
+
+# 约束写入的人事追认（§6.7 方案 B；理由必填）
+xcart status ratify <story|system_module|user_activity|product|user_task|milestone> <id> --reason "…"
+
+# 主张来源（§3）：所有约束实体的 create 都接受，决定写入落点
+#   --provenance human_asserted | agent_inferred | imported（缺省 agent_inferred）
 ```
+
+**`--provenance` 是约束写入协议的第一等参数，不是可选装饰**（`docs/design/domain-model.md` §3/§4.1）：
+它标记「这条主张是谁提出的」，与影响级别共同决定落点——`human_asserted` 直接生效；
+`agent_inferred`/`imported` 遇高影响写入落 `proposed`（ADR 由服务端强制，其余实体按 §6.7
+方案 B 直接生效但写 `constraint_written` 账本，待人事后 `status ratify` 追认）。
+**默认值是 `agent_inferred`**（失败安全：把人的主张误标为推断只多一次确认；把推断误标为
+人的主张则污染可信度且不可逆）。故 Agent 代述用户明确要求时必须显式带
+`--provenance human_asserted`，否则那条需求会被记成「Agent 自己推断的」。
 
 `--depends-on` 写入会被校验（domain-model §2.4「约束 → 约束：允许，但不得成环」+ §5「无悬空」）：
 依赖必须指向**本产品目录内**的真实模块，且不得成环或自依赖，否则 400
@@ -72,6 +86,7 @@ xcart adr status <adrId> <status> --reason <r>       # proposed→accepted→(su
 3. **确认决策生效**：`xcart adr status <adrId> accepted --reason "<依据>"` → 再 `adr current` 复核折叠结果。
 4. **回看决策来龙去脉**：`xcart adr list`（全量）→ `xcart adr show <adrId>`（单条差异）。
 5. **维护模块目录**：模块定义只在 `system_modules` 表，用 `xcart module` 增删改（不走 ADR 的 changes）。
+6. **追认高影响写入**：Agent 代写故事/活动/模块等高影响约束后，账本会留 `constraint_written`；由人复核并 `xcart status ratify <type> <id> --reason "<依据>"` 追认（重复追认 409）。
 
 ## changes 结构（§3.2）
 
