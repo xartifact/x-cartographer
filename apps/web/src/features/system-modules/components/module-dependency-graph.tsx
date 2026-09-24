@@ -154,9 +154,7 @@ export function ModuleDependencyGraph({ modules, className }: ModuleDependencyGr
   });
 
   return (
-    <div className={cn('flex flex-col', className)}>
-      {/* 图例做成画布上方的固定条，不用 Panel 浮层：
-          浮层会盖住左上角的节点（模块少时恰好压在第一个节点上） */}
+    <div data-fullscreen-target className={cn('flex flex-col', className)}>
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2 text-[11px]">
         <p className="font-medium">
           箭头 = 依赖方向：<span className="font-mono">A → B</span> 表示 A 依赖 B
@@ -169,9 +167,7 @@ export function ModuleDependencyGraph({ modules, className }: ModuleDependencyGr
           <p className="flex items-center gap-1 text-destructive-strong">
             <Network className="h-3 w-3 shrink-0" />
             <span>
-              {graph.missingIds.length} 个悬空引用（
-              <span className="font-mono">{graph.missingIds.join('、')}</span>
-              ）：虚线红边指向占位节点，目标模块已不在目录中
+              {graph.missingIds.length} 个悬空引用（<span className="font-mono">{graph.missingIds.join('、')}</span>）：虚线红边指向占位节点，目标模块已不在目录中
             </span>
           </p>
         )}

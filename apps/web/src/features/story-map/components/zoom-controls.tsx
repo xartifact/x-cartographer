@@ -4,7 +4,7 @@
  * 缩放控制组件
  */
 
-import { memo, useCallback, useState, useEffect } from 'react';
+import { memo, useCallback, useRef, useState, useEffect } from 'react';
 import { ZoomIn, ZoomOut, Focus, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@x-cartographer/ui';
 import {
@@ -20,12 +20,18 @@ interface ZoomControlsProps {
   className?: string;
 }
 
+/** Resolve the nearest graph surface instead of relying on the story-map-only selector. */
+export function findFullscreenTarget(control: HTMLElement | null): HTMLElement | null {
+  return control?.closest<HTMLElement>('[data-fullscreen-target], [data-patron-canvas]') ?? null;
+}
+
 const zoomSelector = (state: { transform: [number, number, number] }) =>
   state.transform[2];
 
 export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const zoom = useStore(zoomSelector);
+  const controlRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -49,18 +55,19 @@ export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
   }, [fitView]);
 
   const handleFullscreen = useCallback(() => {
-    const canvas = document.querySelector('[data-patron-canvas]');
+    const canvas = findFullscreenTarget(controlRef.current);
     if (!canvas) return;
     if (document.fullscreenElement) {
-      document.exitFullscreen();
+      void document.exitFullscreen();
     } else {
-      canvas.requestFullscreen();
+      void canvas.requestFullscreen();
     }
   }, []);
 
   return (
     <TooltipProvider>
       <div
+        ref={controlRef}
         className={cn(
           'flex items-center gap-1 rounded-lg border bg-background p-1 shadow-sm',
           className

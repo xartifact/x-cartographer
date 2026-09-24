@@ -7,7 +7,7 @@
 'use client';
 
 import * as React from 'react';
-import { Plus, Download, Network } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import {
   Button,
   Input,
@@ -32,6 +32,7 @@ import { TaskCreateDialog, type NewDevTaskDraft } from './task-create-dialog';
 import { TaskDetailSheet } from './task-detail-sheet';
 import { TaskDependencyGraph } from '@/features/task-graph/components/task-dependency-graph';
 import {
+  useAllDevTasks,
   useUpdateDevTaskStatus,
   useCreateDevTask,
   useUpdateDevTask,
@@ -45,22 +46,20 @@ interface TasksPageProps {
   /** 当前产品 */
   project: Product;
 }
+
 export function TasksPage({ project: initialProject }: TasksPageProps) {
+  const allDevTasksQuery = useAllDevTasks({ productId: initialProject.id });
   const updateTaskStatus = useUpdateDevTaskStatus();
   const createTask = useCreateDevTask();
   const updateTask = useUpdateDevTask();
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState<
-    (TaskStatus | StoryStatus)[]
-  >([]);
+  const [statusFilter, setStatusFilter] = React.useState<(TaskStatus | StoryStatus)[]>([]);
   const [selectedTaskIds, setSelectedTaskIds] = React.useState<string[]>([]);
   /** 当前视图 */
   const [view, setView] = React.useState<ViewType>('list');
   /** 批量更新确认弹窗 */
   const [bulkDialogOpen, setBulkDialogOpen] = React.useState(false);
-  const [bulkTargetStatus, setBulkTargetStatus] = React.useState<
-    TaskStatus | StoryStatus | null
-  >(null);
+  const [bulkTargetStatus, setBulkTargetStatus] = React.useState<TaskStatus | StoryStatus | null>(null);
   const [bulkReason, setBulkReason] = React.useState('');
   const [project, setProject] = React.useState(initialProject);
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
@@ -68,13 +67,12 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
   const [detailTask, setDetailTask] = React.useState<DevTask | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = React.useState(false);
 
-  /**
-   * 打开任务详情抽屉
-   */
+  /** 打开任务详情抽屉 */
   const openTaskDetail = React.useCallback((task: DevTask) => {
     setDetailTask(task);
     setDetailSheetOpen(true);
   }, []);
+
   /** 搜索框 ref（快捷键聚焦用） */
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -96,18 +94,23 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
     setProject(initialProject);
   }, [initialProject]);
 
-  // 收集所有研发任务
-  const allTasks = React.useMemo(() => {
+  // 产品深树是故事视图权威；依赖图和详情必须补充模块锚定任务。
+  const storyTasks = React.useMemo(() => {
     const tasks: DevTask[] = [];
     project.user_activities?.forEach((activity) => {
       activity.stories?.forEach((story) => {
-        if (story.dev_tasks) {
-          tasks.push(...story.dev_tasks);
-        }
+        if (story.dev_tasks) tasks.push(...story.dev_tasks);
       });
     });
     return tasks;
   }, [project]);
+  const allTasks = React.useMemo(() => {
+    const aggregated = allDevTasksQuery.data ?? [];
+    if (!aggregated.length) return storyTasks;
+    const byId = new Map(storyTasks.map((task) => [task.id, task]));
+    for (const task of aggregated) byId.set(task.id, task);
+    return [...byId.values()];
+  }, [allDevTasksQuery.data, storyTasks]);
 
   // 故事/活动上下文 map，用于任务卡片显示归属
   const storyContextMap = React.useMemo(() => {
@@ -528,32 +531,25 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         </div>
       )}
 
-      {/* 依赖图视图（DAG）：以选中任务为中心 N 跳邻域。
-          未选中任务时给出引导——全量渲染 190+ 节点会缩成一团不可读。 */}
+      {/* 依赖图视图：默认全量浏览，点击节点后可切换逐级邻域。 */}
       {view === 'dependencies' && (
         <Card>
           <CardContent className="pt-6">
-            {detailTask ? (
-              <TaskDependencyGraph
-                tasks={allTasks}
-                focusTaskId={detailTask.id}
-                filterStoryId={detailTask.story_id}
-                className="h-[560px]"
-              />
-            ) : (
-              <div className="flex h-[560px] items-center justify-center text-center">
-                <div className="space-y-2">
-                  <Network className="mx-auto h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    请先点击一个任务打开详情，依赖图将以该任务为中心展示 1 跳邻域
-                  </p>
-                </div>
-              </div>
-            )}
+            <TaskDependencyGraph
+              tasks={allTasks}
+              focusTaskId={detailTask?.id}
+              selectedTaskId={detailTask?.id}
+              filterStoryId={detailTask?.story_id}
+              onTaskSelect={(taskId) => {
+                const selected = allTasks.find((task) => task.id === taskId);
+                if (selected) openTaskDetail(selected);
+              }}
+              className="h-[560px]"
+            />
           </CardContent>
         </Card>
-      )}
 
+      )}
       {/* 批量更新确认弹窗 */}
       <BulkUpdateConfirmDialog
         open={bulkDialogOpen}
@@ -593,7 +589,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
         }}
         onUpdateDependencies={async (taskId, dependencies) => {
           await updateTask.mutateAsync({ id: taskId, dependencies });
-          // 乐观更新本地产品状态
+          // 乐观更新故事深树；产品全量查询由 mutation invalidation 刷新。
           setProject((prev) => ({
             ...prev,
             user_activities: prev.user_activities?.map((activity) => ({
@@ -601,9 +597,7 @@ export function TasksPage({ project: initialProject }: TasksPageProps) {
               stories: activity.stories?.map((story) => ({
                 ...story,
                 dev_tasks: story.dev_tasks?.map((task) =>
-                  task.id === taskId
-                    ? { ...task, dependencies }
-                    : task
+                  task.id === taskId ? { ...task, dependencies } : task
                 ),
               })),
             })),

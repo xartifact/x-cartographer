@@ -69,21 +69,24 @@ export function useDevTasksByStory(storyId: string) {
   });
 }
 
-export function useAllDevTasks(options?: { status?: TaskStatus; priority?: TaskPriority }) {
-  const { status, priority } = options ?? {};
+export interface AllDevTask extends DevTask {
+  product: { id: string; name: string };
+  story: { id: string; title: string } | null;
+}
+
+export function useAllDevTasks(options?: {
+  productId?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+}) {
+  const { productId, status, priority } = options ?? {};
   return useQuery({
-    queryKey: ['dev-tasks', 'all', { status, priority }],
+    queryKey: ['dev-tasks', 'all', { productId, status, priority }],
     queryFn: async () => {
-      const res = await api.api['dev-tasks'].all.$get({ query: { status, priority } });
-      return res.json() as Promise<
-        Array<
-          DevTask & {
-            product: { id: string; name: string };
-            story: { id: string; title: string } | null;
-          }
-        >
-      >;
+      const res = await api.api['dev-tasks'].all.$get({ query: { productId, status, priority } });
+      return res.json() as Promise<AllDevTask[]>;
     },
+    enabled: !!productId,
   });
 }
 
@@ -134,6 +137,7 @@ export function useUpdateDevTask() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['dev-tasks', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['dev-tasks', 'all'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
   });
