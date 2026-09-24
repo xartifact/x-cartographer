@@ -14,7 +14,7 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "type-check": "bun run --cwd apps/web type-check",
-    "test": "bun test apps/server/src/__tests__/ apps/cli/src/__tests__/"
+    "test": "bun test apps/server/src/__tests__/ apps/cli/src/__tests__/ packages/shared/src/__tests__/"
   },
   "devDependencies": {
     "oxlint": "^1.70.0",

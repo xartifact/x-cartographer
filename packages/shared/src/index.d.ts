@@ -6,3 +6,5 @@ export * from './types/user-story';
 export * from './types/milestone';
 export * from './types/dev-task';
 export * from './types/constitution';
+export * from './architecture-context';
+export * from './predictability';

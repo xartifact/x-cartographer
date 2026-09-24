@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   // 从 apps/web 目录加载 .env / .env.local，读入 process.env 供 server.proxy 使用
   const env = loadEnv(mode, process.cwd(), '');
   const proxyTarget = env.VITE_PROXY_TARGET ?? process.env.VITE_PROXY_TARGET ?? 'http://localhost:8787';
+  const port = Number(env.PORT ?? process.env.PORT ?? 3001);
 
   return {
     plugins: [
@@ -27,7 +28,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 3001,
+      port,
       proxy: {
         // 开发时把 /api 代理到 gateway（VITE_PROXY_TARGET 覆盖，e2e 用 8791 测试网关）
         '/api': {

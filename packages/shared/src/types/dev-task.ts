@@ -85,7 +85,6 @@ export interface UpdateDevTaskDTO {
   description?: string;
   priority?: TaskPriority;
   estimation?: number;
-  status?: TaskStatus;
   dependencies?: string[];
   tags?: string[];
   assignee?: string;

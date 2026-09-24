@@ -37,6 +37,49 @@ const upsertSystemModuleSchema = z.object({
   provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
 });
 
+/** PATCH fields are optional; identity belongs in the product query context. */
+const patchSystemModuleSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    path: z.string().optional(),
+    responsibility: z.string().optional(),
+    depends_on: z.array(moduleIdSchema).optional(),
+    provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
+  })
+  .refine((input) => Object.keys(input).length > 0, '至少提供一个要更新的字段');
+ 
+
+async function validateModuleDependencies(productId: string, id: string, dependsOn: string[]) {
+  const catalog = await moduleRepo.findByProductId(productId);
+  const known = new Set(catalog.map((module) => module.id));
+  const unknownDeps = dependsOn.filter((dependency) => !known.has(dependency) && dependency !== id);
+  if (unknownDeps.length > 0) {
+    return {
+      error: 'unknown_module_dependency',
+      detail:
+        `依赖了目录中不存在的模块：${unknownDeps.join(', ')}。` +
+        `domain-model §5「无悬空」：模块依赖必须指向本产品目录内的真实模块。`,
+    };
+  }
+  if (dependsOn.includes(id)) {
+    return {
+      error: 'self_dependency',
+      detail: `模块 ${id} 不能依赖自身（domain-model §2.4「不得成环」）。`,
+    };
+  }
+  const edges = new Map(catalog.map((module) => [module.id, module.depends_on]));
+  edges.set(id, dependsOn);
+  const cycle = findCycleThrough(edges, id);
+  if (cycle) {
+    return {
+      error: 'module_dependency_cycle',
+      detail:
+        `该写入会形成模块依赖环：${cycle.join(' → ')}。` +
+        `domain-model §2.4「约束 → 约束：不得成环」；请改为不构成环的依赖方向。`,
+    };
+  }
+}
+
 const moduleRepo = new SystemModuleRepository();
 
 export const systemModulesRoutes = new Hono()
@@ -64,47 +107,9 @@ export const systemModulesRoutes = new Hono()
     // 结构认知——但随代码演进持续更新是模块目录的天性（§6.4），只在新建/删除记账，
     // 更新不记以免账本被例行维护噪音淹没）。
     const existing = await moduleRepo.findById(input.product_id, id);
-    // 模块依赖校验（§2.4「约束 → 约束：允许，但不得成环」+ §5 无悬空）：
-    // 与任务依赖（dependency-graph）同层同语义——只判定不裁决，违规拒绝写入。
-    // 悬空在此也拒绝：依赖目录内不存在的 slug 会让模块依赖图出现幽灵节点。
-    const catalog = await moduleRepo.findByProductId(input.product_id);
-    const known = new Set(catalog.map((m) => m.id));
-    const unknownDeps = input.depends_on.filter((d) => !known.has(d) && d !== id);
-    if (unknownDeps.length > 0) {
-      return c.json(
-        {
-          error: 'unknown_module_dependency',
-          detail:
-            `依赖了目录中不存在的模块：${unknownDeps.join(', ')}。` +
-            `domain-model §5「无悬空」：模块依赖必须指向本产品目录内的真实模块。`,
-        },
-        400
-      );
-    }
-    if (input.depends_on.includes(id)) {
-      return c.json(
-        {
-          error: 'self_dependency',
-          detail: `模块 ${id} 不能依赖自身（domain-model §2.4「不得成环」）。`,
-        },
-        400
-      );
-    }
-    // 环检测：把本次写入的边以「待写入状态」覆盖进图，再查能否回到自身
-    const edges = new Map(catalog.map((m) => [m.id, m.depends_on]));
-    edges.set(id, input.depends_on);
-    const cycle = findCycleThrough(edges, id);
-    if (cycle) {
-      return c.json(
-        {
-          error: 'module_dependency_cycle',
-          detail:
-            `该写入会形成模块依赖环：${cycle.join(' → ')}。` +
-            `domain-model §2.4「约束 → 约束：不得成环」；请改为不构成环的依赖方向。`,
-        },
-        400
-      );
-    }
+    const dependencyError = await validateModuleDependencies(input.product_id, id, input.depends_on);
+    if (dependencyError) return c.json(dependencyError, 400);
+
     await moduleRepo.upsert(input, input.product_id);
     if (!existing) {
       await recordConstraintWrite({
@@ -116,6 +121,29 @@ export const systemModulesRoutes = new Hono()
     }
     return c.json({ success: true, id });
   })
+  // PATCH /api/system-modules/:id?productId= —— 局部更新，不创建缺失模块
+  .patch(
+    '/:id',
+    zValidator('query', productQuerySchema),
+    zValidator('json', patchSystemModuleSchema),
+    async (c) => {
+      const { productId } = c.req.valid('query');
+      const input = c.req.valid('json');
+      const id = c.req.param('id');
+      const existing = await moduleRepo.findById(productId, id);
+      if (!existing) return c.json({ error: 'module not found' }, 404);
+
+      const dependencyError = await validateModuleDependencies(
+        productId,
+        id,
+        input.depends_on ?? existing.depends_on
+      );
+      if (dependencyError) return c.json(dependencyError, 400);
+
+      await moduleRepo.update(productId, id, input);
+      return c.json({ success: true, id });
+    }
+  )
   // DELETE /api/system-modules/:id?productId= —— 同上，必须带产品上下文
   .delete('/:id', zValidator('query', productQuerySchema), async (c) => {
     const { productId } = c.req.valid('query');

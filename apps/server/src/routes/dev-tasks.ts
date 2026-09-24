@@ -34,7 +34,6 @@ const updateDevTaskSchema = z.object({
   description: z.string().optional(),
   priority: z.nativeEnum(TaskPriority).optional(),
   estimation: z.number().optional(),
-  status: z.nativeEnum(TaskStatus).optional(),
   dependencies: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
   assignee: z.string().optional(),
@@ -42,7 +41,7 @@ const updateDevTaskSchema = z.object({
   productId: z.string().optional(),
   moduleId: z.string().optional(),
   affectedModules: z.array(z.string()).optional(),
-});
+}).strict();
 
 const updateStatusSchema = z.object({
   status: z.nativeEnum(TaskStatus),
@@ -224,8 +223,7 @@ export const devTasksRoutes = new Hono()
   // GET /api/dev-tasks/:id
   .get('/:id', async (c) => {
     const task = await taskRepo.findById(c.req.param('id'));
-    // 与 stories/:id 一致：不存在时 Hono 返回空 body（c.json(undefined)）
-    return c.json(task ? toJson(task) : undefined);
+    return c.json(task ? toJson(task) : null);
   })
   // POST /api/dev-tasks
   .post('/', zValidator('json', createDevTaskSchema), async (c) => {
@@ -261,7 +259,6 @@ export const devTasksRoutes = new Hono()
     if (input.description !== undefined) dto.description = input.description;
     if (input.priority !== undefined) dto.priority = input.priority;
     if (input.estimation !== undefined) dto.estimation = input.estimation;
-    if (input.status !== undefined) dto.status = input.status;
     if (input.dependencies !== undefined) dto.dependencies = input.dependencies;
     if (input.tags !== undefined) dto.tags = input.tags;
     if (input.assignee !== undefined) dto.assignee = input.assignee;
@@ -301,10 +298,13 @@ export const devTasksRoutes = new Hono()
   .post('/:id/status', zValidator('json', updateStatusSchema), async (c) => {
     const id = c.req.param('id');
     const input = c.req.valid('json');
-
     const existing = await taskRepo.findById(id);
+
     if (!existing) {
       return c.json({ error: `DevTask ${id} not found` }, 404);
+    }
+    if (input.status === 'cancelled' && !input.reason?.trim()) {
+      return c.json({ error: 'Cancellation reason is required' }, 400);
     }
 
     // 乐观锁 CAS：条件下推 WHERE，冲突（expected_status 不匹配）返回 409

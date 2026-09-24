@@ -5,7 +5,6 @@ export {
   useCreateProduct,
   useUpdateProduct,
   useDeleteProduct,
-  useSaveFullProduct,
 } from './use-products';
 
 export {

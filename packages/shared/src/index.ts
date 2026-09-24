@@ -12,3 +12,6 @@ export * from './types/constitution';
 
 // Architecture context（§4 有效架构上下文过滤，CLI/Web 共用）
 export * from './architecture-context';
+
+// PI predictability (CLI/Web shared domain calculation)
+export * from './predictability';

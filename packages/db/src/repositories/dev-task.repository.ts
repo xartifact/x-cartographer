@@ -89,7 +89,6 @@ export class DevTaskRepository {
     // 于是 PATCH {"priority":"P0"} 返回 200 success 而库里值不变（静默丢弃）。
     if (dto.priority !== undefined) updateData.priority = dto.priority;
     if (dto.estimation !== undefined) updateData.estimation = dto.estimation;
-    if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.dependencies !== undefined) updateData.dependencies = dto.dependencies;
     if (dto.tags !== undefined) updateData.tags = dto.tags;
     if (dto.affected_modules !== undefined) updateData.affectedModules = dto.affected_modules;

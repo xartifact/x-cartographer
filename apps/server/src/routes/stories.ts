@@ -110,7 +110,7 @@ export const storiesRoutes = new Hono()
   // GET /api/stories/:id
   .get('/:id', async (c) => {
     const story = await storyRepo.findById(c.req.param('id'));
-    return c.json(story ? toJson(story) : undefined);
+    return c.json(story ? toJson(story) : null);
   })
   // POST /api/stories
   .post('/', zValidator('json', createStorySchema), async (c) => {
@@ -213,10 +213,13 @@ export const storiesRoutes = new Hono()
   .post('/:id/status', zValidator('json', updateStatusSchema), async (c) => {
     const id = c.req.param('id');
     const input = c.req.valid('json');
-
     const existing = await storyRepo.findById(id);
+
     if (!existing) {
       return c.json({ error: `Story ${id} not found` }, 404);
+    }
+    if (input.status === 'cancelled' && !input.reason?.trim()) {
+      return c.json({ error: 'Cancellation reason is required' }, 400);
     }
 
     await statusChangeRepo.create({

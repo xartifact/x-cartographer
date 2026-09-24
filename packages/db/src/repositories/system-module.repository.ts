@@ -91,6 +91,26 @@ export class SystemModuleRepository {
       });
   }
 
+  /** Updates selected fields of an existing module without resetting omitted values. */
+  async update(
+    productId: string,
+    id: string,
+    dto: Partial<Omit<SystemModuleInput, 'id'>>
+  ): Promise<void> {
+    const db = await ensureDb();
+    await db
+      .update(systemModules)
+      .set({
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.path !== undefined ? { path: dto.path } : {}),
+        ...(dto.responsibility !== undefined ? { responsibility: dto.responsibility } : {}),
+        ...(dto.depends_on !== undefined ? { dependsOn: dto.depends_on } : {}),
+        ...(dto.provenance !== undefined ? { provenance: dto.provenance } : {}),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(systemModules.productId, productId), eq(systemModules.id, id)));
+  }
+
   async delete(productId: string, id: string): Promise<void> {
     const db = await ensureDb();
     await db

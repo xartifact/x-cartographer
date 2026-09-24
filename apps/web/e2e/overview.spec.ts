@@ -18,17 +18,17 @@ test.describe('产品概览', () => {
     const { id: projectId } = await createRes.json();
 
     // 通过 API 创建:1 旅程 + 2 故事 + 其中 1 故事 2 任务(1 done)
-    const journeyRes = await page.request.post('/api/user-activities', {
-      data: { projectId, name: 'E2E 旅程', description: '', persona: 'PM' },
+    const activityRes = await page.request.post('/api/user-activities', {
+      data: { productId: projectId, name: 'E2E 旅程', description: '', persona: 'PM' },
     });
-    const { id: journeyId } = await journeyRes.json();
+    const { id: activityId } = await activityRes.json();
     const s1 = await (
       await page.request.post('/api/stories', {
-        data: { journeyId, title: '故事甲', priority: 'high' },
+        data: { activityId, title: '故事甲', priority: 'high' },
       })
     ).json();
     await page.request.post('/api/stories', {
-      data: { journeyId, title: '故事乙', priority: 'medium' },
+      data: { activityId, title: '故事乙', priority: 'medium' },
     });
     for (let i = 0; i < 2; i++) {
       await page.request.post('/api/dev-tasks', {
@@ -36,7 +36,6 @@ test.describe('产品概览', () => {
           storyId: s1.id,
           title: `任务${i + 1}`,
           description: '',
-          type: 'dev-task',
           priority: 'P2',
           estimation: 4,
         },

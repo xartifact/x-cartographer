@@ -16,11 +16,6 @@ import type {
   UserTask,
 } from '@x-cartographer/shared';
 
-function safeDate(value: unknown): Date {
-  if (!value) return new Date();
-  const d = new Date(value as string);
-  return isNaN(d.getTime()) ? new Date() : d;
-}
 
 function getDefaultSettings(): ProductSettings {
   return {
@@ -295,100 +290,4 @@ export class ProductRepository {
     });
   }
 
-  async saveFullProduct(product: Product): Promise<void> {
-    const db = await ensureDb();
-    // 事务保存完整产品（含嵌套数据）
-    await db.transaction(async (tx) => {
-      // Upsert product
-      await tx
-        .insert(products)
-        .values({
-          id: product.id,
-          name: product.name,
-          description: product.description,
-          metadata: product.metadata,
-          settings: product.settings,
-          createdAt: safeDate(product.created_at),
-          updatedAt: safeDate(product.updated_at),
-        })
-        .onConflictDoUpdate({
-          target: products.id,
-          set: {
-            name: product.name,
-            description: product.description,
-            metadata: product.metadata,
-            settings: product.settings,
-            updatedAt: safeDate(product.updated_at),
-          },
-        });
-
-      // 删除旧 activities（cascade 会自动删除 stories 和 devTasks）
-      await tx
-        .delete(userActivities)
-        .where(eq(userActivities.productId, product.id));
-
-      // 插入 activities、stories、devTasks
-      for (const activity of product.user_activities) {
-        await tx.insert(userActivities).values({
-          id: activity.id,
-          productId: product.id,
-          name: activity.name,
-          description: activity.description,
-          order: activity.order,
-          createdAt: safeDate(activity.created_at),
-          updatedAt: safeDate(activity.updated_at),
-        });
-
-        for (const task of activity.user_tasks || []) {
-          await tx.insert(userTasks).values({
-            id: task.id,
-            activityId: activity.id,
-            name: task.name,
-            description: task.description,
-            order: task.order,
-            createdAt: safeDate(task.created_at),
-            updatedAt: safeDate(task.updated_at),
-          });
-        }
-        for (const story of activity.stories || []) {
-          await tx.insert(userStories).values({
-            id: story.id,
-            activityId: activity.id,
-            title: story.title,
-            description: story.description,
-            priority: story.priority,
-            estimation: story.estimation,
-            acceptanceCriteria: story.acceptance_criteria,
-            tags: story.tags,
-            status: story.status ?? 'backlog',
-            position: story.position ?? null,
-            order: story.order,
-            createdAt: safeDate(story.created_at),
-            updatedAt: safeDate(story.updated_at),
-          });
-
-          for (const task of story.dev_tasks || []) {
-            await tx.insert(devTasks).values({
-              id: task.id,
-              storyId: story.id,
-              title: task.title,
-              description: task.description,
-              priority: task.priority,
-              estimation: task.estimation,
-              status: task.status,
-              dependencies: task.dependencies,
-              tags: task.tags,
-              assignee: task.assignee ?? null,
-              startedAt: task.started_at ? safeDate(task.started_at) : null,
-              completedAt: task.completed_at
-                ? safeDate(task.completed_at)
-                : null,
-              createdAt: safeDate(task.created_at),
-              updatedAt: safeDate(task.updated_at),
-            });
-          }
-        }
-      }
-    });
-  }
 }

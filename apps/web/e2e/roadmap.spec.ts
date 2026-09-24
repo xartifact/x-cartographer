@@ -76,13 +76,13 @@ test.describe('排期规划', () => {
     const { id: projectId } = await createRes.json();
 
     // 通过 API 创建:旅程 + 故事 + 版本
-    const journeyRes = await page.request.post('/api/user-activities', {
-      data: { projectId, name: 'E2E 旅程', description: '', persona: 'PM' },
+    const activityRes = await page.request.post('/api/user-activities', {
+      data: { productId: projectId, name: 'E2E 旅程', description: '', persona: 'PM' },
     });
-    const { id: journeyId } = await journeyRes.json();
+    const { id: activityId } = await activityRes.json();
     await page.request.post('/api/stories', {
       data: {
-        journeyId,
+        activityId,
         title: 'E2E 待排期故事',
         description: '',
         priority: 'high',

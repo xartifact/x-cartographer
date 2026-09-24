@@ -48,17 +48,20 @@ afterAll(() => {
 
 /** 跑真 CLI 子进程（经 bun），返回它发出的请求（清空上一次记录） */
 
-/** 同 runCli，但带回退出码与 stderr——用于断言「报错而非静默/崩溃」 */
-async function runCliResult(args: string[]): Promise<{ reqs: SentRequest[]; exitCode: number; stderr: string }> {
+/** 同 runCli，但带回退出码与输出——用于断言「报错而非静默/崩溃」 */
+async function runCliResult(args: string[]): Promise<{ reqs: SentRequest[]; exitCode: number; stderr: string; stdout: string }> {
   sent.length = 0;
   const cliPath = new URL('../index.ts', import.meta.url).pathname;
   const proc = Bun.spawn(['bun', 'run', cliPath, '--server', baseUrl, ...args], {
-    stdout: 'ignore',
+    stdout: 'pipe',
     stderr: 'pipe',
   });
-  const stderr = await new Response(proc.stderr).text();
-  const exitCode = await proc.exited;
-  return { reqs: [...sent], exitCode, stderr };
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { reqs: [...sent], exitCode, stderr, stdout };
 }
 async function runCli(args: string[]): Promise<SentRequest[]> {
   sent.length = 0;
@@ -70,6 +73,31 @@ async function runCli(args: string[]): Promise<SentRequest[]> {
   await proc.exited;
   return [...sent];
 }
+
+describe('CLI version', () => {
+  it('prints the version declared in package metadata', async () => {
+    const packageMetadata: unknown = await Bun.file(new URL('../../package.json', import.meta.url)).json();
+    if (
+      !packageMetadata
+      || typeof packageMetadata !== 'object'
+      || !('version' in packageMetadata)
+      || typeof packageMetadata.version !== 'string'
+    ) {
+      throw new Error('CLI package metadata has no version');
+    }
+    const cliPath = new URL('../index.ts', import.meta.url).pathname;
+    const proc = Bun.spawn(['bun', 'run', cliPath, '--version'], { stdout: 'pipe', stderr: 'pipe' });
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(stdout.trim()).toBe(`xcart ${packageMetadata.version}`);
+  });
+});
 
 describe('CLI flag 接线：宣传的 flag 必须真的进请求体', () => {
   it('story update --activity 送 activityId（曾静默丢弃：body 为 {}）', async () => {
@@ -123,6 +151,77 @@ describe('CLI flag 接线：宣传的 flag 必须真的进请求体', () => {
   it('task update --priority 送 priority（曾仅存在于 help，未进请求体）', async () => {
     const reqs = await runCli(['task', 'update', 'T1', '--priority', 'P0']);
     expect(reqs[0]!.body).toEqual({ priority: 'P0' });
+  });
+
+  it('activity create --order 送 order', async () => {
+    const reqs = await runCli(['activity', 'create', '--product', 'P1', '--name', '发现', '--order', '3']);
+    expect(reqs).toHaveLength(1);
+    expect(reqs[0]).toMatchObject({
+      method: 'POST',
+      path: '/api/user-activities',
+      body: { productId: 'P1', name: '发现', description: '', order: 3 },
+    });
+  });
+
+  it('module update 使用局部 PATCH，且 --depends-on 空值清空依赖', async () => {
+    const reqs = await runCli(['module', 'update', 'cli', '--product', 'P1', '--depends-on', '']);
+    expect(reqs).toHaveLength(1);
+    expect(reqs[0]).toMatchObject({
+      method: 'PATCH',
+      path: '/api/system-modules/cli',
+      body: { dependsOn: [] },
+    });
+  });
+
+  it('story/task update 拒绝 --status，且不发非原子请求', async () => {
+    for (const args of [
+      ['story', 'update', 'S1', '--status', 'done'],
+      ['task', 'update', 'T1', '--status', 'done'],
+    ]) {
+      const { reqs, exitCode, stderr } = await runCliResult(args);
+      expect(reqs).toHaveLength(0);
+      expect(exitCode).not.toBe(0);
+      expect(stderr).toContain('不支持 --status');
+      expect(stderr).toContain('status');
+    }
+  });
+
+  it('裸未知 flag、未知 skill 与缺少 milestone 产品范围均非零退出且不请求', async () => {
+    const cases: Array<[string[], string]> = [
+      [['story', 'list', '--activity', 'A1', '--unexpected'], '不支持无值选项'],
+      [['skill', 'unknown'], '未知子命令: skill unknown'],
+      [['milestone', 'info', 'MS-1'], '缺少参数 --product'],
+    ];
+    for (const [args, expected] of cases) {
+      const { reqs, exitCode, stderr } = await runCliResult(args);
+      expect(reqs).toHaveLength(0);
+      expect(exitCode).not.toBe(0);
+      expect(stderr).toContain(expected);
+    }
+  });
+});
+
+describe('activity info existence lookup', () => {
+  it('uses the direct activity lookup before fetching stories and preserves the info output contract', async () => {
+    const { reqs, exitCode, stderr, stdout } = await runCliResult(['activity', 'info', 'ACT-1', '--format', 'json']);
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe('');
+    expect(reqs).toEqual([
+      { method: 'GET', path: '/api/user-activities/ACT-1', body: null },
+      { method: 'GET', path: '/api/stories', body: null },
+    ]);
+    expect(JSON.parse(stdout)).toEqual({ activity_id: 'ACT-1', stories: [] });
+  });
+
+  it('reports an unknown activity and does not fetch its stories', async () => {
+    const { reqs, exitCode, stderr } = await runCliResult(['activity', 'info', 'ACT-9999']);
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain('活动不存在: ACT-9999');
+    expect(reqs).toEqual([
+      { method: 'GET', path: '/api/user-activities/ACT-9999', body: null },
+    ]);
   });
 });
 

@@ -47,9 +47,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
-      # 走根 test 脚本（server + CLI）：CLI 的 flag 接线测试是拦住「flag 宣传但未
-      # 解析」那类 bug 的唯一防线，单跑 server 目录会把它漏掉。
-      - name: Run server + CLI tests
+      # Root test script covers server, CLI, and shared domain tests. It ensures CLI
+      # flag wiring and the common predictability metric are exercised together.
+      - name: Run server, CLI, and shared tests
         run: bun run test
 
       # 走包内脚本：vitest 的 include 是相对配置文件的 src/**，从仓库根执行会

@@ -27,14 +27,25 @@
  *   --version, -v           版本
  */
 
-const VERSION = '0.2.1';
-const DEFAULT_SERVER = 'http://localhost:8787';
 import { readFileSync, existsSync } from 'node:fs';
+const packageMetadata: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+if (
+  !packageMetadata
+  || typeof packageMetadata !== 'object'
+  || !('version' in packageMetadata)
+  || typeof packageMetadata.version !== 'string'
+) {
+  throw new Error('package.json 缺少 version');
+}
+const VERSION = packageMetadata.version;
+const DEFAULT_SERVER = 'http://localhost:8787';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
+  aggregateAssignedMilestonePredictability,
   resolveEffectiveArchitectureContext,
   type EffectiveArchitectureContext,
+  type MilestonePredictability,
 } from '@x-cartographer/shared';
 
 // ─── 配置文件 ─────────────────────────────────────────────────
@@ -101,14 +112,25 @@ function parseArgs(argv: string[]): ParsedArgs {
 let server = config.server ?? process.env.XCART_API_URL ?? DEFAULT_SERVER;
 let token = config.token ?? process.env.XCART_API_TOKEN ?? '';
 
+const API_TIMEOUT_MS = 30_000;
+
 async function api(path: string, method = 'GET', body?: unknown): Promise<any> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${server}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${server}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      throw new Error(`API ${method} ${path} 超时（${API_TIMEOUT_MS / 1000} 秒）`);
+    }
+    throw error;
+  }
   if (!res.ok) {
     let detail = '';
     try { detail = await res.text(); } catch { /* ignore */ }
@@ -299,6 +321,8 @@ async function cmdUserActivity(ctx: Ctx): Promise<void> {
     }
     case 'info': {
       const id = reqId(ctx.positional.slice(1), 'activity info');
+      const activity = await api(`/api/user-activities/${encodeURIComponent(id)}`);
+      if (!isObj(activity)) throw new Error(`活动不存在: ${id}`);
       const data = await api(`/api/stories?activityId=${encodeURIComponent(id)}`);
       console.log(render({ activity_id: id, stories: Array.isArray(data) ? data : [] }, ctx.format === 'table' ? 'json' : ctx.format));
       break;
@@ -309,6 +333,7 @@ async function cmdUserActivity(ctx: Ctx): Promise<void> {
         name: req(f, 'name'),
         description: opt(f, 'description') ?? '',
       };
+      const order = opt(f, 'order'); if (order !== undefined) body.order = Number(order);
       const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api('/api/user-activities', 'POST', body);
       console.log(render(data, ctx.format));
@@ -406,7 +431,8 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       const tasks = await api(`/api/dev-tasks?storyId=${encodeURIComponent(id)}`).catch(() => []);
       const architecture = await fetchArchitectureContext(
         data.activity_id ? await productIdOfActivity(data.activity_id) : null,
-        data.affected_modules
+        data.affected_modules,
+        data.milestone_id ?? null
       );
       const out = { ...data, tasks: Array.isArray(tasks) ? tasks : [], ...architecture };
       console.log(render(out, ctx.format === 'table' ? 'json' : ctx.format));
@@ -462,10 +488,8 @@ async function cmdStory(ctx: Ctx): Promise<void> {
       if (milestone !== undefined) body.milestoneId = milestone === 'none' ? null : milestone;
       const userTask = opt(f, 'user-task');
       if (userTask !== undefined) body.userTaskId = userTask === 'none' ? null : userTask;
-      const status = opt(f, 'status');
-      if (status !== undefined) {
-        const res = await api(`/api/stories/${id}/status`, 'POST', { status, reason: opt(f, 'reason') });
-        if (Object.keys(body).length === 0) { console.log(render(res, ctx.format)); return; }
+      if (opt(f, 'status') !== undefined) {
+        throw new Error('story update 不支持 --status；请使用 xcart story status <id> <status> [--reason]。');
       }
       const data = await api(`/api/stories/${id}`, 'PATCH', body);
       console.log(render(data, ctx.format));
@@ -630,13 +654,8 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
         }
       }
       const assignee = opt(f, 'assignee'); if (assignee !== undefined) body.assignee = assignee;
-      const status = opt(f, 'status');
-      if (status !== undefined) {
-        const statusBody: Record<string, unknown> = { status, reason: opt(f, 'reason') };
-        const expected = opt(f, 'expected-status');
-        if (expected !== undefined) statusBody.expected_status = expected;
-        const res = await api(`/api/dev-tasks/${id}/status`, 'POST', statusBody);
-        if (Object.keys(body).length === 0) { console.log(render(res, ctx.format)); return; }
+      if (opt(f, 'status') !== undefined) {
+        throw new Error('task update 不支持 --status；请使用 xcart task status <id> <status> [--expected-status <s>] [--reason]。');
       }
       const data = await api(`/api/dev-tasks/${id}`, 'PATCH', body);
       console.log(render(data, ctx.format));
@@ -774,12 +793,11 @@ async function cmdMilestone(ctx: Ctx): Promise<void> {
       // 权威方向是 ADR → milestone（adr_records.milestone_id）：milestone.adr_id 已作为死列删除
       // （domain-model.md §6.5），故此处按「哪些 ADR 锚定在本版本」反查，不读里程碑上的字段。
       const id = reqId(ctx.positional.slice(1), 'milestone info');
-      const productId = opt(f, 'product', 'project');
-      const milestones = await api(`/api/milestones?productId=${encodeURIComponent(productId ?? '')}`).catch(() => []);
+      const productId = req(f, 'product', 'project');
+      const milestones = await api(`/api/milestones?productId=${encodeURIComponent(productId)}`).catch(() => []);
       const milestone = (Array.isArray(milestones) ? milestones : []).find((m) => m.id === id);
       if (!milestone) {
-        console.log(`✗ 未找到版本 ${id}${productId ? `（产品 ${productId}）` : '（可用 --product 限定产品）'}`);
-        return;
+        throw new Error(`未找到版本 ${id}（产品 ${productId}）`);
       }
       const adrs = await api(`/api/adr-records?productId=${encodeURIComponent(milestone.product_id)}`).catch(() => []);
       const anchored = (Array.isArray(adrs) ? adrs : []).filter((a) => a?.milestone_id === id);
@@ -824,6 +842,7 @@ async function cmdMilestone(ctx: Ctx): Promise<void> {
       const goal = opt(f, 'goal'); if (goal !== undefined) body.goal = goal;
       const date = opt(f, 'date', 'target-date'); if (date !== undefined) body.target_date = date === 'none' ? null : date;
       const status = opt(f, 'status'); if (status !== undefined) body.status = status;
+      const reason = opt(f, 'reason'); if (reason !== undefined) body.reason = reason;
       const data = await api(`/api/milestones/${id}`, 'PATCH', body);
       console.log(render(data, ctx.format));
       break;
@@ -860,10 +879,9 @@ async function cmdModule(ctx: Ctx): Promise<void> {
       console.log(render(data, ctx.format));
       break;
     }
-    case 'create':
-    case 'update': {
+    case 'create': {
       const productId = req(f, 'product', 'project');
-      const id = sub === 'create' ? (req(f, 'id') as string) : reqId(ctx.positional.slice(1), 'module update');
+      const id = req(f, 'id');
       const body: Record<string, unknown> = {
         id,
         product_id: productId,
@@ -871,9 +889,22 @@ async function cmdModule(ctx: Ctx): Promise<void> {
       };
       const pathOpt = opt(f, 'path'); if (pathOpt !== undefined) body.path = pathOpt;
       const resp = opt(f, 'responsibility'); if (resp !== undefined) body.responsibility = resp;
-      const deps = splitList(opt(f, 'depends-on')); body.depends_on = deps;
+      const deps = splitList(opt(f, 'depends-on')); if (deps !== undefined) body.depends_on = deps;
       const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
       const data = await api(`/api/system-modules/${id}`, 'PUT', body);
+      console.log(render(data, ctx.format));
+      break;
+    }
+    case 'update': {
+      const productId = req(f, 'product', 'project');
+      const id = reqId(ctx.positional.slice(1), 'module update');
+      const body: Record<string, unknown> = {};
+      const name = opt(f, 'name'); if (name !== undefined) body.name = name;
+      const pathOpt = opt(f, 'path'); if (pathOpt !== undefined) body.path = pathOpt;
+      const resp = opt(f, 'responsibility'); if (resp !== undefined) body.responsibility = resp;
+      const deps = splitList(opt(f, 'depends-on')); if (deps !== undefined) body.dependsOn = deps;
+      const prov = opt(f, 'provenance'); if (prov !== undefined) body.provenance = prov;
+      const data = await api(`/api/system-modules/${id}?productId=${encodeURIComponent(productId)}`, 'PATCH', body);
       console.log(render(data, ctx.format));
       break;
     }
@@ -992,8 +1023,8 @@ async function cmdCtx(ctx: Ctx): Promise<void> {
   const taskId = ctx.positional[0];
   if (!taskId) throw new Error('用法: xcart ctx <taskId>');
   const data = (await api(`/api/ctx/${encodeURIComponent(taskId)}`)) as unknown;
-  if (!isObj(data)) { console.log('未找到'); return; }
-  if ('error' in data && typeof data.error === 'string') { console.log(`✗ ${data.error}`); return; }
+  if (!isObj(data)) throw new Error(`任务上下文不存在: ${taskId}`);
+  if ('error' in data && typeof data.error === 'string') throw new Error(data.error);
 
   const out = data as {
     task: { id: string; title: string; description: string; status: string; priority: string; tags: string[]; story_id: string | null; module_id: string | null; product_id: string | null };
@@ -1082,7 +1113,7 @@ async function cmdStatus(ctx: Ctx): Promise<void> {
       // 约束写入的人事追认（§6.7 方案 B）：constraint_written → ratified
       const entityType = ctx.positional[1];
       const entityId = ctx.positional[2];
-      const reason = opt(ctx.flags, 'reason') ?? opt(ctx.flags, 'm');
+      const reason = opt(ctx.flags, 'reason');
       if (!entityType || !entityId || !reason) {
         throw new Error(
           '用法: xcart status ratify <story|system_module|user_activity|product|user_task|milestone> <entityId> --reason "理由（必填）"'
@@ -1121,8 +1152,8 @@ async function cmdTrace(ctx: Ctx): Promise<void> {
   }
   const param = kind === 'story' ? 'storyId' : kind === 'module' ? 'moduleId' : 'adrId';
   const data = (await api(`/api/trace?${param}=${encodeURIComponent(id)}`)) as unknown;
-  if (!isObj(data)) { console.log('未找到'); return; }
-  if ('error' in data && typeof data.error === 'string') { console.log(`✗ ${data.error}`); return; }
+  if (!isObj(data)) throw new Error(`追溯对象不存在: ${kind} ${id}`);
+  if ('error' in data && typeof data.error === 'string') throw new Error(data.error);
 
   const out = data as {
     entry: { kind: string; id: string };
@@ -1174,58 +1205,16 @@ type TreeJourney = {
     dev_tasks?: Array<{ status?: string }> }>;
 };
 
-/** 单个版本的 planned vs done 统计（SAFe Program Predictability 口径，US-112） */
-export type MilestonePredictability = {
-  milestone_id: string;
-  planned_stories: number;
-  done_stories: number;
-  planned_estimation: number;
-  done_estimation: number;
-  /** done/planned 比值（0-1）；planned 为 0 时 null（不是 0——没有计划不等于达成 0） */
-  predictability: number | null;
-};
-
-/**
- * 按版本聚合 planned vs done（故事数 + 估算工时）。
- *
- * 口径（US-112）：
- * - planned = 挂在该版本下的故事（含 cancelled？**不含**——放弃的需求不应拉低可预测性，
- *   它是范围的显式收缩，不是未达成。故 cancelled 从分子分母同时剔除）
- * - done = 状态 accepted 的故事（故事侧收口语义，见 domain-saga §6.3）
- * - estimation 缺失按 0 计（不猜）
- * - 未排期故事（milestone_id 空）单独归入 `unassigned`，不混进任何版本的分母
- */
+/** Aggregate overview stories through the shared PI predictability domain calculation. */
 function aggregateByMilestone(activities: TreeJourney[]): {
   byMilestone: Record<string, MilestonePredictability>;
   unassigned: { planned_stories: number; done_stories: number; planned_estimation: number; done_estimation: number };
 } {
-  const byMilestone: Record<string, MilestonePredictability> = {};
-  const unassigned = { planned_stories: 0, done_stories: 0, planned_estimation: 0, done_estimation: 0 };
-
-  for (const activity of activities) {
-    for (const story of activity.stories ?? []) {
-      if ((story.status ?? 'backlog') === 'cancelled') continue;
-      const estimation = typeof story.estimation === 'number' ? story.estimation : 0;
-      const isDone = story.status === 'accepted';
-      const bucket = story.milestone_id
-        ? (byMilestone[story.milestone_id] ??= {
-            milestone_id: story.milestone_id,
-            planned_stories: 0, done_stories: 0, planned_estimation: 0, done_estimation: 0, predictability: null,
-          })
-        : unassigned;
-      bucket.planned_stories += 1;
-      bucket.planned_estimation += estimation;
-      if (isDone) {
-        bucket.done_stories += 1;
-        bucket.done_estimation += estimation;
-      }
+  return aggregateAssignedMilestonePredictability((function* () {
+    for (const activity of activities) {
+      yield* activity.stories ?? [];
     }
-  }
-
-  for (const m of Object.values(byMilestone)) {
-    m.predictability = m.planned_stories > 0 ? Math.round((m.done_stories / m.planned_stories) * 100) / 100 : null;
-  }
-  return { byMilestone, unassigned };
+  })());
 }
 
 /**
@@ -1434,14 +1423,11 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       }
       break;
     }
+    default: throw new Error(`未知子命令: skill ${sub}`);
   }
 }
 
 // ─── 旧命令别名（向后兼容）──────────────────────────────────
-const LEGACY: Record<string, string[]> = {
-  products: ['product', 'list'],
-  milestones: ['milestone', 'list'],
-};
 async function cmdLegacy(ctx: Ctx, where: string): Promise<void> {
   switch (where) {
     case 'products': return cmdProduct({ ...ctx, positional: ['list'] });
@@ -1475,7 +1461,7 @@ function helpText(): string {
 
 用户故事
   xcart story list --activity <id>
-  xcart story update <id> [--title] [--priority] [--status] [--activity <id>] [--user-task <id>|none] [--milestone <id>|none] [--estimation]
+  xcart story update <id> [--title] [--priority] [--activity <id>] [--user-task <id>|none] [--milestone <id>|none] [--estimation]
   xcart story move <id> <activityId>            # 跨活动移动故事（= update --activity）
   xcart story create --activity <id> --title <t> [--priority] [--estimation] [--ac "a;b"] [--tags a,b] [--affected-modules m1,m2] [--user-task <id>] [--milestone <id>]
   xcart story status <id> <status> [--reason]
@@ -1495,7 +1481,7 @@ function helpText(): string {
   xcart task info <id>
   xcart task create --story <id> --title <t> [--priority] [--estimation] [--deps a,b] [--tags a,b]
   xcart task create --product <id> --module-id <slug> --title <t> [--priority] [--estimation]
-  xcart task update <id> [--title] [--status] [--assignee] [--priority] [--estimation] [--module-id <slug>] [--story <id>|none] [--product <id>]
+  xcart task update <id> [--title] [--assignee] [--priority] [--estimation] [--module-id <slug>] [--story <id>|none] [--product <id>]
   xcart task status <id> <status> [--expected-status <s>] [--reason]
                                                 # --expected-status 启用 CAS 乐观锁：与当前状态不符时返回 409（防并发认领冲突，Agent 收到 409 应重读状态而非重试）
   xcart task delete <id>
@@ -1507,9 +1493,9 @@ function helpText(): string {
 
 版本 / 里程碑
   xcart milestone list --project <id>
-  xcart milestone info <id> [--product <pid>]      # 版本详情 + 锚定到本版本的 ADR + 交付时刻宪法摘要（未锚定则不展示）
+  xcart milestone info <id> --product <pid>       # 版本详情 + 锚定到本版本的 ADR + 交付时刻宪法摘要（未锚定则不展示）
   xcart milestone create --project <id> --name <n> [--goal] [--date] [--status]
-  xcart milestone update <id> [--name] [--goal] [--date] [--status]
+  xcart milestone update <id> [--name] [--goal] [--date] [--status] [--reason]
   xcart milestone delete <id>
 
 系统模块（SystemModule 目录；ADR 的 module_ids / Story 的 affected_modules 引用此处的 slug）
@@ -1570,20 +1556,27 @@ async function main() {
     return;
   }
   const { flags, boolFlags, positional } = parseArgs(args);
-  if (boolFlags.has('help') || args.includes('--help') || args.includes('-h')) {
-    console.log(helpText());
-    return;
-  }
   if (flags.has('server')) server = flags.get('server')!;
   if (flags.has('token')) token = flags.get('token')!;
-  const fmt: Format = (flags.get('format') ?? flags.get('f')) as Format;
-  const format: Format = ['json', 'markdown'].includes(fmt) ? fmt : 'table';
+  const requestedFormat = flags.get('format') ?? flags.get('f');
+  const format: Format = requestedFormat === 'json' || requestedFormat === 'markdown'
+    ? requestedFormat
+    : 'table';
 
   const cmd = positional[0];
   const rest = positional.slice(1);
   const ctx: Ctx = { flags, format, positional: rest };
 
   try {
+    const unknownBoolean = [...boolFlags].find((flag) => flag !== 'help' && flag !== 'h');
+    if (unknownBoolean) throw new Error(`不支持无值选项 --${unknownBoolean}`);
+    if (requestedFormat !== undefined && !['table', 'json', 'markdown'].includes(requestedFormat)) {
+      throw new Error(`不支持的 --format: ${requestedFormat}（可选: table | json | markdown）`);
+    }
+    if (boolFlags.has('help') || args.includes('--help') || args.includes('-h')) {
+      console.log(helpText());
+      return;
+    }
     switch (cmd) {
       case 'product':
       case 'project': // deprecated alias

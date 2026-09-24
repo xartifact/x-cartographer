@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import { toApiError } from '@/lib/api/error';
-import type { Product, CreateProductDTO, UpdateProductDTO } from '@x-cartographer/shared';
+import type { CreateProductDTO, UpdateProductDTO } from '@x-cartographer/shared';
 
 /**
  * Product REST hooks (react-query)
@@ -95,17 +95,3 @@ export function useDeleteProduct() {
   });
 }
 
-export function useSaveFullProduct() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (variables: { product: Product }) => {
-      const res = await api.api.products.full.$put({ json: variables });
-      if (!res.ok) throw await toApiError(res, '保存产品失败');
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
-  });
-}

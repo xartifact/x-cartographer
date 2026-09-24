@@ -60,7 +60,7 @@ export default defineConfig({
       },
     },
     {
-      command: 'bunx vite',
+      command: `bunx vite --port ${WEB_PORT}`, 
       cwd: '.',
       url: `http://localhost:${WEB_PORT}/`,
       reuseExistingServer: reuseExisting,

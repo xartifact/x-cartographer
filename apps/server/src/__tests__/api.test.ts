@@ -135,6 +135,49 @@ describe('health & metrics', () => {
   });
 });
 
+describe('settings API token authentication', () => {
+  it('allows first-token bootstrap, requires the token for rotation and revocation, then permits bootstrap again', async () => {
+    const bootstrap = await jsonRequest('POST', '/api/settings/token');
+    expect(bootstrap.status).toBe(201);
+    const { token: firstToken } = (await bootstrap.json()) as { token: string };
+
+    const read = await app.request('/api/settings/token');
+    expect(read.status).toBe(200);
+    expect(await read.json()).toEqual({ configured: true });
+
+    expect((await jsonRequest('POST', '/api/settings/token')).status).toBe(401);
+
+    const rotation = await app.request('/api/settings/token', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${firstToken}` },
+    });
+    expect(rotation.status).toBe(201);
+    const { token: rotatedToken } = (await rotation.json()) as { token: string };
+    expect(rotatedToken).not.toBe(firstToken);
+
+    const staleTokenRevocation = await app.request('/api/settings/token', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${firstToken}` },
+    });
+    expect(staleTokenRevocation.status).toBe(401);
+
+    const revocation = await app.request('/api/settings/token', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${rotatedToken}` },
+    });
+    expect(revocation.status).toBe(200);
+    expect(await revocation.json()).toEqual({ success: true });
+    const secondBootstrap = await jsonRequest('POST', '/api/settings/token');
+    expect(secondBootstrap.status).toBe(201);
+    const { token: secondToken } = (await secondBootstrap.json()) as { token: string };
+    const secondRevocation = await app.request('/api/settings/token', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${secondToken}` },
+    });
+    expect(secondRevocation.status).toBe(200);
+  });
+});
+
 describe('products CRUD', () => {
   it('full lifecycle: create → list → search → detail → update → delete', async () => {
     const id = await createProduct('Alpha Project', {
@@ -227,14 +270,14 @@ describe('products CRUD', () => {
     ).json()) as unknown[];
     expect(activities).toEqual([]);
 
-    // stories/tasks 详情端点对不存在的行返回空 body（drizzle findFirst → undefined）
+    // Missing detail endpoints return the literal JSON null contract.
     const storyRes = await app.request(`/api/stories/${storyId}`);
     expect(storyRes.status).toBe(200);
-    expect(await storyRes.text()).toBe('');
+    expect(await storyRes.json()).toBeNull();
 
     const taskRes = await app.request(`/api/dev-tasks/${taskId}`);
     expect(taskRes.status).toBe(200);
-    expect(await taskRes.text()).toBe('');
+    expect(await taskRes.json()).toBeNull();
   });
 
   /**
@@ -436,6 +479,28 @@ describe('stories CRUD + status flow', () => {
     expect(all.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('requires a nonblank cancellation reason before changing story status', async () => {
+    const productId = await createProduct('Story cancellation');
+    const activityId = await createActivity(productId, 'Cancellation activity');
+    const storyId = await createStory(activityId, 'Cancellation story');
+
+    for (const reason of [undefined, '   ']) {
+      const res = await jsonRequest('POST', `/api/stories/${storyId}/status`, {
+        status: 'cancelled',
+        ...(reason === undefined ? {} : { reason }),
+      });
+      expect(res.status).toBe(400);
+    }
+    const unchangedStory = await (await app.request(`/api/stories/${storyId}`)).json();
+    expect(unchangedStory).toMatchObject({ status: 'backlog' });
+
+    expect(
+      (await jsonRequest('POST', `/api/stories/${storyId}/status`, {
+        status: 'cancelled', reason: 'No longer needed',
+      })).status
+    ).toBe(200);
+  });
+
   /**
    * story create 此前不接受 userTaskId / milestoneId（schema 未声明，zod 静默剥离）：
    * 正向推演要求「先声明步骤，再往下放故事」（domain-model §8 Q3），Agent 在 create
@@ -524,10 +589,10 @@ describe('dev-tasks CRUD + topological next', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ success: true });
 
-    // 删除后详情返回空 body
+    // Deleted detail returns literal JSON null.
     const deleted = await app.request(`/api/dev-tasks/${taskId}`);
     expect(deleted.status).toBe(200);
-    expect(await deleted.text()).toBe('');
+    expect(await deleted.json()).toBeNull();
   });
 
   it('GET /api/tasks/next honors dependency completion order', async () => {
@@ -801,6 +866,31 @@ describe('dev-tasks CRUD + topological next', () => {
     });
     expect(res.status).toBe(404);
   });
+
+  it('requires a nonblank cancellation reason and rejects PATCH status changes', async () => {
+    const productId = await createProduct('Task cancellation');
+    const activityId = await createActivity(productId, 'Cancellation activity');
+    const storyId = await createStory(activityId, 'Cancellation story');
+    const taskId = await createDevTask(storyId, 'Cancellation task');
+
+    for (const reason of [undefined, '   ']) {
+      const res = await jsonRequest('POST', `/api/dev-tasks/${taskId}/status`, {
+        status: 'cancelled',
+        ...(reason === undefined ? {} : { reason }),
+      });
+      expect(res.status).toBe(400);
+    }
+    const unchangedTask = await (await app.request(`/api/dev-tasks/${taskId}`)).json();
+    expect(unchangedTask).toMatchObject({ status: 'backlog' });
+    expect(
+      (await jsonRequest('PATCH', `/api/dev-tasks/${taskId}`, { status: 'done' })).status
+    ).toBe(400);
+    expect(
+      (await jsonRequest('POST', `/api/dev-tasks/${taskId}/status`, {
+        status: 'cancelled', reason: 'No longer needed',
+      })).status
+    ).toBe(200);
+  });
   it('legacy /api/tasks routes return 410 Gone', async () => {
     const res = await jsonRequest('POST', '/api/tasks/nope/status', {
       status: 'done',
@@ -808,10 +898,7 @@ describe('dev-tasks CRUD + topological next', () => {
     expect(res.status).toBe(410);
   });
   /**
-   * dev_tasks.started_at / completed_at 只有状态流转语义上该写它，但 POST /:id/status
-   * 此前从不触碰这两列（生产 593 条 / 472 done，两列皆 0 填充）；
-   * 唯一写入路径 PUT /api/products/full CLI 无命令（P5：agent 唯一通道是 CLI），
-   * 实际不可达——UI「完成时间」分支成为死代码。
+   * Status transitions own lifecycle timestamps.
    */
   it('状态流转维护 started_at / completed_at', async () => {
     const projectId = await createProduct('时间戳产品');
@@ -1118,6 +1205,61 @@ describe('system modules 目录 + affected_modules 校验 (0006)', () => {
     ).json()) as Array<{ id: string }>;
     expect(after).toHaveLength(1);
   });
+
+  it('PATCH preserves omitted fields and can explicitly clear dependencies', async () => {
+    const productId = await createProduct('模块局部更新产品');
+    const dependency = {
+      id: 'module-dependency',
+      product_id: productId,
+      name: 'Dependency',
+      depends_on: [],
+    };
+    expect((await jsonRequest('PUT', '/api/system-modules/module-dependency', dependency)).status).toBe(200);
+    expect((await jsonRequest('PUT', '/api/system-modules/module-target', {
+      id: 'module-target',
+      product_id: productId,
+      name: 'Original name',
+      path: 'apps/target',
+      responsibility: 'Owns target behavior',
+      depends_on: ['module-dependency'],
+    })).status).toBe(200);
+
+    const renamed = await jsonRequest(
+      'PATCH',
+      `/api/system-modules/module-target?productId=${productId}`,
+      { name: 'Renamed target' }
+    );
+    expect(renamed.status).toBe(200);
+    let read = await jsonRequest('GET', `/api/system-modules/module-target?productId=${productId}`);
+    expect(await read.json()).toMatchObject({
+      id: 'module-target',
+      name: 'Renamed target',
+      path: 'apps/target',
+      responsibility: 'Owns target behavior',
+      depends_on: ['module-dependency'],
+    });
+
+    const cleared = await jsonRequest(
+      'PATCH',
+      `/api/system-modules/module-target?productId=${productId}`,
+      { depends_on: [] }
+    );
+    expect(cleared.status).toBe(200);
+    read = await jsonRequest('GET', `/api/system-modules/module-target?productId=${productId}`);
+    expect((await read.json() as { depends_on: string[] }).depends_on).toEqual([]);
+
+    const missing = await jsonRequest(
+      'PATCH',
+      `/api/system-modules/not-found?productId=${productId}`,
+      { name: 'Must not create' }
+    );
+    expect(missing.status).toBe(404);
+
+    const noIdentity = await jsonRequest('PATCH', '/api/system-modules/module-target', {
+      name: 'Missing product identity',
+    });
+    expect(noIdentity.status).toBe(400);
+  });
 });
 
 describe('约束写入协议 方案 B（§6.7）：高影响写入直接生效 + 账本留痕', () => {
@@ -1420,124 +1562,6 @@ describe('任务上下文切片 ctx（P2：Agent 的实际输入面）', () => {
   });
 });
 
-describe('PUT /api/products/full transaction', () => {
-  it('writes the whole tree and replaces children on re-put', async () => {
-    const now = new Date().toISOString();
-    const projectId = 'P-FULL-001';
-
-    const project = {
-      id: projectId,
-      name: 'Full Tree Project',
-      description: 'written in one transaction',
-      created_at: now,
-      updated_at: now,
-      metadata: { tech_stack: ['bun'], version: '1.0.0', tags: ['x'] },
-      settings: {
-        auto_save: true,
-        display_preferences: {
-          show_priority_colors: true,
-          show_estimation: true,
-          default_view: 'map',
-        },
-      },
-      user_activities: [
-        {
-          id: 'UJ-001',
-          name: 'Activity One',
-          description: 'jd',
-          product_id: projectId,
-          order: 0,
-          created_at: now,
-          updated_at: now,
-          stories: [
-            {
-              id: 'US-001',
-              title: 'Story One',
-              description: 'sd',
-              priority: 'high',
-              estimation: 4,
-              acceptance_criteria: ['works'],
-              tags: ['core'],
-              activity_id: 'UJ-001',
-              order: 0,
-              status: 'in_progress',
-              created_at: now,
-              updated_at: now,
-              dev_tasks: [
-                {
-                  id: 'TASK-001',
-                  title: 'DevTask One',
-                  description: 'td',
-                  priority: 'P1',
-                  estimation: 2,
-                  status: 'todo',
-                  dependencies: [],
-                  tags: [],
-                  story_id: 'US-001',
-                  created_at: now,
-                  updated_at: now,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          id: 'UJ-002',
-          name: 'Activity Two',
-          description: 'jd2',
-          product_id: projectId,
-          order: 1,
-          created_at: now,
-          updated_at: now,
-          stories: [],
-        },
-      ],
-    };
-
-    let res = await jsonRequest('PUT', '/api/products/full', { project });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ success: true });
-
-    res = await app.request(`/api/products/${projectId}`);
-    expect(res.status).toBe(200);
-    let body = (await res.json()) as Record<string, unknown> & {
-      user_activities: Array<Record<string, unknown> & { stories: unknown[] }>;
-    };
-    expect(body.name).toBe('Full Tree Project');
-    expect(body.user_activities).toHaveLength(2);
-    const journey = body.user_activities[0];
-    expect(journey.id).toBe('UJ-001');
-    const story = (journey.stories as Array<
-      Record<string, unknown> & { tasks: unknown[] }
-    >)[0];
-    expect(story.id).toBe('US-001');
-    expect(story.status).toBe('in_progress');
-    const task = (story.dev_tasks as Array<Record<string, unknown>>)[0];
-    expect(task.id).toBe('TASK-001');
-    expect(task.status).toBe('todo');
-
-    // 二次 PUT 只保留 1 个 journey → 旧 activities 级联清除
-    const slim = {
-      ...project,
-      user_activities: [
-        { ...project.user_activities[0], stories: [] },
-      ],
-    };
-    res = await jsonRequest('PUT', '/api/products/full', { project: slim });
-    expect(res.status).toBe(200);
-
-    body = (await (
-      await app.request(`/api/products/${projectId}`)
-    ).json()) as Record<string, unknown> & {
-      user_activities: Array<Record<string, unknown> & { stories: unknown[] }>;
-    };
-    expect(body.user_activities).toHaveLength(1);
-    expect(body.user_activities[0].id).toBe('UJ-001');
-    expect(
-      (body.user_activities[0].stories as unknown[]).length
-    ).toBe(0);
-  });
-});
 
 describe('ADR 创建落点：高影响非人主张落 proposed (§4.1/§4.4)', () => {
   const adrBody = (productId: string, extra: Record<string, unknown> = {}) => ({

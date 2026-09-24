@@ -3,9 +3,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { generateShortId } from '@x-cartographer/db';
-import { getProductRepository } from '@x-cartographer/db';
-import type { Product } from '@x-cartographer/shared';
+import { generateShortId, getProductRepository } from '@x-cartographer/db';
 import { recordConstraintWrite } from '../lib/constraint-ledger';
 
 const createProductSchema = z.object({
@@ -70,16 +68,5 @@ export const productsRoutes = new Hono()
     // 保持幂等语义（不存在的 id 同样 200），与其余 6 条 DELETE 路由及 GET /:id
     // 的「查不到返回 200 + null」一致；只有 products 报 404 会是新的不一致。
     await repository.delete(c.req.param('id'));
-    return c.json({ success: true });
-  })
-  // PUT /api/products/full (事务写全树)
-  // 注：zod v4.4.3 的 z.object+z.record 对此 payload 形状有非确定性误判（最小复现存档于重设计 PR 调查记录），改用结构防御检查
-  .put('/full', async (c) => {
-    const body = (await c.req.raw.json()) as { project?: unknown };
-    if (!body || typeof body !== 'object' || !body.project || typeof body.project !== 'object') {
-      return c.json({ success: false, error: 'project payload required' }, 400);
-    }
-    const repository = getProductRepository();
-    await repository.saveFullProduct(body.project as unknown as Product);
     return c.json({ success: true });
   });
