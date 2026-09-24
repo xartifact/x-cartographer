@@ -20,7 +20,7 @@ test.describe('任务管理', () => {
     const { id: projectId } = await createRes.json();
 
     // 直接进入任务页
-    await page.goto(`/projects/${projectId}/tasks`);
+    await page.goto(`/products/${projectId}/tasks`);
 
     // 页面标题
     await expect(

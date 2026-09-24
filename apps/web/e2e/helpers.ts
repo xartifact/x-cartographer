@@ -19,7 +19,7 @@ export async function createProjectViaUI(
   name: string,
   description = 'E2E 测试产品',
 ): Promise<void> {
-  await page.goto('/projects');
+  await page.goto('/products');
   // 产品列表页（空态或已存在产品都提供「新建产品」按钮）
   await page.getByRole('button', { name: '新建产品' }).click();
   const dialog = page.getByRole('dialog');
@@ -27,7 +27,7 @@ export async function createProjectViaUI(
   await dialog.getByLabel('产品描述').fill(description);
   await dialog.getByRole('button', { name: '创建' }).click();
   // 创建成功后跳转到产品详情页（概览），等待 URL 变化
-  await page.waitForURL(/\/projects\/[^/]+$/);
+  await page.waitForURL(/\/products\/[^/]+$/);
 }
 
 /**

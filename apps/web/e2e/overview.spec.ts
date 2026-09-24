@@ -42,7 +42,7 @@ test.describe('产品概览', () => {
       });
     }
 
-    await page.goto(`/projects/${projectId}`);
+    await page.goto(`/products/${projectId}`);
 
     // 标题与描述
     await expect(
@@ -71,7 +71,7 @@ test.describe('产品概览', () => {
     expect(createRes.ok()).toBeTruthy();
     const { id: projectId } = await createRes.json();
 
-    await page.goto(`/projects/${projectId}`);
+    await page.goto(`/products/${projectId}`);
 
     // 点击导出 AI 上下文,触发下载
     const downloadPromise = page.waitForEvent('download', { timeout: 10_000 });

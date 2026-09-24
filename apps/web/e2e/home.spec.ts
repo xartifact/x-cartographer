@@ -25,7 +25,7 @@ test.describe('首页', () => {
 
     // 点击卡片跳转到产品列表
     await card.click();
-    await page.waitForURL('/projects');
+    await page.waitForURL('/products');
     await expect(
       page.getByRole('heading', { name: '产品管理' }),
     ).toBeVisible();

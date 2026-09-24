@@ -22,7 +22,7 @@ test.describe('故事地图', () => {
     const { id: projectId } = await createRes.json();
 
     // 进入 story-map 页
-    await page.goto(`/projects/${projectId}/story-map`);
+    await page.goto(`/products/${projectId}/story-map`);
 
     // 空态
     await expect(page.getByText('暂无用户旅程')).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('故事地图', () => {
     expect(createRes.ok()).toBeTruthy();
     const { id: projectId } = await createRes.json();
 
-    await page.goto(`/projects/${projectId}/story-map`);
+    await page.goto(`/products/${projectId}/story-map`);
 
     // 打开创建旅程对话框
     await page.getByRole('button', { name: '添加旅程' }).click();

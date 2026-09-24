@@ -13,7 +13,7 @@ import { DIALOG_BUG_FIXED } from './known-bugs';
  */
 test.describe('产品管理', () => {
   test('产品列表渲染', async ({ page }) => {
-    await page.goto('/projects');
+    await page.goto('/products');
 
     await expect(
       page.getByRole('heading', { name: '产品管理' }),
@@ -37,7 +37,7 @@ test.describe('产品管理', () => {
     ).toBeVisible();
 
     // 回到列表，新产品应出现在列表中
-    await page.goto('/projects');
+    await page.goto('/products');
     const card = page
       .getByRole('link')
       .filter({ hasText: projectName });
@@ -45,7 +45,7 @@ test.describe('产品管理', () => {
 
     // 从卡片进入详情页
     await card.click();
-    await page.waitForURL(/\/projects\/[^/]+$/);
+    await page.waitForURL(/\/products\/[^/]+$/);
     await expect(
       page.locator('h1', { hasText: projectName }).last(),
     ).toBeVisible();

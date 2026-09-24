@@ -18,7 +18,7 @@ test.describe('排期规划', () => {
     expect(createRes.ok()).toBeTruthy();
     const { id: projectId } = await createRes.json();
 
-    await page.goto(`/projects/${projectId}/roadmap`);
+    await page.goto(`/products/${projectId}/roadmap`);
 
     // 页面标题与副标题
     await expect(
@@ -48,7 +48,7 @@ test.describe('排期规划', () => {
     expect(createRes.ok()).toBeTruthy();
     const { id: projectId } = await createRes.json();
 
-    await page.goto(`/projects/${projectId}/roadmap`);
+    await page.goto(`/products/${projectId}/roadmap`);
 
     // 打开新建版本对话框
     await page.getByRole('button', { name: '新建版本' }).click();
@@ -89,11 +89,12 @@ test.describe('排期规划', () => {
       },
     });
     const milestoneRes = await page.request.post('/api/milestones', {
-      data: { project_id: projectId, name: 'v2.0', goal: 'e2e' },
+      data: { product_id: projectId, name: 'v2.0', goal: 'e2e' },
     });
+    expect(milestoneRes.ok()).toBeTruthy();
     const { id: milestoneId } = await milestoneRes.json();
 
-    await page.goto(`/projects/${projectId}/roadmap`);
+    await page.goto(`/products/${projectId}/roadmap`);
 
     // 待规划池显示未排期故事
     await expect(page.getByText('E2E 待排期故事')).toBeVisible();
