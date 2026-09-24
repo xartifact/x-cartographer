@@ -80,8 +80,8 @@ xcart story list --activity <activityId>
 xcart story create --activity <activityId> --title "..." --priority high
 xcart task list --story <storyId>
 xcart task next --project <projectId>          # 下一个可执行任务
-xcart task status <taskId> in_progress --reason "开始"
-xcart task status <taskId> done --expected-status in_progress   # CAS 乐观锁：防并发认领冲突（不符返回 409）
+xcart task claim <taskId> --reason "开始"       # 原子认领：仅 todo 且依赖已完成时转为 in_progress（否则 409）
+xcart task status <taskId> done --expected-status in_progress   # CAS 乐观锁：防并发状态冲突（不符返回 409）
 xcart milestone list --project <projectId>
 xcart module list --project <projectId>        # 系统模块目录（技术宪法的结构词汇）
 xcart adr current --project <projectId>        # 当前生效技术宪法（架构原则/技术栈/模块）
@@ -102,6 +102,16 @@ xcart --help
 | `--token / -t <token>` 或 `XCART_API_TOKEN` | API Token（Gateway 启用认证时需要） |
 | `--format / -f table\|json\|markdown` | 输出格式（脚本解析用 `json`） |
 
+
+CLI 持久化配置使用 `~/.config/xcart/config.toml`（或 `$XDG_CONFIG_HOME/xcart/config.toml`）：
+
+```toml
+server = "http://100.80.110.125:8787"
+# token = "<gateway-token>"
+```
+
+优先级为命令行 flag > `config.toml` > 环境变量 > 默认值。已有 `~/.config/xcart/config`
+的 `key=value` 配置会在首次运行新 CLI 时自动写出等价的 `config.toml`；旧文件保留以兼容旧 CLI。
 完整命令树与语义见 `apps/cli/src/index.ts` 顶部用法说明，以及各 SKILL.md。
 
 > 旧命令名 `xpm` 已更名为 `xcart`（旧代号 XPM = X Product Manager）。

@@ -118,6 +118,29 @@ export class DevTaskRepository {
     return moved.length > 0;
   }
 
+  /**
+   * 原子认领：只有 todo 且全部依赖已结束的任务才能进入 in_progress。
+   *
+   * 依赖检查与状态转换必须在同一条 UPDATE 的 WHERE 内完成，不能先读后写；
+   * 否则并发 Agent 可在两步之间绕过就绪条件。与 /next 一致，done / cancelled
+   * 都满足依赖；LEFT JOIN 的空行也会阻止存量悬空依赖被认领。
+   */
+  async claim(id: string): Promise<boolean> {
+    const db = await ensureDb();
+    const dependenciesFinished = sql`not exists (
+      select 1
+      from jsonb_array_elements_text(${devTasks.dependencies}) as dependency(id)
+      left join dev_tasks as dependency_task on dependency_task.id = dependency.id
+      where dependency_task.id is null or dependency_task.status not in ('done', 'cancelled')
+    )`;
+    const moved = await db
+      .update(devTasks)
+      .set({ status: 'in_progress', ...statusTimestamps('in_progress'), updatedAt: new Date() })
+      .where(and(eq(devTasks.id, id), eq(devTasks.status, 'todo'), dependenciesFinished))
+      .returning({ id: devTasks.id });
+    return moved.length > 0;
+  }
+
   async delete(id: string): Promise<void> {
     const db = await ensureDb();
     await db.delete(devTasks).where(eq(devTasks.id, id));

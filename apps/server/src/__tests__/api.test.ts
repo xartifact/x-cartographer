@@ -1082,6 +1082,76 @@ describe('dev-task CAS 乐观锁（task-claim-concurrency.md）', () => {
   });
 });
 
+describe('dev-task 原子认领', () => {
+  it('仅在 todo 且依赖已完成时认领，并留下单条状态证据', async () => {
+    const projectId = await createProduct('Claim Project');
+    const activityId = await createActivity(projectId, 'J');
+    const storyId = await createStory(activityId, 'S');
+    const prerequisite = await createDevTask(storyId, 'Prerequisite');
+    const taskId = await createDevTask(storyId, 'Claim target', [prerequisite]);
+
+    await jsonRequest('POST', `/api/dev-tasks/${prerequisite}/status`, { status: 'done' });
+    await jsonRequest('POST', `/api/dev-tasks/${taskId}/status`, { status: 'todo' });
+    const claimed = await jsonRequest('POST', `/api/dev-tasks/${taskId}/claim`, {
+      reason: '依赖完成，开始实现',
+    });
+    expect(claimed.status).toBe(200);
+    expect(await claimed.json()).toEqual({ success: true });
+
+    const task = (await (
+      await app.request(`/api/dev-tasks/${taskId}`)
+    ).json()) as { status: string; started_at?: string };
+    expect(task.status).toBe('in_progress');
+    expect(task.started_at).toBeTruthy();
+    const changes = (await (
+      await app.request(`/api/status-changes?entityId=${taskId}`)
+    ).json()) as Array<{ previous_status: string; new_status: string; reason: string }>;
+    expect(changes).toHaveLength(2);
+    expect(changes[0]).toMatchObject({
+      previous_status: 'todo', new_status: 'in_progress', reason: '依赖完成，开始实现',
+    });
+  });
+
+  it('拒绝非 todo、未完成依赖和并发重复认领', async () => {
+    const projectId = await createProduct('Claim gate Project');
+    const activityId = await createActivity(projectId, 'J');
+    const storyId = await createStory(activityId, 'S');
+    const prerequisite = await createDevTask(storyId, 'Unfinished prerequisite');
+    const blocked = await createDevTask(storyId, 'Blocked claim', [prerequisite]);
+    const race = await createDevTask(storyId, 'Race claim');
+
+    let res = await jsonRequest('POST', `/api/dev-tasks/${blocked}/claim`, { reason: '不应认领' });
+    expect(res.status).toBe(409);
+    const nonTodoConflict = await res.json();
+    expect(
+      nonTodoConflict !== null
+      && typeof nonTodoConflict === 'object'
+      && 'current_status' in nonTodoConflict
+      && nonTodoConflict.current_status
+    ).toBe('backlog');
+
+    await jsonRequest('POST', `/api/dev-tasks/${blocked}/status`, { status: 'todo' });
+    res = await jsonRequest('POST', `/api/dev-tasks/${blocked}/claim`, { reason: '依赖仍未完成' });
+    expect(res.status).toBe(409);
+    const blockedConflict = await res.json();
+    expect(
+      blockedConflict !== null
+      && typeof blockedConflict === 'object'
+      && 'current_status' in blockedConflict
+      && blockedConflict.current_status
+    ).toBe('todo');
+
+    await jsonRequest('POST', `/api/dev-tasks/${race}/status`, { status: 'todo' });
+    const claim = () => jsonRequest('POST', `/api/dev-tasks/${race}/claim`, { reason: '并发认领' });
+    const [first, second] = await Promise.all([claim(), claim()]);
+    expect([first.status, second.status].sort()).toEqual([200, 409]);
+    const changes = (await (
+      await app.request(`/api/status-changes?entityId=${race}`)
+    ).json()) as Array<Record<string, unknown>>;
+    expect(changes).toHaveLength(2);
+  });
+});
+
 describe('system modules 目录 + affected_modules 校验 (0006)', () => {
   it('upsert 幂等、列表按 product 隔离、引用校验只告警不阻断', async () => {
     const productId = await createProduct('模块目录产品');

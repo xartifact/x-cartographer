@@ -31,7 +31,7 @@ xcart skill list | install [--dir <p>]    # 列出/安装 skills/*.SKILL.md 到 
 
 - X-Cartographer gateway 需在运行（默认 `http://localhost:8787`）。
 - 认证：若 gateway 已启用 API Token，通过 `--token <token>` 或环境变量 `XCART_API_TOKEN` 提供；未配置 token 时免认证（本地开发）。
-- 服务地址：`--server <url>` 或环境变量 `XCART_API_URL` 覆盖默认值。
+- 服务地址：优先写 `~/.config/xcart/config.toml` 的 `server = "<url>"`；`--server <url>` 可单次覆盖，其后才是环境变量 `XCART_API_URL` 与默认值。旧 `~/.config/xcart/config` 的 key=value 文件在首次运行时自动迁移为 TOML，旧文件保留。
 - 输出：加 `--format json` 获得可解析 JSON（脚本/agent 解析推荐）；默认 table。
 
 ## 典型工作流
@@ -42,6 +42,17 @@ xcart skill list | install [--dir <p>]    # 列出/安装 skills/*.SKILL.md 到 
 4. **提供评审上下文**：`xcart context export <productId>`（Markdown）→ 直接粘贴给 LLM；导出内容已含技术宪法节，无需另外拼接。
 5. **追溯某条约束的来龙去脉**：`xcart trace <story|module|adr> <id>` 输出四段链（意图→结构→规矩→实现）——比逐个命令拼装快，且是「这条需求被哪些约束管着、落在哪些模块、由哪些任务实现」的主路径。
 6. **机械读取**：所有命令加 `--format json` 以 JSON 解析。
+
+## Agent 端到端交付顺序（MUST）
+
+对需要落地的需求，Agent MUST 依次执行：**产品需求与现状 → 技术宪法/模块约束 → 活动与用户任务 → 带验收标准的用户故事 → 研发任务 → 实现验证 → 故事验收**。
+
+- 产品层用 `project info` / `context export` 理解目标、既有故事和版本；不要在脱离产品上下文时直接创建研发任务。
+- 架构层先读 `adr current`，并在影响范围不明时用 `module list` 确认模块目录；重大新决策才以 ADR 沉淀，不把普通代码质量检查写进技术宪法。
+- 需求拆解交给 `xcart-story-breakdown`：活动和用户任务描述用户动作，故事携带可观察的 acceptance criteria 与 `affected_modules`。
+- 执行与验收交给 `xcart-task-management`：每个任务动工前完成 preflight，用 `task claim` 通过原子认领门禁；验证实际改动后才完成 DevTask；仅在关联故事全部 acceptance criteria 已满足时将 Story 置为 `accepted`。
+
+这是一套 Agent 工作流约束；其中依赖、引用合法性与 `task claim` 的原子条件由服务端校验，阅读架构/需求和执行验收仍须由 Agent 真实完成，不能用形式化状态变更替代。
 
 > **保持本 skill 为最新**：skill 是 Agent 的唯一入口（P5），但副本可能落后于仓库源
 > `skills/`。`xcart skill list` 查看已安装路径；`xcart skill install` 从源重新同步

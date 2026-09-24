@@ -9,7 +9,7 @@
  *   xcart product list | info | create | update | delete       (project 为 deprecated alias)
  *   xcart activity list | info | create | update | delete      (journey 为 deprecated alias)
  *   xcart story  list | info | create | update | status | delete | bulk-create
- *   xcart dev-task list | info | create | update | status | delete | next | summary | bulk-create  (task 为 deprecated alias)
+ *   xcart dev-task list | info | create | update | status | claim | delete | next | summary | bulk-create  (task 为 deprecated alias)
  *   xcart milestone list | create | update | delete
  *   xcart adr create | list | show | status | current | as-of-milestone
  *   xcart status history <entityId> | all | ratify <type> <id> --reason
@@ -20,14 +20,14 @@
  *   xcart skill install | list
  *
  * 全局选项（放在任意位置均可）:
- *   --server, -s <url>      gateway 地址（默认 $XCART_API_URL 或 http://localhost:8787）
- *   --token,  -t <token>    API Token（默认 $XCART_API_TOKEN；gateway 启用认证时需要）
+ *   --server, -s <url>      gateway 地址（默认 config.toml、$XCART_API_URL 或 http://localhost:8787）
+ *   --token, -t <token>    API Token（默认 config.toml、$XCART_API_TOKEN；gateway 启用认证时需要）
  *   --format, -f <fmt>      输出格式: table | json | markdown（默认 table；overview/context 恒为 markdown）
  *   --help, -h              帮助
  *   --version, -v           版本
  */
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 const packageMetadata: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 if (
   !packageMetadata
@@ -49,25 +49,71 @@ import {
 } from '@x-cartographer/shared';
 
 // ─── 配置文件 ─────────────────────────────────────────────────
-// 路径：$XDG_CONFIG_HOME/xcart/config 或 ~/.config/xcart/config
-// 格式：key=value 每行一个，支持 # 注释与空行
-const CONFIG_PATH = join(
+// 新格式：$XDG_CONFIG_HOME/xcart/config.toml 或 ~/.config/xcart/config.toml。
+// 旧 key=value 文件仅在新文件缺失时读取，并自动写出 TOML；旧文件保留，避免破坏
+// 回退到旧版本 CLI 的使用者。优先级：flag > TOML > 环境变量 > 默认值。
+const CONFIG_DIR = join(
   process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'),
   'xcart',
-  'config',
 );
+const TOML_CONFIG_PATH = join(CONFIG_DIR, 'config.toml');
+const LEGACY_CONFIG_PATH = join(CONFIG_DIR, 'config');
 
-function loadConfig(): Record<string, string> {
-  if (!existsSync(CONFIG_PATH)) return {};
-  const out: Record<string, string> = {};
-  for (const raw of readFileSync(CONFIG_PATH, 'utf8').split('\n')) {
+type Config = { server?: string; token?: string };
+
+function parseLegacyConfig(content: string): Config {
+  const out: Config = {};
+  for (const raw of content.split('\n')) {
     const line = raw.trim();
     if (!line || line.startsWith('#')) continue;
     const eq = line.indexOf('=');
     if (eq === -1) continue;
-    out[line.slice(0, eq).trim()] = line.slice(eq + 1).trim();
+    const key = line.slice(0, eq).trim();
+    const value = line.slice(eq + 1).trim();
+    if (key === 'server') out.server = value;
+    if (key === 'token') out.token = value;
   }
   return out;
+}
+
+function parseTomlConfig(content: string): Config {
+  let raw: unknown;
+  try {
+    raw = Bun.TOML.parse(content);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`无法解析 xcart 配置 ${TOML_CONFIG_PATH}: ${detail}`);
+  }
+  if (raw === null || typeof raw !== 'object') {
+    throw new Error(`xcart 配置 ${TOML_CONFIG_PATH} 必须是 TOML 表`);
+  }
+  const config: Config = {};
+  if ('server' in raw) {
+    if (typeof raw.server !== 'string') throw new Error(`xcart 配置 ${TOML_CONFIG_PATH} 的 server 必须是字符串`);
+    config.server = raw.server;
+  }
+  if ('token' in raw) {
+    if (typeof raw.token !== 'string') throw new Error(`xcart 配置 ${TOML_CONFIG_PATH} 的 token 必须是字符串`);
+    config.token = raw.token;
+  }
+  return config;
+}
+
+function writeTomlConfig(config: Config): void {
+  mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  const content = Bun.TOML.stringify(config);
+  if (content === undefined) throw new Error('无法序列化 xcart TOML 配置');
+  const temporaryPath = `${TOML_CONFIG_PATH}.${process.pid}.tmp`;
+  writeFileSync(temporaryPath, content, { encoding: 'utf8', mode: 0o600 });
+  renameSync(temporaryPath, TOML_CONFIG_PATH);
+}
+
+function loadConfig(): Config {
+  if (existsSync(TOML_CONFIG_PATH)) return parseTomlConfig(readFileSync(TOML_CONFIG_PATH, 'utf8'));
+  if (!existsSync(LEGACY_CONFIG_PATH)) return {};
+  const config = parseLegacyConfig(readFileSync(LEGACY_CONFIG_PATH, 'utf8'));
+  writeTomlConfig(config);
+  return config;
 }
 
 const config = loadConfig();
@@ -655,7 +701,7 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       }
       const assignee = opt(f, 'assignee'); if (assignee !== undefined) body.assignee = assignee;
       if (opt(f, 'status') !== undefined) {
-        throw new Error('task update 不支持 --status；请使用 xcart task status <id> <status> [--expected-status <s>] [--reason]。');
+        throw new Error('task update 不支持 --status；初始认领请使用 xcart task claim <id> --reason "<开始依据>"，其他流转使用 xcart task status <id> <status> [--expected-status <s>] [--reason]。');
       }
       const data = await api(`/api/dev-tasks/${id}`, 'PATCH', body);
       console.log(render(data, ctx.format));
@@ -679,6 +725,23 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
           throw new Error(
             `状态冲突（409）：任务已被并发修改，expected_status=${expected} 不匹配当前状态。` +
             `请重新 task info ${id} 读取当前状态后再试；Agent 勿盲目重试（会掩盖并发认领）。`
+          );
+        }
+        throw e;
+      }
+      break;
+    }
+    case 'claim': {
+      const id = reqId(ctx.positional.slice(1), 'task claim');
+      const reason = req(f, 'reason');
+      try {
+        const res = await api(`/api/dev-tasks/${id}/claim`, 'POST', { reason });
+        console.log(render(res, ctx.format));
+      } catch (e) {
+        if (e instanceof Error && e.message.includes('409')) {
+          throw new Error(
+            `认领冲突（409）：任务不是 todo，或仍有未完成依赖。` +
+            `请重新 task info ${id} 确认状态和依赖；Agent 勿盲目重试。`
           );
         }
         throw e;
@@ -1396,8 +1459,7 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       const dirs = readdirSync(skillsDir).filter((d) => !d.startsWith('.'));
       const installed: string[] = [];
       // 陈旧检测：目标里已有同名 skill 且内容与源不同 → 该副本过期，本次是"更新"。
-      // 用户级目录（~/.claude/skills 等）不在仓库管辖内，会静默陈旧数月
-      // （实测 8-23 的副本仍含已废除的 --type、且缺第 4 份 skill）——回执必须说出来。
+      // 用户级目录不在仓库管辖内，会静默陈旧数月；回执必须说出来。
       const updated: string[] = [];
       for (const t of targets) {
         for (const d of dirs) {
@@ -1484,6 +1546,7 @@ function helpText(): string {
   xcart task update <id> [--title] [--assignee] [--priority] [--estimation] [--module-id <slug>] [--story <id>|none] [--product <id>]
   xcart task status <id> <status> [--expected-status <s>] [--reason]
                                                 # --expected-status 启用 CAS 乐观锁：与当前状态不符时返回 409（防并发认领冲突，Agent 收到 409 应重读状态而非重试）
+  xcart task claim <id> --reason "<开始依据>"  # 原子认领：仅 todo 且全部依赖 done/cancelled 时转为 in_progress
   xcart task delete <id>
   xcart task next --project <id> [--assignee]   # 下一个可执行任务（拓扑规则；两种锚定都参与）
   xcart task summary --project <id>             # 任务统计（含 module_anchored 计数）
@@ -1529,14 +1592,15 @@ Skills
   xcart skill list
   xcart skill install [--dir <target>]          # 默认安装到 ~/.agents/skills；--dir 覆盖目标目录
 
-  --server, -s <url>   gateway 地址（优先级: flag > 配置文件 ~/.config/xcart/config > $XCART_API_URL > http://localhost:8787）
-  --token,  -t <token> API Token（优先级: flag > 配置文件 > $XCART_API_TOKEN）
+  --server, -s <url>   gateway 地址（优先级: flag > config.toml > $XCART_API_URL > http://localhost:8787）
+  --token, -t <token> API Token（优先级: flag > config.toml > $XCART_API_TOKEN）
   --format, -f <fmt>   table | json | markdown（默认 table）
   --help, -h / --version, -v
 
 配置文件
-  路径: ~/.config/xcart/config（或 $XDG_CONFIG_HOME/xcart/config）
-  格式: key=value 每行一个（server=..., token=...），# 注释
+  路径: ~/.config/xcart/config.toml（或 $XDG_CONFIG_HOME/xcart/config.toml）
+  格式: TOML，例如 server = "http://gateway:8787"；token = "<token>"
+  迁移: 首次运行时，旧 ~/.config/xcart/config（key=value）自动转换为 config.toml；旧文件保留
 
 Agent 使用提示
   - 数据统计用单命令聚合：'overview --format json'（一次 API 完成，勿逐 story 拉 task list）

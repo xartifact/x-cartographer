@@ -74,7 +74,7 @@ xcart status ratify <story|system_module|user_activity|product|user_task|milesto
 
 ## 前置条件与容错
 
-- gateway 运行中（默认 `http://localhost:8787`）；`--server`/`XCART_API_URL` 可覆盖。
+- gateway 运行中（默认 `http://localhost:8787`）；持久化地址写入 `~/.config/xcart/config.toml` 的 `server`，`--server`/`XCART_API_URL` 可覆盖。旧 key=value 配置在首次运行时自动迁移为 TOML。
 - 项目尚无 ADR 时 `adr current` 返回空宪法（三空数组）——这不是错误，是「宪法未建立」的信号，agent 可建议负责人创建第一条。
 - MUST 原则冲突时：**不要静默违反**。向用户展示冲突的原则（`xcart adr show`），由人裁定是改实现还是修宪法（宪法修订 = 新 ADR + supersedes 旧条）。
 - 非人主张（`agent_inferred`/`imported`）建 ADR 且未指定 status 时，服务端**强制落 `proposed`**；升格 `accepted` 必须显式执行并带 `--reason`（状态机即权限模型，§4.4）。

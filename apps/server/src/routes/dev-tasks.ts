@@ -50,6 +50,10 @@ const updateStatusSchema = z.object({
   reason: z.string().optional(),
 });
 
+const claimDevTaskSchema = z.object({
+  reason: z.string().trim().min(1),
+}).strict();
+
 const allTasksQuerySchema = z.object({
   status: z.nativeEnum(TaskStatus).optional(),
   priority: z.nativeEnum(TaskPriority).optional(),
@@ -330,5 +334,36 @@ export const devTasksRoutes = new Hono()
       changed_at: new Date().toISOString(),
     });
 
+    return c.json({ success: true });
+  })
+  // POST /api/dev-tasks/:id/claim（原子认领：todo + 已满足依赖 → in_progress）
+  .post('/:id/claim', zValidator('json', claimDevTaskSchema), async (c) => {
+    const id = c.req.param('id');
+    const input = c.req.valid('json');
+    const existing = await taskRepo.findById(id);
+    if (!existing) return c.json({ error: `DevTask ${id} not found` }, 404);
+
+    // claim() 将 todo 状态与依赖完成条件一并下推到同一条 UPDATE，避免 /next
+    // 读取后、认领前被并发调用方或上游状态变化穿透。
+    if (!await taskRepo.claim(id)) {
+      return c.json(
+        {
+          error: 'claim conflict',
+          detail: '任务不是 todo，或仍有未完成依赖，无法认领',
+          current_status: (await taskRepo.findById(id))?.status,
+        },
+        409
+      );
+    }
+
+    await statusChangeRepo.create({
+      id: '',
+      entity_id: id,
+      entity_type: 'task',
+      previous_status: existing.status,
+      new_status: 'in_progress',
+      reason: input.reason,
+      changed_at: new Date().toISOString(),
+    });
     return c.json({ success: true });
   });

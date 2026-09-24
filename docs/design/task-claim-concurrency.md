@@ -1,6 +1,6 @@
 # X-Cartographer — 任务认领并发安全（乐观锁）
 
-> 状态：**设计定稿，待实现（2026-09-07）**。与 `docs/design/ai-native-product-principles.md` 的 P3/P4 对齐；独立于技术宪法/ADR 设计，不依赖它。
+> 状态：**已实现（2026-09-24）**。与 `docs/design/ai-native-product-principles.md` 的 P3/P4 对齐；独立于技术宪法/ADR 设计，不依赖它。
 
 ## 1. 问题
 
@@ -63,9 +63,9 @@ async compareAndSetStatus(id: string, expectedStatus: TaskStatus | undefined, ne
 });
 ```
 
-## 3. CLI/Agent 使用方式
+`xcart task claim <id> --reason "认领依据"` 是 Agent 的标准认领命令。服务端在单条条件更新中同时检查任务仍为 `todo`，且所有依赖均为 `done` 或 `cancelled`；条件不满足时返回 409。Agent 应重新调用 `xcart task info <id>` 确认状态与依赖，而不是重试同一认领。
 
-`xcart task status <id> in_progress --expected-status todo --reason "认领"`。收到 409 说明任务已被其他调用方改变状态，Agent 应重新调用 `xcart task next` 获取新推荐，而不是重试同一个任务。`SKILL.md`（`xcart-task-management`）需要补一段说明：认领任务时建议带 `--expected-status`，并说明 409 时的正确处理方式（重新 `task next`，不要原地重试）。
+`xcart task status <id> in_progress --expected-status todo` 保留为兼容的通用 CAS 状态流转，不承担认领就绪性门禁。
 
 ## 4. 范围边界（本次不做）
 

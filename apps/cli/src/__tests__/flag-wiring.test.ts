@@ -11,7 +11,7 @@
  * 断言 flag 确实进了请求体。不是断言源码文本（那只是实现的代理）。
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -77,29 +77,24 @@ async function runCli(args: string[]): Promise<SentRequest[]> {
   return [...sent];
 }
 
-describe('CLI skill installation', () => {
-  it('defaults to ~/.agents/skills', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'xcart-skill-home-'));
-    try {
-      const cliPath = new URL('../index.ts', import.meta.url).pathname;
-      const proc = Bun.spawn(['bun', 'run', cliPath, 'skill', 'install', '--format', 'json'], {
-        stdout: 'pipe',
-        stderr: 'pipe',
-        env: { ...process.env, HOME: home },
-      });
-      const [stdout, exitCode] = await Promise.all([
-        new Response(proc.stdout).text(),
-        proc.exited,
-      ]);
-      expect(exitCode).toBe(0);
-      const output = JSON.parse(stdout) as { installed_to: string[]; skills: string[] };
-      expect(output.installed_to).toEqual([join(home, '.agents', 'skills')]);
-      expect(readFileSync(join(home, '.agents', 'skills', output.skills[0]!, 'SKILL.md'), 'utf8')).not.toBe('');
-    } finally {
-      rmSync(home, { recursive: true, force: true });
-    }
+async function runCliWithEnv(
+  args: string[],
+  env: Record<string, string | undefined>,
+): Promise<{ reqs: SentRequest[]; exitCode: number; stderr: string; stdout: string }> {
+  sent.length = 0;
+  const cliPath = new URL('../index.ts', import.meta.url).pathname;
+  const proc = Bun.spawn(['bun', 'run', cliPath, ...args], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+    env,
   });
-});
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { reqs: [...sent], exitCode, stderr, stdout };
+}
 
 describe('CLI version', () => {
   it('prints the version declared in package metadata', async () => {
@@ -123,6 +118,86 @@ describe('CLI version', () => {
     expect(exitCode).toBe(0);
     expect(stderr).toBe('');
     expect(stdout.trim()).toBe(`xcart ${packageMetadata.version}`);
+  });
+});
+
+describe('CLI TOML 配置与旧配置迁移', () => {
+  it('读取 config.toml 的 server，且配置优先于环境变量', async () => {
+    const configHome = mkdtempSync(join(tmpdir(), 'xcart-config-test-'));
+    try {
+      mkdirSync(join(configHome, 'xcart'));
+      writeFileSync(
+        join(configHome, 'xcart', 'config.toml'),
+        `server = "${baseUrl}"\ntoken = "toml-token"\n`,
+      );
+      const result = await runCliWithEnv(['product', 'list'], {
+        ...process.env,
+        XDG_CONFIG_HOME: configHome,
+        XCART_API_URL: 'http://127.0.0.1:1',
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.reqs).toEqual([{ method: 'GET', path: '/api/products', body: null }]);
+    } finally {
+      rmSync(configHome, { recursive: true, force: true });
+    }
+  });
+
+  it('首次读取旧 config 时自动创建等价 config.toml，且保留旧文件', async () => {
+    const configHome = mkdtempSync(join(tmpdir(), 'xcart-config-migrate-test-'));
+    const configDir = join(configHome, 'xcart');
+    const legacyPath = join(configDir, 'config');
+    const tomlPath = join(configDir, 'config.toml');
+    try {
+      mkdirSync(configDir);
+      writeFileSync(legacyPath, `# legacy config\nserver=${baseUrl}\ntoken=legacy-token\n`);
+      const result = await runCliWithEnv(['product', 'list'], {
+        ...process.env,
+        XDG_CONFIG_HOME: configHome,
+        XCART_API_URL: 'http://127.0.0.1:1',
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.reqs).toEqual([{ method: 'GET', path: '/api/products', body: null }]);
+      expect(readFileSync(legacyPath, 'utf8')).toContain(`server=${baseUrl}`);
+      expect(readFileSync(tomlPath, 'utf8')).toBe(`server = "${baseUrl}"\ntoken = "legacy-token"\n`);
+    } finally {
+      rmSync(configHome, { recursive: true, force: true });
+    }
+  });
+
+  it('拒绝无效 TOML，且不发送请求', async () => {
+    const configHome = mkdtempSync(join(tmpdir(), 'xcart-config-invalid-test-'));
+    try {
+      mkdirSync(join(configHome, 'xcart'));
+      writeFileSync(join(configHome, 'xcart', 'config.toml'), 'server = [\n');
+      const result = await runCliWithEnv(['product', 'list'], {
+        ...process.env,
+        XDG_CONFIG_HOME: configHome,
+      });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain('无法解析 xcart 配置');
+      expect(result.reqs).toEqual([]);
+    } finally {
+      rmSync(configHome, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('CLI skill installation', () => {
+  it('defaults to ~/.agents/skills', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'xcart-skill-home-'));
+    try {
+      const result = await runCliWithEnv(['skill', 'install', '--format', 'json'], {
+        ...process.env,
+        HOME: home,
+      });
+      expect(result.exitCode).toBe(0);
+      const output = JSON.parse(result.stdout) as { installed_to: string[]; skills: string[] };
+      expect(output.installed_to).toEqual([join(home, '.agents', 'skills')]);
+      expect(output.skills.length).toBeGreaterThan(0);
+      expect(readFileSync(join(home, '.agents', 'skills', output.skills[0]!, 'SKILL.md'), 'utf8')).not.toBe('');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });
 
@@ -198,6 +273,13 @@ describe('CLI flag 接线：宣传的 flag 必须真的进请求体', () => {
       path: '/api/system-modules/cli',
       body: { dependsOn: [] },
     });
+  });
+
+  it('task claim 将 reason 送入原子认领端点', async () => {
+    const reqs = await runCli(['task', 'claim', 'T1', '--reason', '依赖已完成']);
+    expect(reqs).toEqual([
+      { method: 'POST', path: '/api/dev-tasks/T1/claim', body: { reason: '依赖已完成' } },
+    ]);
   });
 
   it('story/task update 拒绝 --status，且不发非原子请求', async () => {

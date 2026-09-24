@@ -52,12 +52,20 @@ xcart story bulk-create --activity <activityId> --file stories.json
 - **引用的实体必须存在**：引用不存在的版本/步骤/活动/产品 → `foreign_key_violation`（400）。
   同时**故事必须归属一个活动**（`activity_id` 必填）：解挂会让它及其研发任务从所有视图消失。
 
+## 拆解前检查与验收交接（MUST）
+
+在创建或重构活动、用户任务、故事之前，Agent MUST 先执行 `xcart project info --id <productId>`（或 `xcart context export <productId>`）了解现有需求和版本布局，再执行 `xcart adr current --product <productId>` 与 `xcart module list --project <productId>` 确认架构约束和可用模块 slug。不得绕过产品/架构上下文，直接把自然语言需求降为研发任务。
+
+每条故事的 `--ac` 必须是可观察、可验证的用户结果，而非“实现 X”“代码通过”这类实施动作。拆解 DevTask 时，应让每项任务对应一条或多条 AC，或明确它是为这些 AC 提供支撑的工程工作；并用 `--affected-modules` 将故事的架构影响面交给任务 preflight。
+
+DevTask `done` 只表示该研发工作已按实际验证完成，不等于故事已经验收。执行者应在完成相关任务后以 `xcart story info <storyId>` 对照全部 `acceptance_criteria`；仅当所有条目已满足时，才执行 `xcart story status <storyId> accepted --reason "<验收依据>"`。未覆盖的 AC 必须保留故事在非 `accepted` 状态并继续拆解/执行，不得用任务状态替代故事验收。
+
 
 ## 前置条件
 
 - X-Cartographer gateway 需在运行（默认 `http://localhost:8787`）。
 - 认证：若 gateway 已启用 API Token，通过 `--token <token>` 或环境变量 `XCART_API_TOKEN` 提供；未配置 token 时免认证（本地开发）。
-- 服务地址：`--server <url>` 或环境变量 `XCART_API_URL` 覆盖默认值。
+- 服务地址：优先写 `~/.config/xcart/config.toml` 的 `server = "<url>"`；`--server <url>` 可单次覆盖，其后才是环境变量 `XCART_API_URL` 与默认值。旧 `~/.config/xcart/config` 的 key=value 文件在首次运行时自动迁移为 TOML，旧文件保留。
 - 输出：加 `--format json` 获得可解析 JSON（脚本/agent 解析推荐）；默认 table。
 
 ## 典型工作流
