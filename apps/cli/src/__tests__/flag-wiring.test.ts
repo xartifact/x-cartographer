@@ -11,6 +11,9 @@
  * 断言 flag 确实进了请求体。不是断言源码文本（那只是实现的代理）。
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 interface SentRequest {
   method: string;
@@ -73,6 +76,30 @@ async function runCli(args: string[]): Promise<SentRequest[]> {
   await proc.exited;
   return [...sent];
 }
+
+describe('CLI skill installation', () => {
+  it('defaults to ~/.agents/skills', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'xcart-skill-home-'));
+    try {
+      const cliPath = new URL('../index.ts', import.meta.url).pathname;
+      const proc = Bun.spawn(['bun', 'run', cliPath, 'skill', 'install', '--format', 'json'], {
+        stdout: 'pipe',
+        stderr: 'pipe',
+        env: { ...process.env, HOME: home },
+      });
+      const [stdout, exitCode] = await Promise.all([
+        new Response(proc.stdout).text(),
+        proc.exited,
+      ]);
+      expect(exitCode).toBe(0);
+      const output = JSON.parse(stdout) as { installed_to: string[]; skills: string[] };
+      expect(output.installed_to).toEqual([join(home, '.agents', 'skills')]);
+      expect(readFileSync(join(home, '.agents', 'skills', output.skills[0]!, 'SKILL.md'), 'utf8')).not.toBe('');
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
 
 describe('CLI version', () => {
   it('prints the version declared in package metadata', async () => {

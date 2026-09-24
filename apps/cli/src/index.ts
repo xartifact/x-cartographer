@@ -1387,11 +1387,11 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       const { resolve, isAbsolute } = await import('node:path');
       // repoRoot 是绝对路径（由 import.meta.url 推出）。--dir 的相对路径必须按它
       // 解析：fs 对相对路径按 process.cwd() 解析，导致 `--cwd apps/cli` 调用时
-      // 装到 apps/cli/.claude/skills（静默装错位置，调用方以为已安装）。
+      // 装到 apps/cli/.agents/skills（静默装错位置，调用方以为已安装）。
       const explicit = opt(f, 'dir');
       const targets = explicit
         ? [isAbsolute(explicit) ? explicit : resolve(repoRoot, explicit)]
-        : [`${repoRoot}.claude/skills`];
+        : [join(homedir(), '.agents', 'skills')];
       if (!existsSync(skillsDir)) throw new Error(`skills 目录不存在: ${skillsDir}`);
       const dirs = readdirSync(skillsDir).filter((d) => !d.startsWith('.'));
       const installed: string[] = [];
@@ -1527,7 +1527,7 @@ function helpText(): string {
 
 Skills
   xcart skill list
-  xcart skill install [--dir <target>]          # 安装 skills/*.SKILL.md 到 agent 目录
+  xcart skill install [--dir <target>]          # 默认安装到 ~/.agents/skills；--dir 覆盖目标目录
 
   --server, -s <url>   gateway 地址（优先级: flag > 配置文件 ~/.config/xcart/config > $XCART_API_URL > http://localhost:8787）
   --token,  -t <token> API Token（优先级: flag > 配置文件 > $XCART_API_TOKEN）

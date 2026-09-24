@@ -45,7 +45,7 @@ xcart skill list | install [--dir <p>]    # 列出/安装 skills/*.SKILL.md 到 
 
 > **保持本 skill 为最新**：skill 是 Agent 的唯一入口（P5），但副本可能落后于仓库源
 > `skills/`。`xcart skill list` 查看已安装路径；`xcart skill install` 从源重新同步
-> （默认装到仓库内 `.claude/skills`，`--dir <path>` 指定其他目录）。
+> （默认装到 `~/.agents/skills`，`--dir <path>` 指定其他目录）。
 
 ## 效率提示（agent 用）
 
