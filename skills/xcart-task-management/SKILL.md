@@ -1,11 +1,11 @@
 ---
 name: xcart-task-management
-description: 在 X-Cartographer 中管理用户故事拆解出的研发任务（dev task）：创建/查询/更新任务、推进任务状态、获取下一个可执行任务、查看状态历史与任务统计。当 agent 需要执行或协调研发任务时使用。
+description: 在 X-Cartographer 中管理研发任务（DevTask）：创建/查询/更新任务、推进任务状态、获取下一个可执行任务、查看状态历史与任务统计。当 agent 需要执行或协调研发任务时使用。
 ---
 
 # X-Cartographer 任务管理
 
-本 skill 教你用 xcart CLI 操作**研发任务（dev task）**生命周期：从用户故事拆解研发任务，推进状态，识别"下一个可执行任务"。概念权威定义见 `docs/design/domain-model.md`——研发任务属**工作空间**（我们将采取什么行动），与用户任务（UserTask，属约束空间·意图）是不同空间的实体，永远不共用词汇。
+本 skill 教你用 xcart CLI 管理研发任务（DevTask）：按工作性质选择锚点，创建和推进任务，并识别"下一个可执行任务"。概念权威定义见 `docs/design/domain-model.md`——研发任务属**工作空间**（我们将采取什么行动），与用户任务（UserTask，属约束空间·意图）是不同空间的实体，永远不共用词汇。
 
 ## 命令
 
@@ -16,11 +16,11 @@ xcart dev-task list --story <storyId> | --product <productId> | --module-id <slu
 xcart task info <taskId>
 xcart task create --story <storyId> --title <t> [--priority P0|P1|P2|P3] [--estimation <h>] [--description] [--deps id1,id2] [--tags a,b]
 xcart task create --product <productId> --module-id <slug> --title <t> [--priority] [--estimation] [--tags a,b]
-xcart task update <taskId> [--title] [--priority] [--estimation] [--assignee] [--tags] [--module-id <slug>] [--story <id>|none]
-xcart task status <taskId> <status> [--expected-status <s>] [--reason]  # backlog|todo|in_progress|in_review|testing|done|cancelled
+xcart task update <taskId> [--title] [--priority] [--estimation] [--assignee] [--tags] [--product <id>] [--module-id <slug>] [--story <id>|none] [--affected-modules a,b]
+xcart task status <taskId> <status> --reason "<依据>" [--expected-status <s>]  # backlog|todo|in_progress|in_review|testing|done|cancelled
 xcart task claim <taskId> --reason "<开始依据>"  # 原子认领：仅 todo 且依赖 done/cancelled 时转为 in_progress
-xcart task next --project <projectId> [--assignee]   # 下一个可执行任务（仅 todo 且依赖已完成；两种锚定都参与）
-xcart task summary --project <projectId>             # 任务状态统计/完成率（含 module_anchored 计数）
+xcart task next --project <productId> [--assignee]   # 下一个可执行任务（仅 todo 且依赖已完成；两种锚定都参与）
+xcart task summary --project <productId>             # 任务状态统计/完成率（含 module_anchored 计数）
 xcart task bulk-create --story <storyId> --file tasks.json | --product <productId> --module-id <slug> --file tasks.json
 xcart status history <taskId>                        # 状态变更历史（含原因/变更人）
 ```
@@ -54,13 +54,15 @@ xcart status history <taskId>                        # 状态变更历史（含�
 
 - **新任务默认为 `backlog`**。只有进入 `todo` 且所有 `--deps` 依赖已完成的任务才会被 `task next` 返回。
 - **原子认领必须用 `task claim`**：服务端将 `todo` 状态和全部依赖为 `done` / `cancelled` 两项条件下推到同一条 SQL UPDATE；任一条件不满足返回 **409**（响应含 `current_status`）。收到 409 的正确反应是重新 `task info` 读取状态与依赖，再决定是否推进——**不要盲目重试**。`task status --expected-status` 仍用于其他需要 CAS 的状态流转，保持向后兼容。
-- 推进流程建议：`backlog → todo`（就绪）→ `in_progress`（执行）→ `in_review → testing` → `done`；失败可 `cancelled`。每次变更可带 `--reason` 记录原因（写入 status history）。
+- 推进流程建议：`backlog → todo`（就绪）→ `in_progress`（执行）→ `in_review → testing` → `done`；失败可 `cancelled`。每次状态流转都必须带 `--reason` 写入 status history。
 - **动工前看 `task info` 的 `architecture_context`**（若非空）：它按模块范围过滤出该任务相关的架构原则（`relevant_principles`）与模块（`relevant_modules`），`[MUST]` 级尤其要遵守。**但这只是信息提示，不是拦截性门禁**——没有需要确认的清单，也不存在"未读宪法就不许完成任务"的机制（自证/复核机制已明确排除在技术宪法范围外）。原则为空通常意味着任务与故事都没标 `affected_modules`，而不是"没有约束"。
 - **任务的架构上下文来源**：`task.affected_modules` → 回落 `story.affected_modules` → 回落 `task.module_id`；三者皆无则只剩全局原则。要让 `task info` 显示模块专属原则，拆解时就用 `story update --affected-modules` 或 `task update --affected-modules` 标注。
 
 - **任务有两种锚定，都要会用**（`docs/design/domain-model.md` §2.5）：
-  - **故事锚定**（默认）：有用户价值的工作项，`--story <id>`。产品归属经 `story → activity → product` 派生，出现在故事地图上。
-  - **模块锚定**（工程治理类）：重构、技术债、架构一致性这类**用户不关心**的工作，用 `--product <id> --module-id <slug>`（`story_id` 为空）。产品归属靠 `product_id` 直连，**不出现在故事地图上**——不要为了让它可见而硬编进某个故事。
+  - 先判断工作是否直接交付用户价值；**不是每个 DT 都对应 UA、UT、US**。
+  - **故事锚定**：有用户价值的工作项用 `--story <id>`。产品归属经 `story → activity → product` 派生，出现在故事地图上。只有真实需求需要新建或调整 UA、UT、US 时，才在故事地图工作流中维护这些约束实体；创建 DT 本身不触发同步创建。
+  - **模块锚定**：重构、技术债、架构一致性、可测试性等工程治理类工作，没有真实对应用户行为时，用 `--product <id> --module-id <slug>`（`story_id` 为空）。产品归属靠 `product_id` 直连，**不出现在故事地图上**。不要为了挂接或展示 DT 而虚构 UA、UT 或 US。
+  - 找不到合适的 SystemModule 时，先澄清模块归属；不要用虚构的用户故事兜底。`module_id` 是工程治理类任务的主锚，`affected_modules` 仅表示影响面，不能替代主锚。
   - `task next` / `task summary` / `task list --product` / `context export` **都覆盖这两种锚定**；任务依赖也可以跨锚定（模块锚定任务依赖故事锚定任务，反之亦然）。
 
 
@@ -74,7 +76,7 @@ xcart status history <taskId>                        # 状态变更历史（含�
 
 ## 典型工作流
 
-1. **找活干**：`xcart task next --project <projectId>` → 若无候选，先把某个 backlog 任务置为 `todo`（`task status <id> todo`）。
+1. **找活干**：`xcart task next --project <productId>` → 若无候选，检查依赖与任务就绪度，再用 `task status <id> todo --reason "已确认任务就绪"` 更新状态。
 2. **认领**：完成动工前检查后，`xcart task claim <taskId> --reason "依赖完成，开始实现"`。
 3. **完成**：`xcart task status <taskId> done --reason "实现完成"`。
 4. **回顾**：`xcart status history <taskId>` 看变更轨迹；`xcart task summary --project <id>` 看整体进度。

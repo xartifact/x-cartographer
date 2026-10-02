@@ -1446,7 +1446,7 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       break;
     }
     case 'install': {
-      const { cpSync, existsSync, mkdirSync, readdirSync } = await import('node:fs');
+      const { cpSync, existsSync, lstatSync, mkdirSync, realpathSync, readdirSync } = await import('node:fs');
       const { resolve, isAbsolute } = await import('node:path');
       // repoRoot 是绝对路径（由 import.meta.url 推出）。--dir 的相对路径必须按它
       // 解析：fs 对相对路径按 process.cwd() 解析，导致 `--cwd apps/cli` 调用时
@@ -1461,16 +1461,41 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       // 陈旧检测：目标里已有同名 skill 且内容与源不同 → 该副本过期，本次是"更新"。
       // 用户级目录不在仓库管辖内，会静默陈旧数月；回执必须说出来。
       const updated: string[] = [];
+      const linked: string[] = [];
       for (const t of targets) {
         for (const d of dirs) {
           const dest = `${t}/${d}`;
+          const source = `${skillsDir}/${d}`;
+          let destStat: ReturnType<typeof lstatSync> | undefined;
+          try {
+            destStat = lstatSync(dest);
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+          }
+          if (destStat) {
+            // Repo-local skill links already expose the canonical source. Treat them as
+            // installed, and refuse unrelated links so cpSync cannot write through them.
+            let resolvedDest: string;
+            try {
+              resolvedDest = realpathSync(dest);
+            } catch {
+              throw new Error(`目标技能目录是失效的符号链接或无法访问，拒绝覆盖: ${dest}`);
+            }
+            if (resolvedDest === realpathSync(source)) {
+              linked.push(`${d}（${dest}）`);
+              continue;
+            }
+            if (destStat.isSymbolicLink()) {
+              throw new Error(`目标技能目录是指向其他位置的符号链接，拒绝覆盖: ${dest}`);
+            }
+          }
           const destFile = `${dest}/SKILL.md`;
           if (existsSync(destFile)) {
-            const same = readFileSync(destFile, 'utf-8') === readFileSync(`${skillsDir}/${d}/SKILL.md`, 'utf-8');
+            const same = readFileSync(destFile, 'utf-8') === readFileSync(`${source}/SKILL.md`, 'utf-8');
             if (!same) updated.push(`${d}（${t}）`);
           }
           mkdirSync(dest, { recursive: true });
-          cpSync(`${skillsDir}/${d}`, dest, { recursive: true });
+          cpSync(source, dest, { recursive: true });
         }
         installed.push(t);
       }
@@ -1478,6 +1503,7 @@ async function cmdSkill(ctx: Ctx): Promise<void> {
       console.log(render({
         installed_to: installed,
         skills: dirs,
+        ...(linked.length ? { linked } : {}),
         ...(updated.length ? { updated_stale: updated } : {}),
       }, ctx.format));
       if (updated.length && ctx.format !== 'json') {

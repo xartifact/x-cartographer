@@ -49,6 +49,12 @@ SWARM_PLAN.md
 apps/server/data
 apps/web/.tanstack
 
-# 会话/代理产物（本地不入库）
-.agents/
+# 会话/代理产物默认本地忽略；项目技能入口以链接形式入库，指向 skills/ 唯一源目录。
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/xcart-project-overview
+!.agents/skills/xcart-story-breakdown
+!.agents/skills/xcart-task-management
+!.agents/skills/xcart-technical-constitution
 .codex/

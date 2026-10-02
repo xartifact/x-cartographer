@@ -90,7 +90,7 @@ xcart overview --project <projectId>           # 项目总览（含技术宪法�
 xcart context export <projectId>               # 全景 Markdown（含技术宪法节，供 LLM）
 xcart ctx <taskId>                             # 任务上下文切片（意图/结构/规矩/依赖）
 xcart trace <story|module|adr> <id>            # 约束追溯链
-xcart skill install                            # 安装 Skills 到 .claude/skills
+xcart skill install                            # 安装 Skills 到用户级 ~/.agents/skills
 xcart --help
 ```
 
@@ -127,11 +127,11 @@ server = "http://100.80.110.125:8787"
 | `skills/xcart-task-management/SKILL.md` | 任务生命周期、`task next` 可执行任务、CAS 并发认领、统计与历史 |
 | `skills/xcart-technical-constitution/SKILL.md` | 技术宪法：读取当前态/回溯演进历史、创建 ADR、维护模块目录 |
 
-一键安装到 Claude Code（`xcart` 面向 Claude Code 优化；`--dir` 可自定义安装目录）：
+一键安装到用户级 Agent Skills 目录（`--dir` 可指定其他安装目录；仓库内 `.claude/skills` 与 `.agents/skills` 的项目技能直接链接到 `skills/` 源目录）：
 
 ```bash
-xcart skill install            # 默认安装到仓库内 .claude/skills
-xcart skill install --dir <path>   # 或自定义目标目录（如 ~/.claude/skills）
+xcart skill install                # 默认复制到用户级 ~/.agents/skills
+xcart skill install --dir <path>   # 或复制到自定义目标目录（如 ~/.claude/skills）
 ```
 
 ## 设计哲学
