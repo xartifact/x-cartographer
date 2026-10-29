@@ -1,15 +1,14 @@
+"use client";
 /**
  * 视图切换器
  *
  * 支持预设状态视图的快速切换
  */
 
-'use client';
-
-import * as React from 'react';
-import { Check, LayoutGrid, List, Kanban, Calendar, Network } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@x-cartographer/ui';
+import * as React from "react";
+import { Check, LayoutGrid, List, Kanban, Calendar, Network } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@x-cartographer/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,10 +16,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@x-cartographer/ui';
-import { Checkbox as _Checkbox } from '@x-cartographer/ui';
+} from "@x-cartographer/ui";
+import { Checkbox as _Checkbox } from "@x-cartographer/ui";
 
-export type ViewType = 'list' | 'board' | 'timeline' | 'kanban' | 'dependencies';
+export type ViewType = "list" | "board" | "timeline" | "kanban" | "dependencies";
 
 export interface ViewSwitcherProps {
   /** 当前视图 */
@@ -54,11 +53,11 @@ const VIEW_ICONS: Record<ViewType, React.ElementType> = {
  * 视图名称映射
  */
 const VIEW_LABELS: Record<ViewType, string> = {
-  list: '列表视图',
-  board: '看板视图',
-  timeline: '时间线',
-  kanban: 'Kanban',
-  dependencies: '依赖图',
+  list: "列表",
+  board: "按故事分组",
+  timeline: "时间线",
+  kanban: "状态看板",
+  dependencies: "依赖图",
 };
 
 /**
@@ -104,14 +103,14 @@ export interface ViewSwitcherWithPresetsProps {
 export function ViewSwitcher({
   currentView,
   onViewChange,
-  availableViews = ['list', 'board', 'kanban', 'timeline'],
+  availableViews = ["list", "board", "kanban", "timeline"],
   disabled = false,
   className,
 }: ViewSwitcherProps) {
   const _Icon = VIEW_ICONS[currentView] || List;
 
   return (
-    <div className={cn('flex items-center gap-1', className)}>
+    <div className={cn("flex items-center gap-1", className)}>
       {availableViews.map((view) => {
         const ViewIcon = VIEW_ICONS[view] || List;
         const isActive = currentView === view;
@@ -119,11 +118,11 @@ export function ViewSwitcher({
         return (
           <Button
             key={view}
-            variant={isActive ? 'default' : 'ghost'}
+            variant={isActive ? "default" : "ghost"}
             size="icon"
             disabled={disabled}
             onClick={() => onViewChange(view)}
-            className={cn('h-8 w-8', isActive && 'bg-primary')}
+            className={cn("h-8 w-8", isActive && "bg-primary")}
             title={VIEW_LABELS[view]}
           >
             <ViewIcon className="h-4 w-4" />
@@ -151,13 +150,9 @@ export function ViewSwitcherWithPresets({
   const _Icon = VIEW_ICONS[currentView] || List;
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn("flex items-center gap-2", className)}>
       {/* 视图切换按钮 */}
-      <ViewSwitcher
-        currentView={currentView}
-        onViewChange={onViewChange}
-        disabled={disabled}
-      />
+      <ViewSwitcher currentView={currentView} onViewChange={onViewChange} disabled={disabled} />
 
       <div className="w-px h-4 bg-border" />
 
@@ -167,8 +162,8 @@ export function ViewSwitcherWithPresets({
           <Button variant="outline" size="sm" className="h-8 gap-1">
             <span>
               {activePreset
-                ? presetViews.find((p) => p.id === activePreset)?.name || '自定义'
-                : '预设视图'}
+                ? presetViews.find((p) => p.id === activePreset)?.name || "自定义"
+                : "预设视图"}
             </span>
           </Button>
         </DropdownMenuTrigger>
@@ -203,7 +198,7 @@ export function ViewSwitcherWithPresets({
             >
               <div className="flex items-center gap-2 flex-1">
                 {activePreset === preset.id && <Check className="h-4 w-4" />}
-                <span className={cn('font-medium', activePreset === preset.id && 'ml-0')}>
+                <span className={cn("font-medium", activePreset === preset.id && "ml-0")}>
                   {preset.name}
                 </span>
               </div>
@@ -221,7 +216,9 @@ export function ViewSwitcherWithPresets({
           {activePreset && (
             <DropdownMenuItem disabled>
               <span className="text-xs text-muted-foreground">
-                当前筛选: {presetViews.find((p) => p.id === activePreset)?.filters.statuses.length || 0} 个状态
+                当前筛选:{" "}
+                {presetViews.find((p) => p.id === activePreset)?.filters.statuses.length || 0}{" "}
+                个状态
               </span>
             </DropdownMenuItem>
           )}
@@ -259,7 +256,7 @@ export function PresetConfigPanel({
   className,
 }: PresetConfigPanelProps) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [newPresetName, setNewPresetName] = React.useState('');
+  const [newPresetName, setNewPresetName] = React.useState("");
 
   const handleAddPreset = () => {
     if (!newPresetName.trim()) return;
@@ -273,11 +270,11 @@ export function PresetConfigPanel({
     };
 
     onAddPreset(newPreset);
-    setNewPresetName('');
+    setNewPresetName("");
   };
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn("space-y-4", className)}>
       <h3 className="text-sm font-medium">视图预设配置</h3>
 
       {/* 新建预设 */}
@@ -288,11 +285,11 @@ export function PresetConfigPanel({
           onChange={(e) => setNewPresetName(e.target.value)}
           placeholder="新预设名称..."
           className={cn(
-            'flex-1 px-3 py-1.5 text-sm border rounded-md',
-            'focus:outline-none focus:ring-2 focus:ring-primary/20'
+            "flex-1 px-3 py-1.5 text-sm border rounded-md",
+            "focus:outline-none focus:ring-2 focus:ring-primary/20",
           )}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleAddPreset();
+            if (e.key === "Enter") handleAddPreset();
           }}
         />
         <Button size="sm" onClick={handleAddPreset} disabled={!newPresetName.trim()}>
@@ -303,10 +300,7 @@ export function PresetConfigPanel({
       {/* 预设列表 */}
       <div className="space-y-2">
         {presetViews.map((preset) => (
-          <div
-            key={preset.id}
-            className="flex items-center justify-between p-3 rounded-lg border"
-          >
+          <div key={preset.id} className="flex items-center justify-between p-3 rounded-lg border">
             <div className="flex-1">
               {editingId === preset.id ? (
                 <input
@@ -317,14 +311,14 @@ export function PresetConfigPanel({
                   autoFocus
                   onBlur={() => setEditingId(null)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') setEditingId(null);
+                    if (e.key === "Enter") setEditingId(null);
                   }}
                 />
               ) : (
                 <span className="font-medium">{preset.name}</span>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                状态: {preset.filters.statuses.join(', ') || '全部'}
+                状态: {preset.filters.statuses.join(", ") || "全部"}
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -349,9 +343,7 @@ export function PresetConfigPanel({
         ))}
 
         {presetViews.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            暂无预设配置
-          </p>
+          <p className="text-sm text-muted-foreground text-center py-4">暂无预设配置</p>
         )}
       </div>
     </div>
@@ -363,36 +355,36 @@ export function PresetConfigPanel({
  */
 export const DEFAULT_PRESET_VIEWS: PresetView[] = [
   {
-    id: 'all',
-    name: '全部',
-    description: '显示所有产品',
+    id: "all",
+    name: "全部",
+    description: "显示所有产品",
     filters: {
       statuses: [],
     },
   },
   {
-    id: 'in-progress',
-    name: '进行中',
-    description: '只显示进行中的产品',
+    id: "in-progress",
+    name: "进行中",
+    description: "只显示进行中的产品",
     filters: {
-      statuses: ['in_progress', 'in_review', 'testing'],
+      statuses: ["in_progress", "in_review", "testing"],
       inProgressOnly: true,
     },
   },
   {
-    id: 'todo',
-    name: '待处理',
-    description: '待开始的任务',
+    id: "todo",
+    name: "待处理",
+    description: "待开始的任务",
     filters: {
-      statuses: ['backlog', 'todo'],
+      statuses: ["backlog", "todo"],
     },
   },
   {
-    id: 'completed',
-    name: '已完成',
-    description: '只显示已完成的产品',
+    id: "completed",
+    name: "已完成",
+    description: "只显示已完成的产品",
     filters: {
-      statuses: ['done'],
+      statuses: ["done"],
       completedOnly: true,
     },
   },

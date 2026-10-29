@@ -1,13 +1,14 @@
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
+
 /**
  * 产品编辑对话框组件
  */
 
-'use client';
-
-import { useState, useEffect } from 'react';
-import { FolderOpen } from 'lucide-react';
-import type { Product } from '@x-cartographer/shared';
-import { validateProjectName } from '@/features/projects/api';
+import { useState, useEffect } from "react";
+import { FolderOpen } from "lucide-react";
+import type { Product } from "@x-cartographer/shared";
+import { validateProjectName } from "@/features/projects/api";
 import {
   Button,
   Dialog,
@@ -19,9 +20,9 @@ import {
   Input,
   Label,
   Textarea,
-} from '@x-cartographer/ui';
-import { useProjectActions } from '../hooks';
-import { toast } from 'sonner';
+} from "@x-cartographer/ui";
+import { useProjectActions } from "../hooks";
+import { toast } from "sonner";
 
 /**
  * 产品编辑表单数据
@@ -39,9 +40,9 @@ interface EditFormData {
 function projectToFormData(project: Product): EditFormData {
   return {
     name: project.name,
-    description: project.description || '',
-    tags: project.metadata?.tech_stack?.join(', ') || '',
-    workspace_dir: project.settings?.workspace_dir || '',
+    description: project.description || "",
+    tags: project.metadata?.tech_stack?.join(", ") || "",
+    workspace_dir: project.settings?.workspace_dir || "",
   };
 }
 
@@ -62,10 +63,17 @@ export function ProjectEditDialog({
   const { updateProject } = useProjectActions();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<EditFormData>(
-    projectToFormData(project)
-  );
+  const [formData, setFormData] = useState<EditFormData>(projectToFormData(project));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const formDraft = useFormDraft({
+    open,
+    scope: `product:${project.id}`,
+    values: { formData },
+    restore: (v) => setFormData(v.formData),
+    close: () => onOpenChange(false),
+    saving: isLoading,
+    version: project.updated_at,
+  });
 
   // 当产品数据变化时重置表单
   useEffect(() => {
@@ -87,7 +95,7 @@ export function ProjectEditDialog({
     }
 
     if (formData.description.length > 1000) {
-      newErrors.description = '描述不能超过 1000 个字符';
+      newErrors.description = "描述不能超过 1000 个字符";
     }
 
     setErrors(newErrors);
@@ -105,7 +113,7 @@ export function ProjectEditDialog({
     setIsLoading(true);
     try {
       const techStack = formData.tags
-        .split(',')
+        .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
 
@@ -120,7 +128,8 @@ export function ProjectEditDialog({
         },
       });
 
-      toast.success('产品已更新', { description: `产品 "${formData.name.trim()}" 已保存` });
+      toast.success("产品已更新", { description: `产品 "${formData.name.trim()}" 已保存` });
+      formDraft.clear();
       onOpenChange(false);
       onSuccess?.({
         ...project,
@@ -128,22 +137,27 @@ export function ProjectEditDialog({
         description: formData.description.trim() || undefined,
       });
     } catch (error) {
-      toast.error('更新失败', { description: error instanceof Error ? error.message : '未知错误' });    } finally {
+      toast.error("更新失败", { description: error instanceof Error ? error.message : "未知错误" });
+    } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!value) formDraft.requestClose();
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
+        {formDraft.protection}
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5" />
             编辑产品
           </DialogTitle>
-          <DialogDescription>
-            修改产品名称、描述、技术栈标签和工作空间路径
-          </DialogDescription>
+          <DialogDescription>修改产品名称、描述、技术栈标签和工作空间路径</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-4">
@@ -153,14 +167,10 @@ export function ProjectEditDialog({
               id="edit-name"
               placeholder="输入产品名称"
               value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              className={errors.name ? 'border-destructive' : ''}
+              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              className={errors.name ? "border-destructive" : ""}
             />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name}</p>
-            )}
+            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
           </div>
 
           <div className="space-y-2">
@@ -177,9 +187,7 @@ export function ProjectEditDialog({
               }
               rows={3}
             />
-            {errors.description && (
-              <p className="text-sm text-destructive">{errors.description}</p>
-            )}
+            {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
           </div>
 
           <div className="space-y-2">
@@ -188,9 +196,7 @@ export function ProjectEditDialog({
               id="edit-tags"
               placeholder="React, TypeScript, Node.js（用逗号分隔）"
               value={formData.tags}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, tags: e.target.value }))
-              }
+              onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
             />
             <p className="text-xs text-muted-foreground">用逗号分隔多个标签</p>
           </div>
@@ -209,22 +215,16 @@ export function ProjectEditDialog({
               }
               className="font-mono text-sm"
             />
-            <p className="text-xs text-muted-foreground">
-              AI 编码代理执行任务时的工作目录（可选）
-            </p>
+            <p className="text-xs text-muted-foreground">AI 编码代理执行任务时的工作目录（可选）</p>
           </div>
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
+          <Button variant="outline" onClick={formDraft.requestClose} disabled={isLoading}>
             取消
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? '保存中...' : '保存'}
+            {isLoading ? "保存中..." : "保存"}
           </Button>
         </DialogFooter>
       </DialogContent>

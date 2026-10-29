@@ -1,4 +1,6 @@
-'use client';
+"use client";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+
 
 /**
  * 并行工作台：跨产品查看全部研发任务
@@ -7,25 +9,20 @@
  * 交互：任务列表 + 产品/状态/优先级筛选 + 多选批量状态更新。
  */
 
-import { useMemo, useState } from 'react';
-import { Link } from '@tanstack/react-router';
-import { ListTodo, Search, Layers, FolderKanban } from 'lucide-react';
-import { Button, Input, Checkbox, Badge } from '@x-cartographer/ui';
-import {
-  useAllDevTasks,
-  useProducts,
-  useUpdateDevTaskStatus,
-} from '@/lib/api/hooks';
-import type { DevTask, TaskStatus, TaskPriority } from '@x-cartographer/shared';
+import { runBulk } from "@/lib/bulk-operation";
+import { toast } from "sonner";
+import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { ListTodo, Search, Layers, FolderKanban } from "lucide-react";
+import { Button, Input, Checkbox, Badge } from "@x-cartographer/ui";
+import { useAllDevTasks, useUpdateDevTaskStatus } from "@/lib/api/hooks";
+import type { DevTask, TaskStatus, TaskPriority } from "@x-cartographer/shared";
 import {
   TaskStatus as TaskStatusEnum,
   TaskPriority as TaskPriorityEnum,
-} from '@x-cartographer/shared';
-import {
-  BulkActionToolbar,
-  BulkUpdateConfirmDialog,
-} from '@/features/tasks/components';
-import { TASK_STATUS_LABEL, TASK_PRIORITY_CLS } from './components/card-meta';
+} from "@x-cartographer/shared";
+import { BulkActionToolbar, BulkUpdateConfirmDialog } from "@/features/tasks/components";
+import { TASK_STATUS_LABEL, TASK_PRIORITY_CLS } from "./components/card-meta";
 
 interface AllTask extends DevTask {
   product: { id: string; name: string };
@@ -33,39 +30,43 @@ interface AllTask extends DevTask {
 }
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
-  { value: TaskStatusEnum.BACKLOG, label: '待办池' },
-  { value: TaskStatusEnum.TODO, label: '待执行' },
-  { value: TaskStatusEnum.IN_PROGRESS, label: '进行中' },
-  { value: TaskStatusEnum.IN_REVIEW, label: '评审中' },
-  { value: TaskStatusEnum.TESTING, label: '测试中' },
-  { value: TaskStatusEnum.DONE, label: '已完成' },
-  { value: TaskStatusEnum.CANCELLED, label: '已取消' },
+  { value: TaskStatusEnum.BACKLOG, label: "待办池" },
+  { value: TaskStatusEnum.TODO, label: "待执行" },
+  { value: TaskStatusEnum.IN_PROGRESS, label: "进行中" },
+  { value: TaskStatusEnum.IN_REVIEW, label: "评审中" },
+  { value: TaskStatusEnum.TESTING, label: "测试中" },
+  { value: TaskStatusEnum.DONE, label: "已完成" },
+  { value: TaskStatusEnum.CANCELLED, label: "已取消" },
 ];
 
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
-  { value: TaskPriorityEnum.P0, label: 'P0' },
-  { value: TaskPriorityEnum.P1, label: 'P1' },
-  { value: TaskPriorityEnum.P2, label: 'P2' },
-  { value: TaskPriorityEnum.P3, label: 'P3' },
+  { value: TaskPriorityEnum.P0, label: "P0" },
+  { value: TaskPriorityEnum.P1, label: "P1" },
+  { value: TaskPriorityEnum.P2, label: "P2" },
+  { value: TaskPriorityEnum.P3, label: "P3" },
 ];
 
 export function WorkbenchPage() {
-  const { data: tasksData, isLoading: tasksLoading } = useAllDevTasks({});
-  const { data: products } = useProducts();
+  const {
+    data: tasksData,
+    isLoading: tasksLoading,
+    error: tasksError,
+    refetch: retryTasks,
+  } = useAllDevTasks({});
   const updateTaskStatus = useUpdateDevTaskStatus();
 
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('');
-  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('');
-  const [productFilter, setProductFilter] = useState<string | ''>('');
+  const [query, setQuery] = useUrlState("q");
+  const [statusValue, setStatusFilter] = useUrlState("status");
+  const statusFilter = statusValue as TaskStatus | "";
+  const [priorityValue, setPriorityFilter] = useUrlState("priority");
+  const priorityFilter = priorityValue as TaskPriority | "";
+  const [productFilter, setProductFilter] = useUrlState("product");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [bulkTargetStatus, setBulkTargetStatus] = useState<TaskStatus | null>(
-    null
-  );
-  const [bulkReason, setBulkReason] = useState('');
+  const [bulkTargetStatus, setBulkTargetStatus] = useState<TaskStatus | null>(null);
+  const [bulkReason, setBulkReason] = useState("");
 
-  const allTasks = (tasksData ?? []) as AllTask[];
+  const allTasks = useMemo(() => (tasksData ?? []) as AllTask[], [tasksData]);
 
   const productOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -93,28 +94,26 @@ export function WorkbenchPage() {
     });
   }, [allTasks, statusFilter, priorityFilter, productFilter, query]);
 
-  const visibleIds = useMemo(
-    () => new Set(filteredTasks.map((t) => t.id)),
-    [filteredTasks]
-  );
+  const visibleIds = useMemo(() => new Set(filteredTasks.map((t) => t.id)), [filteredTasks]);
 
   const selectedVisibleIds = useMemo(
     () => selectedIds.filter((id) => visibleIds.has(id)),
-    [selectedIds, visibleIds]
+    [selectedIds, visibleIds],
   );
 
   const isAllSelected =
-    filteredTasks.length > 0 &&
-    selectedVisibleIds.length === filteredTasks.length;
+    filteredTasks.length > 0 && selectedVisibleIds.length === filteredTasks.length;
 
   const toggleSelect = (id: string, checked: boolean) => {
-    setSelectedIds((prev) =>
-      checked ? [...prev, id] : prev.filter((x) => x !== id)
-    );
+    setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
   };
 
   const toggleSelectAll = (checked: boolean) => {
-    setSelectedIds(checked ? filteredTasks.map((t) => t.id) : []);
+    setSelectedIds((prev) =>
+      checked
+        ? [...new Set([...prev, ...filteredTasks.map((t) => t.id)])]
+        : prev.filter((id) => !visibleIds.has(id)),
+    );
   };
 
   const handleBulkStatusChange = (status: TaskStatus) => {
@@ -123,25 +122,34 @@ export function WorkbenchPage() {
   };
 
   const handleBulkConfirm = async () => {
-    if (!bulkTargetStatus || selectedVisibleIds.length === 0) return;
-    await Promise.all(
-      selectedVisibleIds.map((id) =>
-        updateTaskStatus.mutateAsync({
-          id,
-          status: bulkTargetStatus,
-          reason: bulkReason || undefined,
-        })
-      )
+    if (!bulkTargetStatus || selectedIds.length === 0) return;
+    const result = await runBulk(selectedIds, (id) =>
+      updateTaskStatus.mutateAsync({
+        id,
+        status: bulkTargetStatus,
+        reason: bulkReason || undefined,
+        expected_status: allTasks.find((t) => t.id === id)?.status,
+      }),
     );
-    setSelectedIds([]);
-    setBulkReason('');
+    setSelectedIds(result.failed);
+    toast[result.failed.length ? "error" : "success"](
+      `已更新 ${result.succeeded.length} 项，失败 ${result.failed.length} 项`,
+    );
+    if (result.failed.length) throw new Error("失败项已保留，请重试");
+    setBulkReason("");
     setBulkTargetStatus(null);
   };
 
   const openTask = (task: AllTask) => {
-    window.location.href = `/products/${task.product.id}/tasks`;
+    window.location.href = `/products/${task.product.id}/tasks?taskId=${encodeURIComponent(task.id)}`;
   };
 
+  if (tasksError)
+    return (
+      <div role="alert">
+        加载任务失败<Button onClick={() => retryTasks()}>重试</Button>
+      </div>
+    );
   if (tasksLoading) {
     return (
       <div className="flex h-full items-center justify-center rounded-xl border bg-muted/30 text-muted-foreground">
@@ -159,9 +167,7 @@ export function WorkbenchPage() {
             <Layers className="h-5 w-5" />
             并行工作台
           </h2>
-          <p className="text-sm text-muted-foreground">
-            跨产品查看全部研发任务，批量更新状态
-          </p>
+          <p className="text-sm text-muted-foreground">跨产品查看全部研发任务，批量更新状态</p>
         </div>
         <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
@@ -200,7 +206,7 @@ export function WorkbenchPage() {
         </select>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as TaskStatus | '')}
+          onChange={(e) => setStatusFilter(e.target.value as TaskStatus | "")}
           className="h-9 rounded-md border bg-background px-2 text-sm"
         >
           <option value="">全部状态</option>
@@ -212,9 +218,7 @@ export function WorkbenchPage() {
         </select>
         <select
           value={priorityFilter}
-          onChange={(e) =>
-            setPriorityFilter(e.target.value as TaskPriority | '')
-          }
+          onChange={(e) => setPriorityFilter(e.target.value as TaskPriority | "")}
           className="h-9 rounded-md border bg-background px-2 text-sm"
         >
           <option value="">全部优先级</option>
@@ -229,10 +233,10 @@ export function WorkbenchPage() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              setStatusFilter('');
-              setPriorityFilter('');
-              setProductFilter('');
-              setQuery('');
+              setStatusFilter("");
+              setPriorityFilter("");
+              setProductFilter("");
+              setQuery("");
             }}
           >
             清除筛选
@@ -242,10 +246,8 @@ export function WorkbenchPage() {
 
       {/* 批量操作工具栏 */}
       <BulkActionToolbar
-        selectedCount={{ tasks: selectedVisibleIds.length, stories: 0 }}
-        onStatusChange={(status) =>
-          handleBulkStatusChange(status as TaskStatus)
-        }
+        selectedCount={{ tasks: selectedIds.length, stories: 0 }}
+        onStatusChange={(status) => handleBulkStatusChange(status as TaskStatus)}
         onClearSelection={() => setSelectedIds([])}
       />
 
@@ -262,18 +264,14 @@ export function WorkbenchPage() {
           <label className="flex items-center gap-2 text-sm">
             <Checkbox
               checked={isAllSelected}
-              onCheckedChange={(checked) =>
-                toggleSelectAll(checked === true)
-              }
+              onCheckedChange={(checked) => toggleSelectAll(checked === true)}
             />
             全选
           </label>
         </div>
 
         {filteredTasks.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            暂无匹配任务
-          </p>
+          <p className="py-6 text-center text-sm text-muted-foreground">暂无匹配任务</p>
         ) : (
           <div className="space-y-1.5">
             {filteredTasks.map((task) => (
@@ -292,7 +290,10 @@ export function WorkbenchPage() {
       <BulkUpdateConfirmDialog
         open={bulkDialogOpen}
         onOpenChange={setBulkDialogOpen}
-        selectedCount={{ tasks: selectedVisibleIds.length, stories: 0 }}
+        selectedCount={{ tasks: selectedIds.length, stories: 0 }}
+        mixed={
+          new Set(allTasks.filter((t) => selectedIds.includes(t.id)).map((t) => t.status)).size > 1
+        }
         currentStatus={
           (filteredTasks.find((t) => selectedVisibleIds.includes(t.id))?.status as TaskStatus) ??
           TaskStatusEnum.TODO
@@ -317,9 +318,7 @@ interface TaskRowProps {
 
 function TaskRow({ task, selected, onSelect, onOpen }: TaskRowProps) {
   return (
-    <div
-      className="flex items-start gap-3 rounded-lg border bg-background p-3 transition-colors hover:border-primary/50 hover:bg-accent/40"
-    >
+    <div className="flex items-start gap-3 rounded-lg border bg-background p-3 transition-colors hover:border-primary/50 hover:bg-accent/40">
       <Checkbox
         checked={selected}
         onCheckedChange={(checked) => onSelect(task.id, checked === true)}
@@ -332,25 +331,17 @@ function TaskRow({ task, selected, onSelect, onOpen }: TaskRowProps) {
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 font-medium leading-snug">
-              {task.title}
-            </p>
+            <p className="line-clamp-2 font-medium leading-snug">{task.title}</p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
               <span className="text-muted-foreground">{task.id}</span>
-              <span className={TASK_PRIORITY_CLS[task.priority] ?? ''}>
-                {task.priority}
-              </span>
+              <span className={TASK_PRIORITY_CLS[task.priority] ?? ""}>{task.priority}</span>
               <span className="rounded bg-muted px-1 py-0.5 text-muted-foreground">
                 {TASK_STATUS_LABEL[task.status] ?? task.status}
               </span>
-              {task.assignee && (
-                <span className="text-muted-foreground">
-                  @{task.assignee}
-                </span>
-              )}
+              {task.assignee && <span className="text-muted-foreground">@{task.assignee}</span>}
             </div>
             <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">
-              所属故事：{task.story?.title ?? '产品任务池'}
+              所属故事：{task.story?.title ?? "产品任务池"}
             </p>
           </div>
           <Link

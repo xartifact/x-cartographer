@@ -1,20 +1,11 @@
+"use client";
 /**
  * 产品列表组件
  */
 
-'use client';
-
-import { useState } from 'react';
-import { Link } from '@tanstack/react-router';
-import {
-  Plus,
-  Search,
-  FolderOpen,
-  Calendar,
-  MoreHorizontal,
-  Trash2,
-  Edit2,
-} from 'lucide-react';
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Plus, Search, FolderOpen, Calendar, MoreHorizontal, Trash2, Edit2 } from "lucide-react";
 import {
   Badge,
   Button,
@@ -28,16 +19,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Input,
-} from '@x-cartographer/ui';
-import { useProjectStore, selectSearchQuery } from '@/features/projects/stores';
-import { useProjectActions } from '../hooks';
-import { formatRelativeTime } from '@/utils/format';
-import { cn } from '@/lib/utils';
-import { useProducts } from '@/lib/api/hooks';
-import { useNavigate } from '@tanstack/react-router';
-import { ProjectCreateDialog } from './project-create-dialog';
-import { ProjectEditDialog } from './project-edit-dialog';
-import { type Product } from '@x-cartographer/shared';
+} from "@x-cartographer/ui";
+import { useProjectStore, selectSearchQuery } from "@/features/projects/stores";
+import { useProjectActions } from "../hooks";
+import { formatRelativeTime } from "@/utils/format";
+import { cn } from "@/lib/utils";
+import { useProducts } from "@/lib/api/hooks";
+import { useNavigate } from "@tanstack/react-router";
+import { ProjectCreateDialog } from "./project-create-dialog";
+import { ProjectEditDialog } from "./project-edit-dialog";
+import { type Product } from "@x-cartographer/shared";
 
 /**
  * 格式化产品统计信息。
@@ -101,9 +92,7 @@ function ProjectCard({
     e.preventDefault();
     e.stopPropagation();
 
-    if (
-      window.confirm(`确定要删除产品 "${project.name}" 吗？此操作不可撤销。`)
-    ) {
+    if (window.confirm(`确定要删除产品 "${project.name}" 吗？此操作不可撤销。`)) {
       setIsDeleting(true);
       try {
         await onDelete();
@@ -117,24 +106,22 @@ function ProjectCard({
     <Link to={`/products/$productId`} params={{ productId: project.id }} onClick={onSelect}>
       <Card
         className={cn(
-          'group h-full cursor-pointer transition-all duration-200 hover:shadow-md',
-          isActive && 'ring-2 ring-primary'
+          "group h-full cursor-pointer transition-all duration-200 hover:shadow-md",
+          isActive && "ring-2 ring-primary",
         )}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <FolderOpen className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="truncate text-lg font-semibold">
-                {project.name}
-              </CardTitle>
+              <CardTitle className="truncate text-lg font-semibold">{project.name}</CardTitle>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
@@ -157,15 +144,13 @@ function ProjectCard({
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  {isDeleting ? '删除中...' : '删除'}
+                  {isDeleting ? "删除中..." : "删除"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
           {project.description && (
-            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-              {project.description}
-            </p>
+            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
           )}
         </CardHeader>
         <CardContent className="space-y-4">
@@ -270,7 +255,7 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
   const filteredProducts = products.filter((product) =>
     searchQuery.trim()
       ? product.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-      : true
+      : true,
   );
 
   if (isLoading) {
@@ -293,11 +278,17 @@ export function ProjectList({ onCreateClick }: { onCreateClick: () => void }) {
 
   if (filteredProducts.length === 0) {
     return (
-      <Card className="flex flex-col items-center justify-center py-12">
-        <Search className="mb-4 h-12 w-12 text-muted-foreground" />
-        <h3 className="mb-2 text-lg font-semibold">未找到产品</h3>
-        <p className="text-sm text-muted-foreground">尝试不同的搜索关键词</p>
-      </Card>
+      <div className="space-y-4">
+        <ProjectSearch />
+        <Card className="flex flex-col items-center justify-center py-12">
+          <Search className="mb-4 h-12 w-12 text-muted-foreground" />
+          <h3 className="mb-2 text-lg font-semibold">未找到产品</h3>
+          <p className="text-sm text-muted-foreground">尝试不同的搜索关键词</p>
+          <Button variant="outline" onClick={() => useProjectStore.getState().clearSearchQuery()}>
+            清除搜索
+          </Button>
+        </Card>
+      </div>
     );
   }
 
@@ -363,9 +354,7 @@ export default function ProjectListPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">产品管理</h1>
-          <p className="mt-1 text-muted-foreground">
-            管理您的产品路线图和用户故事
-          </p>
+          <p className="mt-1 text-muted-foreground">管理您的产品路线图和用户故事</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleCreateClick}>
@@ -388,5 +377,3 @@ export default function ProjectListPage() {
     </div>
   );
 }
-
-

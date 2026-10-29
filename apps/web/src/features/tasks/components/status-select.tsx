@@ -1,24 +1,23 @@
+"use client";
 /**
  * 状态选择弹出组件
  *
  * 用于在任务卡片或故事卡片上切换状态的弹出选择器
  */
 
-'use client';
-
-import * as React from 'react';
-import { Check, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import { Check, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@x-cartographer/ui';
-import { Button } from '@x-cartographer/ui';
-import { StatusIndicator, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from './status-badge';
-import { TaskStatus, type StoryStatus } from '@/types';
+} from "@x-cartographer/ui";
+import { Button } from "@x-cartographer/ui";
+import { StatusIndicator, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from "./status-badge";
+import { TaskStatus, type StoryStatus } from "@/types";
 
 export interface StatusSelectProps {
   /** 当前状态 */
@@ -34,10 +33,10 @@ export interface StatusSelectProps {
   disabled?: boolean;
 
   /** 按钮变体 */
-  variant?: 'default' | 'outline' | 'ghost';
+  variant?: "default" | "outline" | "ghost";
 
   /** 按钮尺寸 */
-  size?: 'sm' | 'lg' | 'icon';
+  size?: "sm" | "lg" | "icon";
 
   /** 是否显示标签文字 */
   showLabel?: boolean;
@@ -63,8 +62,8 @@ export function StatusSelect({
   onStatusChange,
   isTask = true,
   disabled = false,
-  variant = 'outline',
-  size = 'sm',
+  variant = "outline",
+  size = "sm",
   showLabel = true,
   showIndicator = true,
   allowedStatuses = [],
@@ -72,7 +71,7 @@ export function StatusSelect({
   triggerClassName,
 }: StatusSelectProps) {
   // 使用正确的 Button size 类型
-  const buttonSize = size === 'sm' ? 'sm' : size === 'lg' ? 'lg' : 'sm';
+  const buttonSize = size === "sm" ? "sm" : size === "lg" ? "lg" : "sm";
   // 获取状态选项
   const options = isTask ? TASK_STATUS_OPTIONS : STORY_STATUS_OPTIONS;
 
@@ -91,22 +90,17 @@ export function StatusSelect({
         <Button
           variant={variant}
           size={buttonSize}
-          className={cn(
-            'h-auto min-w-[80px] justify-between gap-1 px-2',
-            triggerClassName
-          )}
+          className={cn("h-auto min-w-[80px] justify-between gap-1 px-2", triggerClassName)}
         >
           {showIndicator && (
-            <StatusIndicator status={status} isTask={isTask} size={size === 'sm' ? 'sm' : 'md'} />
+            <StatusIndicator status={status} isTask={isTask} size={size === "sm" ? "sm" : "md"} />
           )}
           {showLabel && <span>{currentOption?.label || status}</span>}
           {!disabled && <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
-        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-          选择状态
-        </div>
+        <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">选择状态</div>
         <DropdownMenuSeparator />
         {filteredOptions.map((option) => (
           <DropdownMenuItem
@@ -120,9 +114,7 @@ export function StatusSelect({
               size="sm"
             />
             <span className="flex-1">{option.label}</span>
-            {status === option.value && (
-              <Check className="h-4 w-4 text-primary" />
-            )}
+            {status === option.value && <Check className="h-4 w-4 text-primary" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -139,7 +131,7 @@ export function StatusSelectMini({
   isTask = true,
   disabled = false,
   className,
-}: Omit<StatusSelectProps, 'variant' | 'size' | 'showLabel' | 'showIndicator'>) {
+}: Omit<StatusSelectProps, "variant" | "size" | "showLabel" | "showIndicator">) {
   return (
     <StatusSelect
       status={status}
@@ -150,7 +142,7 @@ export function StatusSelectMini({
       size="sm"
       showLabel={true}
       showIndicator={true}
-      className={cn('min-w-[60px]', className)}
+      className={cn("min-w-[60px]", className)}
     />
   );
 }
@@ -183,16 +175,12 @@ export interface StatusToggleProps {
 /**
  * 常见状态循环（任务）
  */
-const TASK_STATUS_CYCLE: TaskStatus[] = [
-  TaskStatus.TODO,
-  TaskStatus.IN_PROGRESS,
-  TaskStatus.DONE,
-];
+const TASK_STATUS_CYCLE: TaskStatus[] = [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.DONE];
 
 /**
  * 常见状态循环（故事）
  */
-const STORY_STATUS_CYCLE: StoryStatus[] = ['todo', 'in_progress', 'accepted'];
+const STORY_STATUS_CYCLE: StoryStatus[] = ["todo", "in_progress", "accepted"];
 
 /**
  * 状态切换按钮
@@ -230,15 +218,16 @@ export function StatusToggle({
       onClick={handleClick}
       disabled={disabled}
       className={cn(
-        'inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors',
-        'hover:opacity-80 disabled:opacity-50',
+        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors",
+        "hover:opacity-80 disabled:opacity-50",
         {
-          'bg-gray-100 text-gray-800': status === 'backlog' || status === 'todo',
-          'bg-blue-100 text-blue-800': status === 'in_progress' || status === 'testing' || status === 'in_review',
-          'bg-green-100 text-green-800': status === 'done',
-          'bg-red-100 text-red-800': status === 'cancelled',
+          "bg-muted text-muted-foreground": status === "backlog" || status === "todo",
+          "bg-[var(--xa-info-soft)] text-[var(--xa-info)]":
+            status === "in_progress" || status === "testing" || status === "in_review",
+          "bg-[var(--xa-success-soft)] text-[var(--xa-success)]": status === "done",
+          "bg-[var(--xa-danger-soft)] text-[var(--xa-danger)]": status === "cancelled",
         },
-        className
+        className,
       )}
       title={`点击切换到: ${nextOption?.label || nextStatus}`}
     >

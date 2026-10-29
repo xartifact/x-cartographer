@@ -47,7 +47,7 @@ export function useUpdateMilestone() {
 
   return useMutation({
     mutationFn: async (variables: { id: string; productId: string } & UpdateMilestoneDTO) => {
-      const { id, productId, ...dto } = variables;
+      const { id, productId: _productId, ...dto } = variables;
       const res = await api.api.milestones[':id'].$patch({ param: { id }, json: dto });
       if (!res.ok) throw await toApiError(res, '更新版本失败');
       return res.json();

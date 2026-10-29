@@ -1,13 +1,9 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api/client';
-import { toApiError } from '@/lib/api/error';
-import type {
-  DevTask,
-  TaskStatus,
-  TaskPriority,
-} from '@x-cartographer/shared';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
+import { toApiError } from "@/lib/api/error";
+import type { DevTask, TaskStatus, TaskPriority } from "@x-cartographer/shared";
 
 /**
  * DevTask REST hooks (react-query)
@@ -16,6 +12,7 @@ import type {
 
 export interface CreateDevTaskVariables {
   storyId?: string;
+  moduleId?: string;
   productId?: string;
   title: string;
   description: string;
@@ -35,6 +32,8 @@ export interface UpdateDevTaskVariables {
   dependencies?: string[];
   tags?: string[];
   assignee?: string;
+  affectedModules?: string[];
+  moduleId?: string;
   productId?: string;
   storyId?: string | null;
 }
@@ -43,15 +42,17 @@ export interface UpdateDevTaskStatusVariables {
   id: string;
   status: TaskStatus;
   reason?: string;
+  expected_status?: TaskStatus;
 }
 
 // ─── Query Hooks ───────────────────────────────────────────────
 
 export function useDevTask(id: string) {
   return useQuery({
-    queryKey: ['dev-tasks', id],
+    queryKey: ["dev-tasks", id],
     queryFn: async () => {
-      const res = await api.api['dev-tasks'][':id'].$get({ param: { id } });
+      const res = await api.api["dev-tasks"][":id"].$get({ param: { id } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: !!id,
@@ -60,9 +61,10 @@ export function useDevTask(id: string) {
 
 export function useDevTasksByStory(storyId: string) {
   return useQuery({
-    queryKey: ['dev-tasks', 'story', storyId],
+    queryKey: ["dev-tasks", "story", storyId],
     queryFn: async () => {
-      const res = await api.api['dev-tasks'].$get({ query: { storyId } });
+      const res = await api.api["dev-tasks"].$get({ query: { storyId } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: !!storyId,
@@ -81,20 +83,21 @@ export function useAllDevTasks(options?: {
 }) {
   const { productId, status, priority } = options ?? {};
   return useQuery({
-    queryKey: ['dev-tasks', 'all', { productId, status, priority }],
+    queryKey: ["dev-tasks", "all", { productId, status, priority }],
     queryFn: async () => {
-      const res = await api.api['dev-tasks'].all.$get({ query: { productId, status, priority } });
+      const res = await api.api["dev-tasks"].all.$get({ query: { productId, status, priority } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json() as Promise<AllDevTask[]>;
     },
-    enabled: !!productId,
   });
 }
 
 export function useNextDevTask(productId: string) {
   return useQuery({
-    queryKey: ['dev-tasks', 'next', productId],
+    queryKey: ["dev-tasks", "next", productId],
     queryFn: async () => {
-      const res = await api.api['dev-tasks'].next.$get({ query: { productId } });
+      const res = await api.api["dev-tasks"].next.$get({ query: { productId } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: !!productId,
@@ -114,13 +117,14 @@ export function useCreateDevTask() {
 
   return useMutation<CreateDevTaskResult, Error, CreateDevTaskVariables>({
     mutationFn: async (variables) => {
-      const res = await api.api['dev-tasks'].$post({ json: variables });
-      if (!res.ok) throw await toApiError(res, '创建研发任务失败');
+      const res = await api.api["dev-tasks"].$post({ json: variables });
+      if (!res.ok) throw await toApiError(res, "创建研发任务失败");
       return (await res.json()) as CreateDevTaskResult;
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['dev-tasks', 'story', variables.storyId] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", "story", variables.storyId] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", "all"] });
     },
   });
 }
@@ -131,14 +135,15 @@ export function useUpdateDevTask() {
   return useMutation({
     mutationFn: async (variables: UpdateDevTaskVariables) => {
       const { id, ...dto } = variables;
-      const res = await api.api['dev-tasks'][':id'].$patch({ param: { id }, json: dto });
-      if (!res.ok) throw await toApiError(res, '更新研发任务失败');
+      const res = await api.api["dev-tasks"][":id"].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, "更新研发任务失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['dev-tasks', variables.id] });
-      queryClient.invalidateQueries({ queryKey: ['dev-tasks', 'all'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", "all"] });
     },
   });
 }
@@ -149,21 +154,22 @@ export function useUpdateDevTaskStatus() {
   return useMutation({
     mutationFn: async (variables: UpdateDevTaskStatusVariables) => {
       const { id, ...body } = variables;
-      const res = await api.api['dev-tasks'][':id'].status.$post({ param: { id }, json: body });
-      if (!res.ok) throw await toApiError(res, '更新任务状态失败');
+      const res = await api.api["dev-tasks"][":id"].status.$post({ param: { id }, json: body });
+      if (!res.ok) throw await toApiError(res, "更新任务状态失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
       // Invalidate the specific dev task
-      queryClient.invalidateQueries({ queryKey: ['dev-tasks', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", variables.id] });
       // Invalidate the parent product (contains all nested data)
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", "all"] });
       // Invalidate status history
-      queryClient.invalidateQueries({ queryKey: ['status-changes', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["status-changes", variables.id] });
       // Invalidate next task query
-      queryClient.invalidateQueries({ queryKey: ['dev-tasks', 'next'] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", "next"] });
       // Invalidate cross-product task aggregation
-      queryClient.invalidateQueries({ queryKey: ['dev-tasks', 'all'] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", "all"] });
     },
   });
 }
@@ -172,12 +178,13 @@ export function useDeleteDevTask() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
-      const res = await api.api['dev-tasks'][':id'].$delete({ param: { id: variables.id } });
-      if (!res.ok) throw await toApiError(res, '删除研发任务失败');
+      const res = await api.api["dev-tasks"][":id"].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, "删除研发任务失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dev-tasks", "all"] });
     },
   });
 }

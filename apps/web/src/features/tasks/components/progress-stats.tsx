@@ -1,13 +1,12 @@
+"use client";
 /**
  * 产品进度统计组件
  *
  * 显示产品整体进度和统计信息
  */
 
-'use client';
-
-import { TrendingUp, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { TrendingUp, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface ProgressStatsProps {
   /** 任务统计 */
@@ -30,7 +29,7 @@ export interface ProgressStatsProps {
   overallProgress?: number;
 
   /** 显示模式：'full' | 'compact' | 'minimal' */
-  displayMode?: 'full' | 'compact' | 'minimal';
+  displayMode?: "full" | "compact" | "minimal";
 
   /** 趋势数据（可选） */
   trendData?: {
@@ -56,12 +55,12 @@ function StatCard({
   title: string;
   value: number | string;
   icon: React.ElementType;
-  trend?: 'up' | 'down' | 'neutral';
+  trend?: "up" | "down" | "neutral";
   trendValue?: string;
   className?: string;
 }) {
   return (
-    <div className={cn('flex items-center gap-3 p-4 rounded-lg border bg-card', className)}>
+    <div className={cn("flex items-center gap-3 p-4 rounded-lg border bg-card", className)}>
       <div className="p-2 rounded-lg bg-primary/10">
         <Icon className="h-5 w-5 text-primary" />
       </div>
@@ -72,14 +71,14 @@ function StatCard({
       {trend && trendValue && (
         <div
           className={cn(
-            'flex items-center gap-1 text-xs font-medium',
-            trend === 'up' && 'text-green-600',
-            trend === 'down' && 'text-red-600',
-            trend === 'neutral' && 'text-muted-foreground'
+            "flex items-center gap-1 text-xs font-medium",
+            trend === "up" && "text-green-600",
+            trend === "down" && "text-red-600",
+            trend === "neutral" && "text-muted-foreground",
           )}
         >
-          {trend === 'up' && <TrendingUp className="h-3 w-3" />}
-          {trend === 'down' && <TrendingDown className="h-3 w-3" />}
+          {trend === "up" && <TrendingUp className="h-3 w-3" />}
+          {trend === "down" && <TrendingDown className="h-3 w-3" />}
           {trendValue}
         </div>
       )}
@@ -94,26 +93,26 @@ function ProgressBar({
   value,
   max = 100,
   showLabel = true,
-  color = 'green',
+  color = "green",
   className,
 }: {
   value: number;
   max?: number;
   showLabel?: boolean;
-  color?: 'green' | 'blue' | 'yellow' | 'red';
+  color?: "green" | "blue" | "yellow" | "red";
   className?: string;
 }) {
   const percentage = Math.min(Math.round((value / max) * 100), 100);
 
   const colorClasses = {
-    green: 'bg-green-500',
-    blue: 'bg-blue-500',
-    yellow: 'bg-yellow-500',
-    red: 'bg-red-500',
+    green: "bg-green-500",
+    blue: "bg-blue-500",
+    yellow: "bg-yellow-500",
+    red: "bg-red-500",
   };
 
   return (
-    <div className={cn('space-y-1', className)}>
+    <div className={cn("space-y-1", className)}>
       {showLabel && (
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">进度</span>
@@ -122,7 +121,7 @@ function ProgressBar({
       )}
       <div className="h-2 bg-muted rounded-full overflow-hidden">
         <div
-          className={cn('h-full transition-all', colorClasses[color])}
+          className={cn("h-full transition-all", colorClasses[color])}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -137,29 +136,22 @@ export function ProgressStats({
   taskStats,
   storyStats,
   overallProgress,
-  displayMode = 'full',
+  displayMode = "full",
   trendData,
   className,
 }: ProgressStatsProps) {
   // 计算整体进度（如果未提供）
   const total = taskStats.total + storyStats.total;
   const completed = taskStats.completed + storyStats.completed;
-  const calculatedProgress = overallProgress ?? (total > 0 ? Math.round((completed / total) * 100) : 0);
+  const calculatedProgress =
+    overallProgress ?? (total > 0 ? Math.round((completed / total) * 100) : 0);
 
   // 紧凑模式
-  if (displayMode === 'compact') {
+  if (displayMode === "compact") {
     return (
-      <div className={cn('grid grid-cols-4 gap-2', className)}>
-        <StatCard
-          title="总任务"
-          value={total}
-          icon={AlertCircle}
-        />
-        <StatCard
-          title="已完成"
-          value={completed}
-          icon={CheckCircle2}
-        />
+      <div className={cn("grid grid-cols-4 gap-2", className)}>
+        <StatCard title="总任务" value={total} icon={AlertCircle} />
+        <StatCard title="已完成" value={completed} icon={CheckCircle2} />
         <StatCard
           title="进行中"
           value={taskStats.inProgress + storyStats.inProgress}
@@ -174,9 +166,9 @@ export function ProgressStats({
   }
 
   // 极简模式
-  if (displayMode === 'minimal') {
+  if (displayMode === "minimal") {
     return (
-      <div className={cn('flex items-center gap-4', className)}>
+      <div className={cn("flex items-center gap-4", className)}>
         <div className="flex items-center gap-2">
           <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
             <div
@@ -195,7 +187,7 @@ export function ProgressStats({
 
   // 完整模式
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn("space-y-6", className)}>
       {/* 整体进度 */}
       <div className="p-4 rounded-lg border bg-card">
         <div className="flex items-center justify-between mb-4">
@@ -206,11 +198,15 @@ export function ProgressStats({
         <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
           <div className="text-center">
             <p className="text-muted-foreground">任务</p>
-            <p className="font-semibold">{taskStats.completed}/{taskStats.total}</p>
+            <p className="font-semibold">
+              {taskStats.completed}/{taskStats.total}
+            </p>
           </div>
           <div className="text-center">
             <p className="text-muted-foreground">用户故事</p>
-            <p className="font-semibold">{storyStats.completed}/{storyStats.total}</p>
+            <p className="font-semibold">
+              {storyStats.completed}/{storyStats.total}
+            </p>
           </div>
           <div className="text-center">
             <p className="text-muted-foreground">待处理</p>
@@ -225,14 +221,20 @@ export function ProgressStats({
           title="总任务数"
           value={taskStats.total}
           icon={AlertCircle}
-          trend={trendData ? 'up' : undefined}
-          trendValue={trendData ? `+${trendData.weekTasks[trendData.weekTasks.length - 1] || 0}` : undefined}
+          trend={trendData ? "up" : undefined}
+          trendValue={
+            trendData ? `+${trendData.weekTasks[trendData.weekTasks.length - 1] || 0}` : undefined
+          }
         />
         <StatCard
           title="已完成任务"
           value={taskStats.completed}
           icon={CheckCircle2}
-          trendValue={trendData ? `${Math.round((taskStats.completed / (taskStats.total || 1)) * 100)}%` : undefined}
+          trendValue={
+            trendData
+              ? `${Math.round((taskStats.completed / (taskStats.total || 1)) * 100)}%`
+              : undefined
+          }
         />
         <StatCard
           title="进行中"
@@ -243,8 +245,10 @@ export function ProgressStats({
           title="用户故事"
           value={storyStats.total}
           icon={TrendingUp}
-          trend={trendData ? 'up' : undefined}
-          trendValue={trendData ? `+${trendData.weekTasks[trendData.weekTasks.length - 1] || 0}` : undefined}
+          trend={trendData ? "up" : undefined}
+          trendValue={
+            trendData ? `+${trendData.weekTasks[trendData.weekTasks.length - 1] || 0}` : undefined
+          }
         />
       </div>
 
@@ -264,12 +268,7 @@ export function ProgressStats({
             total={total}
             color="blue"
           />
-          <StatusDistributionRow
-            label="已完成"
-            count={completed}
-            total={total}
-            color="green"
-          />
+          <StatusDistributionRow label="已完成" count={completed} total={total} color="green" />
         </div>
       </div>
     </div>
@@ -288,14 +287,14 @@ function StatusDistributionRow({
   label: string;
   count: number;
   total: number;
-  color: 'gray' | 'blue' | 'green';
+  color: "gray" | "blue" | "green";
 }) {
   const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
 
   const colorClasses = {
-    gray: 'bg-gray-400',
-    blue: 'bg-blue-400',
-    green: 'bg-green-400',
+    gray: "bg-gray-400",
+    blue: "bg-blue-400",
+    green: "bg-green-400",
   };
 
   return (
@@ -303,7 +302,7 @@ function StatusDistributionRow({
       <span className="w-16 text-sm text-muted-foreground">{label}</span>
       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
         <div
-          className={cn('h-full transition-all', colorClasses[color])}
+          className={cn("h-full transition-all", colorClasses[color])}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -323,11 +322,7 @@ function TrendingDown({ className }: { className?: string }) {
       stroke="currentColor"
       strokeWidth={2}
     >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
     </svg>
   );
 }

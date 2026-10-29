@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api/client';
-import { toApiError } from '@/lib/api/error';
-import type { CreateUserTaskDTO, UpdateUserTaskDTO } from '@x-cartographer/shared';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
+import { toApiError } from "@/lib/api/error";
+import type { CreateUserTaskDTO, UpdateUserTaskDTO } from "@x-cartographer/shared";
 
 /**
  * UserTask REST hooks (react-query)
@@ -17,10 +17,10 @@ import type { CreateUserTaskDTO, UpdateUserTaskDTO } from '@x-cartographer/share
 
 export function useUserTasksByActivity(activityId: string) {
   return useQuery({
-    queryKey: ['user-tasks', activityId],
+    queryKey: ["user-tasks", activityId],
     queryFn: async () => {
-      const res = await api.api['user-tasks'].$get({ query: { activityId } });
-      if (!res.ok) throw await toApiError(res, '加载用户任务失败');
+      const res = await api.api["user-tasks"].$get({ query: { activityId } });
+      if (!res.ok) throw await toApiError(res, "加载用户任务失败");
       return res.json();
     },
     enabled: !!activityId,
@@ -36,15 +36,16 @@ export function useCreateUserTask() {
     mutationFn: async (dto: CreateUserTaskDTO) => {
       // CreateUserTaskDTO 用 snake（activity_id），server schema 收 camel（activityId）
       const { activity_id, ...rest } = dto;
-      const res = await api.api['user-tasks'].$post({
-        json: { activityId: activity_id, ...rest },
+      const res = await api.api["user-tasks"].$post({
+        json: { activityId: activity_id, ...rest, provenance: rest.provenance ?? "human_asserted" },
       });
-      if (!res.ok) throw await toApiError(res, '创建用户任务失败');
+      if (!res.ok) throw await toApiError(res, "创建用户任务失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['user-tasks', variables.activity_id] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["user-tasks", variables.activity_id] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["user-tasks"] });
     },
   });
 }
@@ -54,16 +55,17 @@ export function useUpdateUserTask() {
 
   return useMutation({
     mutationFn: async (variables: { id: string; activityId?: string } & UpdateUserTaskDTO) => {
-      const { id, activityId, ...dto } = variables;
-      const res = await api.api['user-tasks'][':id'].$patch({ param: { id }, json: dto });
-      if (!res.ok) throw await toApiError(res, '更新用户任务失败');
+      const { id, activityId: _activityId, ...dto } = variables;
+      const res = await api.api["user-tasks"][":id"].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, "更新用户任务失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
       if (variables.activityId) {
-        queryClient.invalidateQueries({ queryKey: ['user-tasks', variables.activityId] });
+        queryClient.invalidateQueries({ queryKey: ["user-tasks", variables.activityId] });
       }
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["user-tasks"] });
     },
   });
 }
@@ -73,12 +75,13 @@ export function useDeleteUserTask() {
 
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
-      const res = await api.api['user-tasks'][':id'].$delete({ param: { id: variables.id } });
-      if (!res.ok) throw await toApiError(res, '删除用户任务失败');
+      const res = await api.api["user-tasks"][":id"].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, "删除用户任务失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["user-tasks"] });
     },
   });
 }
@@ -88,12 +91,12 @@ export function useDeleteUserTask() {
 /** 按产品拉全部用户任务（跨活动，页面聚合视图用） */
 export function useUserTasksByProduct(productId: string) {
   return useQuery({
-    queryKey: ['user-tasks', 'product', productId],
+    queryKey: ["user-tasks", "product", productId],
     queryFn: async () => {
-      const res = await api.api['user-tasks'].$get({
+      const res = await api.api["user-tasks"].$get({
         query: { productId },
       });
-      if (!res.ok) throw await toApiError(res, '加载用户任务失败');
+      if (!res.ok) throw await toApiError(res, "加载用户任务失败");
       const data = await res.json();
       return Array.isArray(data) ? data : [];
     },

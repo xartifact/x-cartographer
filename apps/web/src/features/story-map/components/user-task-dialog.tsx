@@ -1,4 +1,5 @@
-'use client';
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 
 /**
  * 用户任务（地图任务列）创建/编辑对话框
@@ -12,8 +13,8 @@
  * 重置 effect，把用户正在输入的内容清掉。
  */
 
-import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import {
   Input,
   Label,
   Textarea,
-} from '@x-cartographer/ui';
+} from "@x-cartographer/ui";
 
 /** 对话框回传的任务字段（不含 id/activity_id，由调用方补） */
 export interface UserTaskFormData {
@@ -39,7 +40,7 @@ interface UserTaskDialogProps {
   /** 打开时定格的表单种子（同一会话内引用稳定） */
   seed: UserTaskFormData;
   /** 编辑已有任务列 / 新建任务列 */
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
   /** 创建模式的目标活动名（标题展示） */
   activityName?: string;
   onSave: (data: UserTaskFormData) => Promise<void>;
@@ -57,6 +58,18 @@ export function UserTaskDialog({
   const [description, setDescription] = useState(seed.description);
   const [orderText, setOrderText] = useState(String(seed.order));
   const [saving, setSaving] = useState(false);
+  const formDraft = useFormDraft({
+    open,
+    scope: `user-step:${location.pathname}:${mode}:${activityName ?? ""}:${seed.name}`,
+    values: { name, description, orderText },
+    restore: (v) => {
+      setName(v.name);
+      setDescription(v.description);
+      setOrderText(v.orderText);
+    },
+    close: () => onOpenChange(false),
+    saving,
+  });
 
   // 打开时按种子重置表单（seed 引用稳定 → 仅在开新会话时触发）
   useEffect(() => {
@@ -70,10 +83,10 @@ export function UserTaskDialog({
   const order = Number.parseInt(orderText, 10);
   const orderValid = Number.isInteger(order) && order >= 0;
   const canSave = Boolean(name.trim()) && orderValid && !saving;
-  const isEdit = mode === 'edit';
+  const isEdit = mode === "edit";
 
   function handleClose() {
-    onOpenChange(false);
+    formDraft.requestClose();
   }
 
   async function handleSave() {
@@ -82,7 +95,8 @@ export function UserTaskDialog({
     setSaving(true);
     try {
       await onSave({ name: name.trim(), description: description.trim(), order });
-      handleClose();
+      formDraft.clear();
+      onOpenChange(false);
     } catch {
       // 失败提示由调用方 toast 承担；此处保持对话框打开，便于修正后重试
     } finally {
@@ -93,9 +107,10 @@ export function UserTaskDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
+        {formDraft.protection}
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? '编辑任务列' : '新建任务列'}
+            {isEdit ? "编辑任务列" : "新建任务列"}
             {!isEdit && activityName ? (
               <span className="ml-2 text-sm font-normal text-muted-foreground">
                 → {activityName}
@@ -116,7 +131,7 @@ export function UserTaskDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="用户操作步骤，例如：拖拽调整故事位置"
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && canSave) {
+                if (e.key === "Enter" && canSave) {
                   void handleSave();
                 }
               }}
@@ -157,7 +172,7 @@ export function UserTaskDialog({
           </Button>
           <Button onClick={() => void handleSave()} disabled={!canSave}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {isEdit ? '保存' : '创建'}
+            {isEdit ? "保存" : "创建"}
           </Button>
         </DialogFooter>
       </DialogContent>

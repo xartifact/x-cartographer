@@ -9,7 +9,7 @@
  *   if (!res.ok) throw await toApiError(res, '保存失败');
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * 服务端错误体的两种形状：
@@ -18,6 +18,7 @@ import { z } from 'zod';
  *   （apps/server 有 9 个路由用 zValidator，两种都会遇到）
  */
 const apiErrorBody = z.object({
+  detail: z.string().optional(),
   error: z.union([z.string(), z.object({ message: z.string() })]),
 });
 
@@ -35,7 +36,7 @@ export async function toApiError(res: ErrorCarrier, fallback: string): Promise<E
   const parsed = apiErrorBody.safeParse(await res.json().catch(() => null));
   if (parsed.success) {
     const { error } = parsed.data;
-    return new Error(typeof error === 'string' ? error : error.message);
+    return new Error(parsed.data.detail ?? (typeof error === "string" ? error : error.message));
   }
   return new Error(`${fallback}（HTTP ${res.status}）`);
 }

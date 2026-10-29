@@ -1,4 +1,5 @@
-'use client';
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 
 /**
  * 用户故事创建对话框
@@ -7,21 +8,15 @@
  * 表单字段与 StoryEditDialog 一致。
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@x-cartographer/ui';
-import { Button } from '@x-cartographer/ui';
-import { Input } from '@x-cartographer/ui';
-import { Label } from '@x-cartographer/ui';
-import { Textarea } from '@x-cartographer/ui';
-import { MarkdownField } from './markdown-field';
-import { Priority } from '@/types';
+import { useState, useEffect, useMemo } from "react";
+import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@x-cartographer/ui";
+import { Button } from "@x-cartographer/ui";
+import { Input } from "@x-cartographer/ui";
+import { Label } from "@x-cartographer/ui";
+import { Textarea } from "@x-cartographer/ui";
+import { MarkdownField } from "./markdown-field";
+import { Priority } from "@/types";
 
 interface StoryCreateDialogProps {
   open: boolean;
@@ -45,9 +40,9 @@ interface StoryCreateDialogProps {
 }
 
 const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
-  { value: Priority.HIGH, label: '高优先级' },
-  { value: Priority.MEDIUM, label: '中优先级' },
-  { value: Priority.LOW, label: '低优先级' },
+  { value: Priority.HIGH, label: "高优先级" },
+  { value: Priority.MEDIUM, label: "中优先级" },
+  { value: Priority.LOW, label: "低优先级" },
 ];
 
 export function StoryCreateDialog({
@@ -59,40 +54,73 @@ export function StoryCreateDialog({
   onSave,
 }: StoryCreateDialogProps) {
   const [selectedActivityId, setSelectedActivityId] = useState(activityId);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState("");
   // 标准格式组合模式（TASK-031）：角色/功能/价值三字段自动生成标题
   const [composeMode, setComposeMode] = useState(true);
-  const [role, setRole] = useState('');
-  const [feature, setFeature] = useState('');
-  const [value, setValue] = useState('');
-  const [description, setDescription] = useState('');
+  const [role, setRole] = useState("");
+  const [feature, setFeature] = useState("");
+  const [value, setValue] = useState("");
+  const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<Priority>(Priority.MEDIUM);
   const [estimation, setEstimation] = useState(0);
-  const [criteriaText, setCriteriaText] = useState('');
-  const [tagsText, setTagsText] = useState('');
+  const [criteriaText, setCriteriaText] = useState("");
+  const [tagsText, setTagsText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const formDraft = useFormDraft({
+    open,
+    scope: `story:${activityId}:new`,
+    values: {
+      selectedActivityId,
+      title,
+      composeMode,
+      role,
+      feature,
+      value,
+      description,
+      priority,
+      estimation,
+      criteriaText,
+      tagsText,
+    },
+    restore: (v) => {
+      setSelectedActivityId(v.selectedActivityId);
+      setTitle(v.title);
+      setComposeMode(v.composeMode);
+      setRole(v.role);
+      setFeature(v.feature);
+      setValue(v.value);
+      setDescription(v.description);
+      setPriority(v.priority);
+      setEstimation(v.estimation);
+      setCriteriaText(v.criteriaText);
+      setTagsText(v.tagsText);
+    },
+    close: () => onOpenChange(false),
+    saving,
+  });
 
   // 打开时重置表单
   useEffect(() => {
     if (open) {
-      setTitle('');
+      setTitle("");
       setComposeMode(true);
-      setRole('');
-      setFeature('');
-      setValue('');
-      setDescription('');
+      setRole("");
+      setFeature("");
+      setValue("");
+      setDescription("");
       setPriority(Priority.MEDIUM);
       setEstimation(0);
-      setCriteriaText('');
-      setTagsText('');
+      setCriteriaText("");
+      setTagsText("");
       setSelectedActivityId(activityId);
     }
   }, [open, activityId]);
 
   // 标准格式自动生成：「作为[角色]，我想要[功能]，以便[价值]」
   const composedTitle = useMemo(() => {
-    if (!role.trim() && !feature.trim() && !value.trim()) return '';
-    return `作为${role.trim() || '…'}，我想要${feature.trim() || '…'}，以便${value.trim() || '…'}`;
+    if (!role.trim() && !feature.trim() && !value.trim()) return "";
+    return `作为${role.trim() || "…"}，我想要${feature.trim() || "…"}，以便${value.trim() || "…"}`;
   }, [role, feature, value]);
   const effectiveTitle = composeMode ? composedTitle : title;
 
@@ -120,22 +148,24 @@ export function StoryCreateDialog({
   }
 
   function handleClose() {
-    onOpenChange(false);
+    formDraft.requestClose();
   }
 
   async function handleSave() {
     if (!effectiveTitle.trim()) return;
 
     const criteria = criteriaText
-      .split('\n')
+      .split("\n")
       .map((s) => s.trim())
       .filter(Boolean);
 
     const tags = tagsText
-      .split(',')
+      .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
 
+    if (saving) return;
+    setSubmitError("");
     setSaving(true);
     try {
       await onSave({
@@ -147,7 +177,10 @@ export function StoryCreateDialog({
         acceptance_criteria: criteria,
         tags,
       });
-      handleClose();
+      formDraft.clear();
+      onOpenChange(false);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "保存失败，请重试");
     } finally {
       setSaving(false);
     }
@@ -156,6 +189,7 @@ export function StoryCreateDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
+        {formDraft.protection}
         <DialogHeader>
           <DialogTitle>
             新建用户故事
@@ -195,7 +229,7 @@ export function StoryCreateDialog({
                 onClick={toggleComposeMode}
                 className="cursor-pointer border-0 bg-transparent p-0 text-xs text-muted-foreground hover:text-foreground"
               >
-                {composeMode ? '手动输入标题' : '使用标准格式'}
+                {composeMode ? "手动输入标题" : "使用标准格式"}
               </button>
             </div>
             {composeMode ? (
@@ -234,9 +268,7 @@ export function StoryCreateDialog({
                   />
                 </div>
                 {(role || feature || value) && (
-                  <p className="border-t pt-2 text-sm text-muted-foreground">
-                    {composedTitle}
-                  </p>
+                  <p className="border-t pt-2 text-sm text-muted-foreground">{composedTitle}</p>
                 )}
               </div>
             ) : (
@@ -293,15 +325,13 @@ export function StoryCreateDialog({
           <div className="space-y-1.5">
             <Label htmlFor="new-story-criteria">
               验收标准
-              <span className="ml-1 text-xs text-muted-foreground">
-                （每行一条）
-              </span>
+              <span className="ml-1 text-xs text-muted-foreground">（每行一条）</span>
             </Label>
             <Textarea
               id="new-story-criteria"
               value={criteriaText}
               onChange={(e) => setCriteriaText(e.target.value)}
-              placeholder={'用户可以成功完成注册\n用户收到确认邮件\n...'}
+              placeholder={"用户可以成功完成注册\n用户收到确认邮件\n..."}
               className="min-h-[100px] resize-none font-mono text-sm"
             />
           </div>
@@ -310,9 +340,7 @@ export function StoryCreateDialog({
           <div className="space-y-1.5">
             <Label htmlFor="new-story-tags">
               标签
-              <span className="ml-1 text-xs text-muted-foreground">
-                （逗号分隔）
-              </span>
+              <span className="ml-1 text-xs text-muted-foreground">（逗号分隔）</span>
             </Label>
             <Input
               id="new-story-tags"
@@ -323,6 +351,11 @@ export function StoryCreateDialog({
           </div>
         </div>
 
+        {submitError && (
+          <p role="alert" className="text-destructive text-sm">
+            {submitError}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={saving}>
             取消

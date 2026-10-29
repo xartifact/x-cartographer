@@ -1,88 +1,94 @@
+"use client";
 /**
  * 状态标签组件
  *
  * 用于显示任务或用户故事的状态标签
  */
 
-'use client';
-
-import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '@/lib/utils';
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
 import {
+  TASK_STATUS_CONFIG,
+  STORY_STATUS_CONFIG,
   getTaskStatusConfig,
   getStoryStatusConfig,
   TaskStatus,
   type StoryStatus,
   type StatusConfig,
-} from '@/types';
+} from "@/types";
 
 /**
  * 状态标签变体类型
  */
 export type StatusBadgeVariant =
-  | 'default'
-  | 'gray'
-  | 'slate'
-  | 'blue'
-  | 'green'
-  | 'red'
-  | 'yellow'
-  | 'purple'
-  | 'orange'
-  | 'outline_gray'
-  | 'outline_slate'
-  | 'outline_blue'
-  | 'outline_green'
-  | 'outline_red'
-  | 'outline_yellow'
-  | 'outline_purple'
-  | 'outline_orange';
+  | "default"
+  | "gray"
+  | "slate"
+  | "blue"
+  | "green"
+  | "red"
+  | "yellow"
+  | "purple"
+  | "orange"
+  | "outline_gray"
+  | "outline_slate"
+  | "outline_blue"
+  | "outline_green"
+  | "outline_red"
+  | "outline_yellow"
+  | "outline_purple"
+  | "outline_orange";
 
 /**
  * 状态标签变体配置
  */
 const statusBadgeVariants = cva(
-  'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
         // 默认/空状态
-        default: 'border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200',
+        default: "border-transparent bg-muted text-muted-foreground hover:bg-accent",
         // 状态颜色变体
-        gray: 'border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200',
-        slate: 'border-transparent bg-slate-100 text-slate-800 hover:bg-slate-200',
-        blue: 'border-transparent bg-blue-100 text-blue-800 hover:bg-blue-200',
-        green: 'border-transparent bg-green-100 text-green-800 hover:bg-green-200',
-        red: 'border-transparent bg-red-100 text-red-800 hover:bg-red-200',
-        yellow: 'border-transparent bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
-        purple: 'border-transparent bg-purple-100 text-purple-800 hover:bg-purple-200',
-        orange: 'border-transparent bg-orange-100 text-orange-800 hover:bg-orange-200',
+        gray: "border-transparent bg-muted text-muted-foreground hover:bg-accent",
+        slate: "border-transparent bg-muted text-muted-foreground hover:bg-accent",
+        blue: "border-transparent bg-[var(--xa-info-soft)] text-[var(--xa-info)]",
+        green: "border-transparent bg-[var(--xa-success-soft)] text-[var(--xa-success)]",
+        red: "border-transparent bg-[var(--xa-danger-soft)] text-[var(--xa-danger)]",
+        yellow: "border-transparent bg-[var(--xa-warning-soft)] text-[var(--xa-warning)]",
+        purple: "border-transparent bg-[var(--xa-brand-soft)] text-[var(--xa-brand)]",
+        orange: "border-transparent bg-[var(--xa-warning-soft)] text-[var(--xa-warning)]",
         // 轮廓变体
-        outline_gray: 'border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50',
-        outline_slate: 'border-slate-300 bg-transparent text-slate-700 hover:bg-slate-50',
-        outline_blue: 'border-blue-300 bg-transparent text-blue-700 hover:bg-blue-50',
-        outline_green: 'border-green-300 bg-transparent text-green-700 hover:bg-green-50',
-        outline_red: 'border-red-300 bg-transparent text-red-700 hover:bg-red-50',
-        outline_yellow: 'border-yellow-300 bg-transparent text-yellow-700 hover:bg-yellow-50',
-        outline_purple: 'border-purple-300 bg-transparent text-purple-700 hover:bg-purple-50',
-        outline_orange: 'border-orange-300 bg-transparent text-orange-700 hover:bg-orange-50',
+        outline_gray: "border-input bg-transparent text-muted-foreground hover:bg-muted",
+        outline_slate: "border-input bg-transparent text-muted-foreground hover:bg-muted",
+        outline_blue:
+          "border-[var(--xa-info)] bg-transparent text-[var(--xa-info)] hover:bg-[var(--xa-info-soft)]",
+        outline_green:
+          "border-[var(--xa-success)] bg-transparent text-[var(--xa-success)] hover:bg-[var(--xa-success-soft)]",
+        outline_red:
+          "border-[var(--xa-danger)] bg-transparent text-[var(--xa-danger)] hover:bg-[var(--xa-danger-soft)]",
+        outline_yellow:
+          "border-[var(--xa-warning)] bg-transparent text-[var(--xa-warning)] hover:bg-[var(--xa-warning-soft)]",
+        outline_purple:
+          "border-[var(--xa-brand)] bg-transparent text-[var(--xa-brand)] hover:bg-[var(--xa-brand-soft)]",
+        outline_orange:
+          "border-[var(--xa-warning)] bg-transparent text-[var(--xa-warning)] hover:bg-[var(--xa-warning-soft)]",
       },
       size: {
-        sm: 'px-2 py-0.5 text-[10px]',
-        md: 'px-2.5 py-0.5 text-xs',
-        lg: 'px-3 py-1 text-sm',
+        sm: "px-2 py-0.5 text-[10px]",
+        md: "px-2.5 py-0.5 text-xs",
+        lg: "px-3 py-1 text-sm",
       },
     },
     defaultVariants: {
-      variant: 'slate',
-      size: 'md',
+      variant: "slate",
+      size: "md",
     },
-  }
+  },
 );
 
 export interface StatusBadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof statusBadgeVariants> {
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof statusBadgeVariants> {
   /** 状态值 */
   status: TaskStatus | StoryStatus;
 
@@ -105,7 +111,7 @@ export interface StatusBadgeProps
 function getVariantName(
   status: TaskStatus | StoryStatus,
   isTask: boolean,
-  outline: boolean
+  outline: boolean,
 ): StatusBadgeVariant {
   let config: StatusConfig | undefined;
 
@@ -116,7 +122,7 @@ function getVariantName(
   }
 
   if (!config) {
-    return 'slate';
+    return "slate";
   }
 
   const colorName = config.color;
@@ -172,12 +178,12 @@ export function StatusBadge({
 export function StatusIndicator({
   status,
   isTask = true,
-  size = 'sm',
+  size = "sm",
   className,
 }: {
   status: TaskStatus | StoryStatus;
   isTask?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   className?: string;
 }) {
   const config = isTask
@@ -189,29 +195,29 @@ export function StatusIndicator({
   }
 
   const sizeClasses = {
-    sm: 'h-2 w-2',
-    md: 'h-2.5 w-2.5',
-    lg: 'h-3 w-3',
+    sm: "h-2 w-2",
+    md: "h-2.5 w-2.5",
+    lg: "h-3 w-3",
   };
 
   const colorClasses: Record<string, string> = {
-    gray: 'bg-gray-500',
-    slate: 'bg-slate-500',
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    red: 'bg-red-500',
-    yellow: 'bg-yellow-500',
-    purple: 'bg-purple-500',
-    orange: 'bg-orange-500',
+    gray: "bg-gray-500",
+    slate: "bg-slate-500",
+    blue: "bg-blue-500",
+    green: "bg-green-500",
+    red: "bg-red-500",
+    yellow: "bg-yellow-500",
+    purple: "bg-purple-500",
+    orange: "bg-orange-500",
   };
 
   return (
     <span
       className={cn(
-        'inline-block rounded-full',
+        "inline-block rounded-full",
         sizeClasses[size],
         colorClasses[config.color],
-        className
+        className,
       )}
     />
   );
@@ -220,23 +226,9 @@ export function StatusIndicator({
 /**
  * 任务状态列表（用于下拉选择等场景）
  */
-export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
-  { value: TaskStatus.BACKLOG, label: '待处理', color: 'gray' },
-  { value: TaskStatus.TODO, label: '待开始', color: 'slate' },
-  { value: TaskStatus.IN_PROGRESS, label: '进行中', color: 'blue' },
-  { value: TaskStatus.IN_REVIEW, label: '待评审', color: 'yellow' },
-  { value: TaskStatus.TESTING, label: '测试中', color: 'purple' },
-  { value: TaskStatus.DONE, label: '已完成', color: 'green' },
-  { value: TaskStatus.CANCELLED, label: '已取消', color: 'red' },
-];
-
-/**
- * 用户故事状态列表
- */
-export const STORY_STATUS_OPTIONS: { value: StoryStatus; label: string; color: string }[] = [
-  { value: 'backlog', label: '待处理', color: 'gray' },
-  { value: 'todo', label: '待开始', color: 'slate' },
-  { value: 'in_progress', label: '进行中', color: 'blue' },
-  { value: 'accepted', label: '已验收', color: 'green' },
-  { value: 'cancelled', label: '已取消', color: 'red' },
-];
+export const TASK_STATUS_OPTIONS = Object.values(TASK_STATUS_CONFIG).map(
+  ({ value, label, color }) => ({ value: value as TaskStatus, label, color }),
+);
+export const STORY_STATUS_OPTIONS = Object.values(STORY_STATUS_CONFIG).map(
+  ({ value, label, color }) => ({ value: value as StoryStatus, label, color }),
+);

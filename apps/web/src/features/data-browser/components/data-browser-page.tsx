@@ -1,49 +1,60 @@
+"use client";
 /**
  * 数据浏览页面组件
  */
 
-'use client';
-
-import { useMemo, useState } from 'react';
-import { Database, BarChart2, List } from 'lucide-react';
-import { Badge, Card, CardContent, CardHeader, CardTitle, Tabs, TabsContent, TabsList, TabsTrigger } from '@x-cartographer/ui';
-import { UserActivity } from '@/types';
-import { ActivityList } from './activity-list';
-import { StoryList } from './story-list';
+import { useMemo, useState } from "react";
+import { Database, BarChart2, List } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@x-cartographer/ui";
+import { UserActivity } from "@/types";
+import { ActivityList } from "./activity-list";
+import { StoryList } from "./story-list";
 
 interface DataBrowserPageProps {
   activities: UserActivity[];
 }
 
-type ViewMode = 'overview' | 'activities' | 'stories';
+type ViewMode = "overview" | "activities" | "stories";
 
 export function DataBrowserPage({ activities }: DataBrowserPageProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('overview');
+  const [viewMode, setViewMode] = useState<ViewMode>("activities");
 
   // 计算统计数据
   const stats = useMemo(() => {
     const activityCount = activities.length;
-    const storyCount = activities.reduce((acc, activity) => acc + (activity.stories?.length || 0), 0);
+    const storyCount = activities.reduce(
+      (acc, activity) => acc + (activity.stories?.length || 0),
+      0,
+    );
     const highPriorityCount = activities.reduce(
       (acc, activity) =>
-        acc + activity.stories?.filter((story) => story.priority === 'high').length || 0,
-      0
+        acc + activity.stories?.filter((story) => story.priority === "high").length || 0,
+      0,
     );
     const mediumPriorityCount = activities.reduce(
       (acc, activity) =>
-        acc + activity.stories?.filter((story) => story.priority === 'medium').length || 0,
-      0
+        acc + activity.stories?.filter((story) => story.priority === "medium").length || 0,
+      0,
     );
     const lowPriorityCount = activities.reduce(
       (acc, activity) =>
-        acc + activity.stories?.filter((story) => story.priority === 'low').length || 0,
-      0
+        acc + activity.stories?.filter((story) => story.priority === "low").length || 0,
+      0,
     );
     const totalEstimation = activities.reduce(
       (acc, activity) =>
-        acc + activity.stories?.reduce((storyAcc, story) => storyAcc + (story.estimation || 0), 0) ||
-        0,
-      0
+        acc +
+          activity.stories?.reduce((storyAcc, story) => storyAcc + (story.estimation || 0), 0) || 0,
+      0,
     );
 
     return {

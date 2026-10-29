@@ -1,17 +1,21 @@
-import { useParams } from '@tanstack/react-router';
-import { useCallback, useMemo } from 'react';
-import { FileText } from 'lucide-react';
-import { Button } from '@x-cartographer/ui';
-import { useProduct } from '@/lib/api/hooks';
-import { TaskStatus } from '@/types';
+import { taskMetrics } from "@/lib/task-metrics";
+import { Link } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
+import { useCallback, useMemo } from "react";
+import { FileText } from "lucide-react";
+import { Button } from "@x-cartographer/ui";
+import { useProduct, useAllDevTasks } from "@/lib/api/hooks";
+import { TaskStatus } from "@/types";
 
 /**
  * 产品概览页（/projects/:id）
  */
 export function ProjectOverviewPage() {
   const { productId } = useParams({ strict: false });
-  const { data: project, isLoading } = useProduct(productId);
+  const { data: project, isLoading, error, refetch } = useProduct(productId);
 
+  const { data: productTasks = [] } = useAllDevTasks({ productId });
+  const metrics = taskMetrics(productTasks);
   // 从 user_activities 计算统计信息
   const stats = useMemo(() => {
     const activities = project?.user_activities ?? [];
@@ -34,12 +38,11 @@ export function ProjectOverviewPage() {
     return {
       activityCount: activities.length,
       storyCount,
-      taskCount,
-      doneTaskCount,
-      completionRate:
-        taskCount > 0 ? Math.round((doneTaskCount / taskCount) * 100) : 0,
+      taskCount: metrics.total,
+      doneTaskCount: metrics.done,
+      completionRate: metrics.percent ?? 0,
     };
-  }, [project]);
+  }, [project, metrics.total, metrics.done, metrics.percent]);
 
   // 导出产品全景 AI 上下文（Markdown，可直接粘贴给 LLM）
   const handleExportContext = useCallback(async () => {
@@ -53,48 +56,62 @@ export function ProjectOverviewPage() {
       const progress = tasks.length > 0 ? Math.round((doneTasks / tasks.length) * 100) : 0;
 
       const lines: string[] = [];
-      lines.push(`# ${project.name} — 产品全景`);
-      lines.push('');
-      lines.push(`> 描述：${project.description ?? '（无）'}`);
-      lines.push('');
-      lines.push('## 概览');
-      lines.push('');
+      lines.push(`# ${project.name} — 故事与任务摘要`);
+      lines.push("");
+      lines.push(`> 描述：${project.description ?? "（无）"}`);
+      lines.push("");
+      lines.push("> 本摘要不包含完整架构约束。完整上下文请运行 xcart context export " + project.id);
+      lines.push("## 概览");
+      lines.push("");
       lines.push(`- 用户活动：${activities.length} 个`);
       lines.push(`- 用户故事：${stories.length} 个`);
       lines.push(`- 任务总数：${tasks.length} 个（已完成 ${doneTasks}，${progress}%）`);
       lines.push(`- 总估算工时：${totalEst} 小时`);
-      lines.push('');
-      lines.push('## 用户活动与故事');
-      lines.push('');
+      lines.push("");
+      lines.push("## 用户活动与故事");
+      lines.push("");
       for (const a of activities) {
         lines.push(`### ${a.name}`);
-        lines.push('');
+        lines.push("");
         for (const s of a.stories ?? []) {
-          lines.push(`- **[${s.id}] ${s.title}**（${s.priority}优先级 · ${s.estimation}h · ${s.status ?? 'backlog'}）`);
+          lines.push(
+            `- **[${s.id}] ${s.title}**（${s.priority}优先级 · ${s.estimation}h · ${s.status ?? "backlog"}）`,
+          );
           if ((s.dev_tasks ?? []).length > 0) {
-            lines.push(`  - 任务（${s.dev_tasks!.length}）：${s.dev_tasks!.map((t: { status: unknown; title: string }) => `[${t.status}] ${t.title}`).join('；')}`);
+            lines.push(
+              `  - 任务（${s.dev_tasks!.length}）：${s.dev_tasks!.map((t: { status: unknown; title: string }) => `[${t.status}] ${t.title}`).join("；")}`,
+            );
           }
         }
-        lines.push('');
+        lines.push("");
       }
-      lines.push('---');
+      lines.push("---");
 
-      const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+      const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
       const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
+      const anchor = document.createElement("a");
       anchor.href = url;
-      const safeName = project.name.replace(/[/\\:*?"<>|]/g, '_');
+      const safeName = project.name.replace(/[/\\:*?"<>|]/g, "_");
       anchor.download = `${safeName}-context.md`;
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('上下文导出失败:', error);
-      alert(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      console.error("上下文导出失败:", error);
+      alert(`导出失败: ${error instanceof Error ? error.message : "未知错误"}`);
     }
   }, [project]);
 
+  if (error)
+    return (
+      <div role="alert" className="p-6 space-y-3">
+        <p>加载失败：{error.message}</p>
+        <button className="rounded border px-3 py-2" onClick={() => refetch()}>
+          重新加载
+        </button>
+      </div>
+    );
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -109,7 +126,7 @@ export function ProjectOverviewPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="rounded-xl border bg-muted/30 p-12 text-center text-muted-foreground">
-          产品不存在或未加载
+          产品不存在，请返回产品列表核对链接
         </div>
       </div>
     );
@@ -126,11 +143,31 @@ export function ProjectOverviewPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleExportContext}>
             <FileText className="mr-2 h-4 w-4" />
-            导出 AI 上下文
+            导出故事与任务摘要
           </Button>
         </div>
       </div>
 
+      <div className="mb-6 rounded-lg border bg-card p-4">
+        <h2 className="font-semibold mb-2">下一步</h2>
+        <p className="text-sm text-muted-foreground mb-3">
+          {!stats.activityCount
+            ? "从添加第一个用户活动开始。"
+            : !stats.storyCount
+              ? "为活动补充用户步骤，再编写用户故事。"
+              : !stats.taskCount
+                ? "为故事拆解研发任务。"
+                : "继续跟踪任务，规划下一次交付。"}
+        </p>
+        <Link
+          className="text-primary underline"
+          to={
+            `/products/${project.id}/${!stats.activityCount ? "journeys" : !stats.storyCount ? "user-tasks" : "tasks"}` as never
+          }
+        >
+          继续规划
+        </Link>
+      </div>
       {/* 概览内容 */}
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
@@ -143,22 +180,18 @@ export function ProjectOverviewPage() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">创建时间</dt>
-                <dd>
-                  {new Date(project.created_at).toLocaleDateString('zh-CN')}
-                </dd>
+                <dd>{new Date(project.created_at).toLocaleDateString("zh-CN")}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">更新时间</dt>
-                <dd>
-                  {new Date(project.updated_at).toLocaleDateString('zh-CN')}
-                </dd>
+                <dd>{new Date(project.updated_at).toLocaleDateString("zh-CN")}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">技术栈</dt>
                 <dd>
                   {project.metadata?.tech_stack?.length
-                    ? project.metadata.tech_stack.join(', ')
-                    : '未指定'}
+                    ? project.metadata.tech_stack.join(", ")
+                    : "未指定"}
                 </dd>
               </div>
             </dl>

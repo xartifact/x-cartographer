@@ -1,22 +1,17 @@
-'use client';
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 
 /**
  * 版本（里程碑）创建/编辑对话框
  * 排期模型：版本有名称、目标、可选目标日期、状态
  */
 
-import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@x-cartographer/ui';
-import { Button, Input, Label, Textarea } from '@x-cartographer/ui';
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@x-cartographer/ui";
+import { Button, Input, Label, Textarea } from "@x-cartographer/ui";
 
-export type MilestoneStatus = 'planned' | 'active' | 'completed';
+export type MilestoneStatus = "planned" | "active" | "completed";
 
 interface MilestoneFormData {
   name: string;
@@ -38,33 +33,44 @@ interface MilestoneDialogProps {
   onSave: (data: MilestoneFormData) => Promise<void>;
 }
 
-export function MilestoneDialog({
-  open,
-  onOpenChange,
-  initial,
-  onSave,
-}: MilestoneDialogProps) {
-  const [name, setName] = useState('');
-  const [goal, setGoal] = useState('');
-  const [targetDate, setTargetDate] = useState('');
-  const [status, setStatus] = useState<MilestoneStatus>('planned');
+export function MilestoneDialog({ open, onOpenChange, initial, onSave }: MilestoneDialogProps) {
+  const [name, setName] = useState("");
+  const [goal, setGoal] = useState("");
+  const [targetDate, setTargetDate] = useState("");
+  const [status, setStatus] = useState<MilestoneStatus>("planned");
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const formDraft = useFormDraft({
+    open,
+    scope: `milestone:${location.pathname}:${initial?.name ?? "new"}`,
+    values: { name, goal, targetDate, status },
+    restore: (v) => {
+      setName(v.name);
+      setGoal(v.goal);
+      setTargetDate(v.targetDate);
+      setStatus(v.status);
+    },
+    close: () => onOpenChange(false),
+    saving,
+  });
 
   useEffect(() => {
     if (open) {
-      setName(initial?.name ?? '');
-      setGoal(initial?.goal ?? '');
-      setTargetDate(initial?.target_date?.slice(0, 10) ?? '');
-      setStatus((initial?.status ?? 'planned') as MilestoneStatus);
+      setName(initial?.name ?? "");
+      setGoal(initial?.goal ?? "");
+      setTargetDate(initial?.target_date?.slice(0, 10) ?? "");
+      setStatus((initial?.status ?? "planned") as MilestoneStatus);
     }
   }, [open, initial]);
 
   function handleClose() {
-    onOpenChange(false);
+    formDraft.requestClose();
   }
 
   async function handleSave() {
     if (!name.trim()) return;
+    if (saving) return;
+    setSubmitError("");
     setSaving(true);
     try {
       await onSave({
@@ -73,7 +79,9 @@ export function MilestoneDialog({
         target_date: targetDate || undefined,
         status,
       });
-      onOpenChange(false);
+      formDraft.requestClose();
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "保存失败，请重试");
     } finally {
       setSaving(false);
     }
@@ -82,8 +90,9 @@ export function MilestoneDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
+        {formDraft.protection}
         <DialogHeader>
-          <DialogTitle>{initial ? '编辑版本' : '新建版本'}</DialogTitle>
+          <DialogTitle>{initial ? "编辑版本" : "新建版本"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -132,6 +141,11 @@ export function MilestoneDialog({
           </div>
         </div>
 
+        {submitError && (
+          <p role="alert" className="text-destructive text-sm">
+            {submitError}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
             取消

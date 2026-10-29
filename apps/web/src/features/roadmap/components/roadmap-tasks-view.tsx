@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * 研发任务排期视图
@@ -9,15 +9,15 @@
  * 数据源：useProject 的深树（user_journeys[].stories[].tasks[] + story.milestone_id）。
  */
 
-import { useMemo, useState } from 'react';
-import { Calendar as CalendarIcon, Clock, GitBranch } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
-import { cn } from '@/lib/utils';
-import { StatusBadge } from '@/features/tasks/components/status-badge';
-import { TaskDetailSheet } from '@/features/tasks/components/task-detail-sheet';
-import { TASK_PRIORITY_CLS } from '@/features/workbench/components/card-meta';
-import { useUpdateDevTask } from '@/lib/api/hooks';
-import type { Product, Milestone, DevTask } from '@/types';
+import { useMemo, useState } from "react";
+import { Calendar as CalendarIcon, Clock, GitBranch } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@x-cartographer/ui";
+import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/features/tasks/components/status-badge";
+import { TaskDetailSheet } from "@/features/tasks/components/task-detail-sheet";
+import { TASK_PRIORITY_CLS } from "@/features/workbench/components/card-meta";
+import { useUpdateDevTask } from "@/lib/api/hooks";
+import type { Product, Milestone, DevTask } from "@/types";
 
 type EnrichedStory = {
   id: string;
@@ -44,29 +44,43 @@ interface RoadmapTasksViewProps {
 
 export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps) {
   // 选中的任务详情（Sheet 抽屉）
-  const [detailTask, setDetailTask] = useState<DevTask | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const setDetailTask = (task: DevTask) => setDetailId(task.id);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const updateTask = useUpdateDevTask();
 
   // 收集所有任务（用于解析依赖）
   const allTasks = useMemo<DevTask[]>(() => {
     const tasks: DevTask[] = [];
-    (project.user_activities ?? []).forEach((j: { id: string; name: string; stories?: Array<{ id: string; title: string; dev_tasks?: DevTask[] }> }) => {
-      (j.stories ?? []).forEach((s) => {
-        if (s.dev_tasks) tasks.push(...s.dev_tasks);
-      });
-    });
+    (project.user_activities ?? []).forEach(
+      (j: {
+        id: string;
+        name: string;
+        stories?: Array<{ id: string; title: string; dev_tasks?: DevTask[] }>;
+      }) => {
+        (j.stories ?? []).forEach((s) => {
+          if (s.dev_tasks) tasks.push(...s.dev_tasks);
+        });
+      },
+    );
     return tasks;
   }, [project]);
 
+  const detailTask = allTasks.find((t) => t.id === detailId) ?? null;
   // 故事/旅程上下文 map
   const storyContextMap = useMemo(() => {
     const map: Record<string, { storyTitle: string; activityName: string }> = {};
-    (project.user_activities ?? []).forEach((j: { id: string; name: string; stories?: Array<{ id: string; title: string; dev_tasks?: DevTask[] }> }) => {
-      (j.stories ?? []).forEach((s) => {
-        map[s.id] = { storyTitle: s.title, activityName: j.name };
-      });
-    });
+    (project.user_activities ?? []).forEach(
+      (j: {
+        id: string;
+        name: string;
+        stories?: Array<{ id: string; title: string; dev_tasks?: DevTask[] }>;
+      }) => {
+        (j.stories ?? []).forEach((s) => {
+          map[s.id] = { storyTitle: s.title, activityName: j.name };
+        });
+      },
+    );
     return map;
   }, [project]);
 
@@ -77,27 +91,25 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
 
   // 扁平化带旅程名+任务的未排期/已排期故事（排除已取消故事）
   const stories = useMemo<EnrichedStory[]>(() => {
-    return (project.user_activities ?? []).flatMap((j: { id: string; name: string; stories?: DevStory[] }) =>
-      (j.stories ?? [])
-        .filter((s: DevStory) => s.status !== 'cancelled')
-        .map(
-          (s: DevStory) =>
-            ({
-              id: s.id,
-              title: s.title,
-              milestone_id: s.milestone_id,
-              estimation: s.estimation,
-              activity_name: j.name,
-              dev_tasks: s.dev_tasks ?? [],
-            }) as EnrichedStory
-        )
+    return (project.user_activities ?? []).flatMap(
+      (j: { id: string; name: string; stories?: DevStory[] }) =>
+        (j.stories ?? [])
+          .filter((s: DevStory) => s.status !== "cancelled")
+          .map(
+            (s: DevStory) =>
+              ({
+                id: s.id,
+                title: s.title,
+                milestone_id: s.milestone_id,
+                estimation: s.estimation,
+                activity_name: j.name,
+                dev_tasks: s.dev_tasks ?? [],
+              }) as EnrichedStory,
+          ),
     );
   }, [project]);
 
-  const unplannedStories = useMemo(
-    () => stories.filter((s) => !s.milestone_id),
-    [stories]
-  );
+  const unplannedStories = useMemo(() => stories.filter((s) => !s.milestone_id), [stories]);
 
   const storiesByMilestone = useMemo(() => {
     const map = new Map<string, EnrichedStory[]>();
@@ -110,9 +122,14 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
 
   function taskStats(storyList: EnrichedStory[]) {
     const tasks = storyList.flatMap((s) => s.dev_tasks);
-    const done = tasks.filter((t) => t.status === 'done').length;
+    const done = tasks.filter((t) => t.status === "done").length;
     const est = tasks.reduce((sum, t) => sum + (t.estimation ?? 0), 0);
-    return { total: tasks.length, done, est, pct: tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0 };
+    return {
+      total: tasks.length,
+      done,
+      est,
+      pct: tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0,
+    };
   }
 
   function renderColumn(header: string, storyList: EnrichedStory[], emptyText: string) {
@@ -127,7 +144,7 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
           {total > 0 && (
             <div className="h-1 overflow-hidden rounded-full bg-muted">
               <div
-                className={cn('h-full rounded-full', pct === 100 ? 'bg-green-500' : 'bg-primary')}
+                className={cn("h-full rounded-full", pct === 100 ? "bg-green-500" : "bg-primary")}
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -156,7 +173,12 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
                         role="button"
                         tabIndex={0}
                         onClick={() => openTaskDetail(t)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') openTaskDetail(t); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openTaskDetail(t);
+                          }
+                        }}
                         className="flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors hover:bg-accent/40"
                       >
                         <StatusBadge
@@ -167,9 +189,8 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
                         />
                         <span
                           className={cn(
-                            'shrink-0 font-semibold',
-                            TASK_PRIORITY_CLS[t.priority as keyof typeof TASK_PRIORITY_CLS] ??
-                              ''
+                            "shrink-0 font-semibold",
+                            TASK_PRIORITY_CLS[t.priority as keyof typeof TASK_PRIORITY_CLS] ?? "",
                           )}
                         >
                           {t.priority}
@@ -212,9 +233,9 @@ export function RoadmapTasksView({ project, milestones }: RoadmapTasksViewProps)
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {renderColumn('待规划池', unplannedStories, '无未排期故事的任务')}
+        {renderColumn("待规划池", unplannedStories, "无未排期故事的任务")}
         {milestones.map((m) =>
-          renderColumn(m.name, storiesByMilestone.get(m.id) ?? [], '暂无任务')
+          renderColumn(m.name, storiesByMilestone.get(m.id) ?? [], "暂无任务"),
         )}
       </div>
 

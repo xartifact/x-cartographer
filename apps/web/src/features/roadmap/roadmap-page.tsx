@@ -1,4 +1,5 @@
-'use client';
+"use client";
+import { useUrlState } from "@/lib/hooks/use-url-state";
 
 /**
  * Roadmap 排期页面
@@ -9,10 +10,18 @@
  * - 研发任务视图：按所属故事的版本聚合展示任务级交付进度
  */
 
-import { useMemo, useState } from 'react';
-import { Plus, Calendar as CalendarIcon, ListChecks } from 'lucide-react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Sheet, SheetContent } from '@x-cartographer/ui';
-import { useProduct } from '@/lib/api/hooks';
+import { useMemo, useState } from "react";
+import { Plus, Calendar as CalendarIcon, ListChecks } from "lucide-react";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Sheet,
+  SheetContent,
+} from "@x-cartographer/ui";
+import { useProduct } from "@/lib/api/hooks";
 import {
   useMilestonesByProduct,
   useCreateMilestone,
@@ -20,17 +29,17 @@ import {
   useDeleteMilestone,
   useUpdateStory,
   useDeleteStory,
-} from '@/lib/api/hooks';
-import { MilestoneDialog } from './components/milestone-dialog';
-import { StoryCard } from './components/story-card';
-import { RoadmapTasksView } from './components/roadmap-tasks-view';
-import { StoryDetailPanel, StoryEditDialog } from '@/features/story-map/components';
+} from "@/lib/api/hooks";
+import { MilestoneDialog } from "./components/milestone-dialog";
+import { StoryCard } from "./components/story-card";
+import { RoadmapTasksView } from "./components/roadmap-tasks-view";
+import { StoryDetailPanel, StoryEditDialog } from "@/features/story-map/components";
 import {
   aggregateMilestonePredictability,
   flattenStories,
   type MilestonePredictability,
-} from './lib/predictability';
-import type { UserStory, Milestone } from '@/types';
+} from "./lib/predictability";
+import type { UserStory, Milestone } from "@/types";
 
 interface RoadmapPageProps {
   projectId: string;
@@ -48,15 +57,24 @@ interface MilestoneJson {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  planned: '规划中',
-  active: '进行中',
-  completed: '已完成',
+  planned: "规划中",
+  active: "进行中",
+  completed: "已完成",
 };
 
 export function RoadmapPage({ projectId }: RoadmapPageProps) {
-  const { data: project, isLoading: projectLoading } = useProduct(projectId);
-  const { data: milestones = [], isLoading: milestonesLoading } =
-    useMilestonesByProduct(projectId);
+  const {
+    data: project,
+    isLoading: projectLoading,
+    error: projectError,
+    refetch: retryProject,
+  } = useProduct(projectId);
+  const {
+    data: milestones = [],
+    isLoading: milestonesLoading,
+    error: milestoneError,
+    refetch: retryMilestones,
+  } = useMilestonesByProduct(projectId);
   const createMilestone = useCreateMilestone();
   const updateMilestone = useUpdateMilestone();
   const deleteMilestone = useDeleteMilestone();
@@ -64,21 +82,25 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
   const deleteStory = useDeleteStory();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MilestoneJson | null>(null);
-  const [activeTab, setActiveTab] = useState<'lanes' | 'tasks'>('lanes');
+  const [activeTab, setActiveTab] = useState<"lanes" | "tasks">("lanes");
   // 选中的故事（详情面板）
-  const [selectedStory, setSelectedStory] = useState<{
-    story: UserStory;
-    activityName: string;
-  } | null>(null);
+  const [selectedStoryId, setSelectedStoryId] = useUrlState("storyId");
+  const selectedStory =
+    (project?.user_activities ?? [])
+      .flatMap((a) => (a.stories ?? []).map((story) => ({ story, activityName: a.name })))
+      .find((d) => d.story.id === selectedStoryId) ?? null;
+  const setSelectedStory = (value: { story: UserStory; activityName: string } | null) =>
+    setSelectedStoryId(value?.story.id ?? null);
   // 编辑中的故事
   const [editingStory, setEditingStory] = useState<UserStory | null>(null);
 
   // 待规划池：未排期且未取消的故事（milestone_id 为空）
   const unplannedStories = useMemo(() => {
-    return (project?.user_activities ?? []).flatMap((j: { id: string; name: string; stories?: UserStory[] }) =>
-      (j.stories ?? [])
-        .filter((s) => !s.milestone_id && s.status !== 'cancelled')
-        .map((s) => ({ ...s, activity_name: j.name }))
+    return (project?.user_activities ?? []).flatMap(
+      (j: { id: string; name: string; stories?: UserStory[] }) =>
+        (j.stories ?? [])
+          .filter((s) => !s.milestone_id && s.status !== "cancelled")
+          .map((s) => ({ ...s, activity_name: j.name })),
     );
   }, [project]);
 
@@ -88,7 +110,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
     for (const m of milestones) map.set(m.id, []);
     for (const j of project?.user_activities ?? []) {
       for (const s of j.stories ?? []) {
-        if (s.milestone_id && map.has(s.milestone_id)) {
+        if (s.status !== "cancelled" && s.milestone_id && map.has(s.milestone_id)) {
           map.get(s.milestone_id)!.push({ ...s, activity_name: j.name });
         }
       }
@@ -104,13 +126,10 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
   const predictabilityByMilestone = useMemo(() => {
     const stats = aggregateMilestonePredictability(
       flattenStories(project?.user_activities),
-      milestones.map((m) => m.id)
+      milestones.map((m) => m.id),
     );
     return new Map<string, MilestonePredictability>(stats.map((s) => [s.milestone_id, s]));
   }, [project, milestones]);
-
-
-
 
   async function handleCreate(data: {
     name: string;
@@ -123,7 +142,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
       name: data.name,
       goal: data.goal,
       target_date: data.target_date,
-      status: data.status as 'planned' | 'active' | 'completed',
+      status: data.status as "planned" | "active" | "completed",
     });
   }
 
@@ -140,7 +159,7 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
       name: data.name,
       goal: data.goal,
       target_date: data.target_date ?? null,
-      status: data.status as 'planned' | 'active' | 'completed',
+      status: data.status as "planned" | "active" | "completed",
     });
   }
 
@@ -160,10 +179,12 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
       estimation: updated.estimation,
       acceptanceCriteria: updated.acceptance_criteria,
       tags: updated.tags,
+      affectedModules: updated.affected_modules,
+      activityId: updated.activity_id,
+      userTaskId: updated.user_task_id ?? null,
       milestoneId: updated.milestone_id ?? null,
     });
     setEditingStory(null);
-    setSelectedStory((prev) => (prev ? { ...prev, story: updated } : prev));
   }
 
   async function handleDeleteStory(s: UserStory) {
@@ -174,6 +195,20 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
     setSelectedStory(null);
   }
 
+  if (projectError || milestoneError)
+    return (
+      <div role="alert">
+        加载排期失败
+        <Button
+          onClick={() => {
+            void retryProject();
+            void retryMilestones();
+          }}
+        >
+          重试
+        </Button>
+      </div>
+    );
   if (projectLoading || milestonesLoading) {
     return (
       <div className="flex h-full items-center justify-center rounded-xl border bg-muted/30 text-muted-foreground">
@@ -195,7 +230,12 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setDialogOpen(true);
+            }}
+          >
             <Plus className="mr-2 h-4 w-4" />
             新建版本
           </Button>
@@ -205,18 +245,18 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
       {/* 视图切换 */}
       <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
         <Button
-          variant={activeTab === 'lanes' ? 'default' : 'ghost'}
+          variant={activeTab === "lanes" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab('lanes')}
+          onClick={() => setActiveTab("lanes")}
           className="gap-1.5"
         >
           <CalendarIcon className="h-3.5 w-3.5" />
           泳道视图
         </Button>
         <Button
-          variant={activeTab === 'tasks' ? 'default' : 'ghost'}
+          variant={activeTab === "tasks" ? "default" : "ghost"}
           size="sm"
-          onClick={() => setActiveTab('tasks')}
+          onClick={() => setActiveTab("tasks")}
           className="gap-1.5"
         >
           <ListChecks className="h-3.5 w-3.5" />
@@ -224,140 +264,138 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
         </Button>
       </div>
 
-      {activeTab === 'lanes' && (
+      {activeTab === "lanes" && (
         <div className="flex gap-4 overflow-x-auto pb-4">
-        {/* 待规划池 */}
-        <Card className="w-72 shrink-0">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm font-medium">待规划池</CardTitle>
-            <div className="text-xs text-muted-foreground">
-              {unplannedStories.length} 故事 · {estimateSum(unplannedStories)}h
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {unplannedStories.length === 0 ? (
-              <p className="text-sm text-muted-foreground">无未排期故事</p>
-            ) : (
-              unplannedStories.map((s) => (
-                <StoryCard
-                  key={s.id}
-                  story={s}
-                  activityName={s.activity_name}
-                  onClick={(story) =>
-                    setSelectedStory({ story, activityName: s.activity_name })
-                  }
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 各版本泳道 */}
-        {milestones.map((m: MilestoneJson) => {
-          const stories = storiesByMilestone.get(m.id) ?? [];
-          return (
-            <Card key={m.id} className="w-72 shrink-0">
-              <CardHeader className="p-4 pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-sm font-medium">{m.name}</CardTitle>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {m.goal || '未填写目标'}
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-xs">
-                      <span className="rounded bg-muted px-1.5 py-0.5">
-                        {STATUS_LABEL[m.status] ?? m.status}
-                      </span>
-                      {m.target_date && (
-                        <span>{m.target_date.slice(0, 10)}</span>
-                      )}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {stories.length} 故事 · {estimateSum(stories)}h
-                    </div>
-                    {/* PI 可预测性（US-112）：done/planned，cancelled 已剔除 */}
-                    {(() => {
-                      const p = predictabilityByMilestone.get(m.id);
-                      if (!p || p.planned_stories === 0) return null;
-                      const pct = Math.round((p.predictability ?? 0) * 100);
-                      return (
-                        <div className="mt-1 flex items-center gap-2 text-xs">
-                          <span className="text-muted-foreground">可预测性</span>
-                          <span className="font-medium">{pct}%</span>
-                          <span className="text-muted-foreground">
-                            ({p.done_stories}/{p.planned_stories} 故事)
-                          </span>
-                          <span className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
-                            <span
-                              className="block h-full bg-primary"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setEditing(m); setDialogOpen(true); }}
-                    >
-                      编辑
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => handleDelete(m)}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {stories.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">暂无故事</p>
-                ) : (
-                  stories.map((s) => (
-                    <StoryCard
-                      key={s.id}
-                      story={s}
-                      activityName={s.activity_name}
-                      onClick={(story) =>
-                        setSelectedStory({ story, activityName: s.activity_name })
-                      }
-                    />
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-
-        {milestones.length === 0 && (
-          <Card className="min-w-[280px] shrink-0 border-dashed">
-            <CardContent className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-              点击"新建版本"创建第一个版本
+          {/* 待规划池 */}
+          <Card className="w-72 shrink-0">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-medium">待规划池</CardTitle>
+              <div className="text-xs text-muted-foreground">
+                {unplannedStories.length} 故事 · {estimateSum(unplannedStories)}h
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {unplannedStories.length === 0 ? (
+                <p className="text-sm text-muted-foreground">无未排期故事</p>
+              ) : (
+                unplannedStories.map((s) => (
+                  <StoryCard
+                    key={s.id}
+                    story={s}
+                    activityName={s.activity_name}
+                    onClick={(story) => setSelectedStory({ story, activityName: s.activity_name })}
+                  />
+                ))
+              )}
             </CardContent>
           </Card>
-        )}
-      </div>
+
+          {/* 各版本泳道 */}
+          {milestones.map((m: MilestoneJson) => {
+            const stories = storiesByMilestone.get(m.id) ?? [];
+            return (
+              <Card key={m.id} className="w-72 shrink-0">
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-sm font-medium">{m.name}</CardTitle>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {m.goal || "未填写目标"}
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-xs">
+                        <span className="rounded bg-muted px-1.5 py-0.5">
+                          {STATUS_LABEL[m.status] ?? m.status}
+                        </span>
+                        {m.target_date && <span>{m.target_date.slice(0, 10)}</span>}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {stories.length} 故事 · {estimateSum(stories)}h
+                      </div>
+                      {/* PI 可预测性（US-112）：done/planned，cancelled 已剔除 */}
+                      {(() => {
+                        const p = predictabilityByMilestone.get(m.id);
+                        if (!p || p.planned_stories === 0) return null;
+                        const pct = Math.round((p.predictability ?? 0) * 100);
+                        return (
+                          <div className="mt-1 flex items-center gap-2 text-xs">
+                            <span className="text-muted-foreground">可预测性</span>
+                            <span className="font-medium">{pct}%</span>
+                            <span className="text-muted-foreground">
+                              ({p.done_stories}/{p.planned_stories} 故事)
+                            </span>
+                            <span className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
+                              <span
+                                className="block h-full bg-primary"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditing(m);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        编辑
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => handleDelete(m)}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {stories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">暂无故事</p>
+                  ) : (
+                    stories.map((s) => (
+                      <StoryCard
+                        key={s.id}
+                        story={s}
+                        activityName={s.activity_name}
+                        onClick={(story) =>
+                          setSelectedStory({ story, activityName: s.activity_name })
+                        }
+                      />
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+
+          {milestones.length === 0 && (
+            <Card className="min-w-[280px] shrink-0 border-dashed">
+              <CardContent className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                点击"新建版本"创建第一个版本
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* 研发任务视图：按版本聚合任务 */}
-      {activeTab === 'tasks' && project && (
-        <RoadmapTasksView
-          project={project}
-          milestones={milestones as Milestone[]}
-        />
+      {activeTab === "tasks" && project && (
+        <RoadmapTasksView project={project} milestones={milestones as Milestone[]} />
       )}
 
       {/* 故事详情抽屉（Sheet，对齐任务管理交互） */}
       <Sheet
         open={!!selectedStory}
-        onOpenChange={(open) => { if (!open) setSelectedStory(null); }}
+        onOpenChange={(open) => {
+          if (!open) setSelectedStory(null);
+        }}
       >
         <SheetContent className="p-4">
           {selectedStory && project && (
@@ -378,7 +416,9 @@ export function RoadmapPage({ projectId }: RoadmapPageProps) {
       <StoryEditDialog
         open={!!editingStory}
         story={editingStory}
-        onOpenChange={(open) => { if (!open) setEditingStory(null); }}
+        onOpenChange={(open) => {
+          if (!open) setEditingStory(null);
+        }}
         onSave={handleUpdateStory}
       />
 

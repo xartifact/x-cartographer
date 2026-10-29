@@ -1,3 +1,8 @@
+"use client";
+import { EntityStatusControl } from "@/components/common/entity-status-control";
+import { TaskEditForm } from "./task-edit-form";
+import { StatusHistory } from "./status-history";
+import { MarkdownContent } from "@/components/common/markdown-content";
 /**
  * 任务详情抽屉组件
  *
@@ -10,9 +15,7 @@
  * - 所属故事/旅程
  */
 
-'use client';
-
-import * as React from 'react';
+import * as React from "react";
 import {
   Clock,
   Tag,
@@ -30,22 +33,16 @@ import {
   Plus,
   X,
   Check,
-} from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@x-cartographer/ui';
-import { Badge } from '@x-cartographer/ui';
-import { Separator } from '@x-cartographer/ui';
-import { Button } from '@x-cartographer/ui';
-import { StatusBadge } from './status-badge';
-import { PriorityBadge } from '@/components/common/priority-badge';
-import { InfoItem } from '@/components/common/info-item';
-import { cn } from '@/lib/utils';
-import type { DevTask, TaskStatus } from '@/types';
+} from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@x-cartographer/ui";
+import { Badge } from "@x-cartographer/ui";
+import { Separator } from "@x-cartographer/ui";
+import { Button } from "@x-cartographer/ui";
+import { StatusBadge } from "./status-badge";
+import { PriorityBadge } from "@/components/common/priority-badge";
+import { InfoItem } from "@/components/common/info-item";
+import { cn } from "@/lib/utils";
+import type { DevTask, TaskStatus } from "@/types";
 
 interface TaskDetailSheetProps {
   /** 当前选中的任务 */
@@ -65,10 +62,10 @@ interface TaskDetailSheetProps {
 }
 
 const typeConfig: Record<string, { label: string; icon: string }> = {
-  user_story: { label: '用户故事', icon: '📖' },
-  technical_task: { label: '技术任务', icon: '⚙️' },
-  bug_fix: { label: 'Bug 修复', icon: '🐛' },
-  spike: { label: 'Spike 探索', icon: '🔍' },
+  user_story: { label: "用户故事", icon: "📖" },
+  technical_task: { label: "技术任务", icon: "⚙️" },
+  bug_fix: { label: "Bug 修复", icon: "🐛" },
+  spike: { label: "Spike 探索", icon: "🔍" },
 };
 
 export function TaskDetailSheet({
@@ -81,6 +78,8 @@ export function TaskDetailSheet({
   onUpdateDependencies,
 }: TaskDetailSheetProps) {
   // TASK-062：依赖编辑状态
+  const editClose = React.useRef<() => void>(() => {});
+  const [editing, setEditing] = React.useState(false);
   const [editingDeps, setEditingDeps] = React.useState(false);
   const [draftDeps, setDraftDeps] = React.useState<string[]>([]);
   const [savingDeps, setSavingDeps] = React.useState(false);
@@ -88,6 +87,7 @@ export function TaskDetailSheet({
   // 打开详情时重置编辑状态
   React.useEffect(() => {
     if (open && task) {
+      setEditing(false);
       setEditingDeps(false);
       setDraftDeps(task.dependencies ?? []);
     }
@@ -97,14 +97,12 @@ export function TaskDetailSheet({
   /** 候选任务（排除自身与已选依赖） */
   const candidateTasks = React.useMemo(() => {
     if (!task) return [];
-    return allTasks.filter(
-      (t) => t.id !== task.id && !(task.dependencies ?? []).includes(t.id)
-    );
+    return allTasks.filter((t) => t.id !== task.id && !(task.dependencies ?? []).includes(t.id));
   }, [allTasks, task]);
 
   const toggleDraftDep = (depId: string) => {
     setDraftDeps((prev) =>
-      prev.includes(depId) ? prev.filter((d) => d !== depId) : [...prev, depId]
+      prev.includes(depId) ? prev.filter((d) => d !== depId) : [...prev, depId],
     );
   };
 
@@ -131,34 +129,34 @@ export function TaskDetailSheet({
         status: depTask?.status as TaskStatus | undefined,
       };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task, allTasks]);
 
   // 解析被依赖任务（依赖当前任务的其他任务）
   const dependedBy = React.useMemo(() => {
     if (!task) return [];
-    return allTasks.filter(
-      (t) => t.id !== task.id && t.dependencies?.includes(task.id)
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return allTasks.filter((t) => t.id !== task.id && t.dependencies?.includes(task.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task, allTasks]);
 
   if (!task) return null;
 
   const typeInfo = typeConfig.technical_task;
-  const storyContext = task.story_id
-    ? (storyContextMap?.[task.story_id] ?? undefined)
-    : undefined;
+  const storyContext = task.story_id ? (storyContextMap?.[task.story_id] ?? undefined) : undefined;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={(value) => {
+        if (!value && editing) editClose.current();
+        else onOpenChange(value);
+      }}
+    >
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader className="pr-8">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-muted-foreground">
-              {task.id}
-            </span>
-            <StatusBadge status={task.status} isTask size="sm" />
+            <span className="font-mono text-xs text-muted-foreground">{task.id}</span>
+            <EntityStatusControl id={task.id} status={task.status} />
           </div>
           <SheetTitle className="text-lg leading-snug">{task.title}</SheetTitle>
           {storyContext && (
@@ -170,15 +168,30 @@ export function TaskDetailSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
+          <Button
+            variant="outline"
+            onClick={() => (editing ? editClose.current() : setEditing(true))}
+          >
+            {editing ? "取消编辑" : "编辑基本信息"}
+          </Button>
+          {editing && (
+            <TaskEditForm
+              onRegisterClose={(fn) => {
+                editClose.current = fn;
+              }}
+              key={task.id}
+              task={task}
+              productId={task.product_id ?? location.pathname.split("/")[2] ?? ""}
+              onDone={() => setEditing(false)}
+            />
+          )}
+          <StatusHistory entityId={task.id} entityType="task" showActions={false} />
           {/* 基本属性 */}
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">基本信息</h3>
             <div className="grid grid-cols-2 gap-3">
               {/* 类型 */}
-              <InfoItem
-                icon={<FileText className="h-3.5 w-3.5" />}
-                label="类型"
-              >
+              <InfoItem icon={<FileText className="h-3.5 w-3.5" />} label="类型">
                 <span>
                   {typeInfo.icon} {typeInfo.label}
                 </span>
@@ -190,40 +203,29 @@ export function TaskDetailSheet({
               </InfoItem>
 
               {/* 估算工时 */}
-              <InfoItem
-                icon={<Clock className="h-3.5 w-3.5" />}
-                label="估算工时"
-              >
-                <span>
-                  {task.estimation > 0 ? `${task.estimation} 小时` : '未估算'}
-                </span>
+              <InfoItem icon={<Clock className="h-3.5 w-3.5" />} label="估算工时">
+                <span>{task.estimation > 0 ? `${task.estimation} 小时` : "未估算"}</span>
               </InfoItem>
 
               {/* 负责人 */}
               <InfoItem icon={<User className="h-3.5 w-3.5" />} label="负责人">
-                <span>{task.assignee ?? '未分配'}</span>
+                <span>{task.assignee ?? "未分配"}</span>
               </InfoItem>
 
               {/* 创建时间 */}
               {task.created_at && (
-                <InfoItem
-                  icon={<Calendar className="h-3.5 w-3.5" />}
-                  label="创建时间"
-                >
+                <InfoItem icon={<Calendar className="h-3.5 w-3.5" />} label="创建时间">
                   <span className="text-xs">
-                    {new Date(task.created_at).toLocaleDateString('zh-CN')}
+                    {new Date(task.created_at).toLocaleDateString("zh-CN")}
                   </span>
                 </InfoItem>
               )}
 
               {/* 完成时间 */}
               {task.completed_at && (
-                <InfoItem
-                  icon={<Calendar className="h-3.5 w-3.5" />}
-                  label="完成时间"
-                >
+                <InfoItem icon={<Calendar className="h-3.5 w-3.5" />} label="完成时间">
                   <span className="text-xs">
-                    {new Date(task.completed_at).toLocaleDateString('zh-CN')}
+                    {new Date(task.completed_at).toLocaleDateString("zh-CN")}
                   </span>
                 </InfoItem>
               )}
@@ -236,13 +238,9 @@ export function TaskDetailSheet({
           <section className="space-y-2">
             <h3 className="text-sm font-semibold text-foreground">描述</h3>
             {task.description ? (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                {task.description}
-              </p>
+              <MarkdownContent>{task.description}</MarkdownContent>
             ) : (
-              <p className="text-sm italic text-muted-foreground/60">
-                暂无描述
-              </p>
+              <p className="text-sm italic text-muted-foreground/60">暂无描述</p>
             )}
           </section>
 
@@ -290,12 +288,8 @@ export function TaskDetailSheet({
                           className="flex w-full items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-left text-xs hover:border-primary"
                         >
                           <Trash2 className="h-3 w-3 text-destructive" />
-                          <span className="font-mono text-muted-foreground">
-                            {depId}
-                          </span>
-                          <span className="flex-1 truncate">
-                            {depTask?.title ?? '未知任务'}
-                          </span>
+                          <span className="font-mono text-muted-foreground">{depId}</span>
+                          <span className="flex-1 truncate">{depTask?.title ?? "未知任务"}</span>
                         </button>
                       );
                     })
@@ -320,17 +314,9 @@ export function TaskDetailSheet({
                         className="flex w-full items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-left text-xs hover:border-primary"
                       >
                         <Plus className="h-3 w-3 text-primary" />
-                        <span className="font-mono text-muted-foreground">
-                          {candidate.id}
-                        </span>
-                        <span className="flex-1 truncate">
-                          {candidate.title}
-                        </span>
-                        <StatusBadge
-                          status={candidate.status}
-                          isTask
-                          size="sm"
-                        />
+                        <span className="font-mono text-muted-foreground">{candidate.id}</span>
+                        <span className="flex-1 truncate">{candidate.title}</span>
+                        <StatusBadge status={candidate.status} isTask size="sm" />
                       </button>
                     ))
                   ) : (
@@ -398,9 +384,7 @@ export function TaskDetailSheet({
                       ))}
                     </div>
                   ) : (
-                    <p className="py-2 text-center text-xs text-muted-foreground/60">
-                      无前置依赖
-                    </p>
+                    <p className="py-2 text-center text-xs text-muted-foreground/60">无前置依赖</p>
                   )}
                 </div>
 
@@ -432,9 +416,7 @@ export function TaskDetailSheet({
                       ))}
                     </div>
                   ) : (
-                    <p className="py-2 text-center text-xs text-muted-foreground/60">
-                      无后续依赖
-                    </p>
+                    <p className="py-2 text-center text-xs text-muted-foreground/60">无后续依赖</p>
                   )}
                 </div>
               </>
@@ -485,25 +467,19 @@ function DependencyCard({
       onClick={clickable ? onClick : undefined}
       disabled={!clickable}
       className={cn(
-        'flex w-full items-center gap-2 rounded-md border p-2.5 text-left transition-colors',
-        clickable ? 'cursor-pointer hover:bg-accent/50' : 'cursor-default',
-        !found && 'border-dashed border-muted-foreground/30 bg-muted/30'
+        "flex w-full items-center gap-2 rounded-md border p-2.5 text-left transition-colors",
+        clickable ? "cursor-pointer hover:bg-accent/50" : "cursor-default",
+        !found && "border-dashed border-muted-foreground/30 bg-muted/30",
       )}
     >
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] text-muted-foreground">
-            {id}
-          </span>
+          <span className="font-mono text-[10px] text-muted-foreground">{id}</span>
           {status && <StatusBadge status={status} isTask size="sm" />}
         </div>
-        <p className="truncate text-sm">
-          {found ? title : `${id}（任务未找到）`}
-        </p>
+        <p className="truncate text-sm">{found ? title : `${id}（任务未找到）`}</p>
       </div>
-      {clickable && (
-        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      )}
+      {clickable && <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
     </button>
   );
 }

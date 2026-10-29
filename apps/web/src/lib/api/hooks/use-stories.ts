@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api/client';
-import { toApiError } from '@/lib/api/error';
-import type { Priority, StoryStatus } from '@x-cartographer/shared';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
+import { toApiError } from "@/lib/api/error";
+import type { Priority, StoryStatus } from "@x-cartographer/shared";
 
 /**
  * Story REST hooks (react-query)
@@ -17,10 +17,13 @@ export interface CreateStoryVariables {
   priority: Priority;
   estimation: number;
   acceptanceCriteria?: string[];
+  provenance?: "human_asserted" | "agent_inferred" | "imported";
+  affectedModules?: string[];
   tags?: string[];
 }
 
 export interface UpdateStoryVariables {
+  affectedModules?: string[];
   id: string;
   title?: string;
   description?: string;
@@ -35,7 +38,6 @@ export interface UpdateStoryVariables {
   userTaskId?: string | null;
 }
 
-
 export interface UpdateStoryStatusVariables {
   id: string;
   status: StoryStatus;
@@ -46,9 +48,10 @@ export interface UpdateStoryStatusVariables {
 
 export function useStory(id: string) {
   return useQuery({
-    queryKey: ['stories', id],
+    queryKey: ["stories", id],
     queryFn: async () => {
-      const res = await api.api.stories[':id'].$get({ param: { id } });
+      const res = await api.api.stories[":id"].$get({ param: { id } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: !!id,
@@ -57,9 +60,10 @@ export function useStory(id: string) {
 
 export function useStoriesByActivity(activityId: string) {
   return useQuery({
-    queryKey: ['stories', 'activity', activityId],
+    queryKey: ["stories", "activity", activityId],
     queryFn: async () => {
       const res = await api.api.stories.$get({ query: { activityId } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: !!activityId,
@@ -73,13 +77,15 @@ export function useCreateStory() {
 
   return useMutation({
     mutationFn: async (variables: CreateStoryVariables) => {
-      const res = await api.api.stories.$post({ json: variables });
-      if (!res.ok) throw await toApiError(res, '创建故事失败');
+      const res = await api.api.stories.$post({
+        json: { ...variables, provenance: variables.provenance ?? "human_asserted" },
+      });
+      if (!res.ok) throw await toApiError(res, "创建故事失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['stories', 'activity', variables.activityId] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["stories", "activity", variables.activityId] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -90,12 +96,12 @@ export function useUpdateStory() {
   return useMutation({
     mutationFn: async (variables: UpdateStoryVariables) => {
       const { id, ...dto } = variables;
-      const res = await api.api.stories[':id'].$patch({ param: { id }, json: dto });
-      if (!res.ok) throw await toApiError(res, '更新故事失败');
+      const res = await api.api.stories[":id"].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, "更新故事失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -105,12 +111,12 @@ export function useDeleteStory() {
 
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
-      const res = await api.api.stories[':id'].$delete({ param: { id: variables.id } });
-      if (!res.ok) throw await toApiError(res, '删除故事失败');
+      const res = await api.api.stories[":id"].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, "删除故事失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -121,17 +127,17 @@ export function useUpdateStoryStatus() {
   return useMutation({
     mutationFn: async (variables: UpdateStoryStatusVariables) => {
       const { id, ...body } = variables;
-      const res = await api.api.stories[':id'].status.$post({ param: { id }, json: body });
-      if (!res.ok) throw await toApiError(res, '更新故事状态失败');
+      const res = await api.api.stories[":id"].status.$post({ param: { id }, json: body });
+      if (!res.ok) throw await toApiError(res, "更新故事状态失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
       // Invalidate the specific story
-      queryClient.invalidateQueries({ queryKey: ['stories', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["stories", variables.id] });
       // Invalidate the parent project (contains all nested data)
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       // Invalidate status history
-      queryClient.invalidateQueries({ queryKey: ['status-changes', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["status-changes", variables.id] });
     },
   });
 }

@@ -1,4 +1,5 @@
-'use client';
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 
 /**
  * 用户活动编辑对话框
@@ -6,20 +7,14 @@
  * 支持编辑活动的名称和描述（backbone 列语义：动词短语 + 用户目标范围）。
  */
 
-import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@x-cartographer/ui';
-import { Button } from '@x-cartographer/ui';
-import { Input } from '@x-cartographer/ui';
-import { Label } from '@x-cartographer/ui';
-import { Textarea } from '@x-cartographer/ui';
-import type { UserActivity } from '@/types';
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@x-cartographer/ui";
+import { Button } from "@x-cartographer/ui";
+import { Input } from "@x-cartographer/ui";
+import { Label } from "@x-cartographer/ui";
+import { Textarea } from "@x-cartographer/ui";
+import type { UserActivity } from "@/types";
 
 interface ActivityEditDialogProps {
   open: boolean;
@@ -34,20 +29,33 @@ export function ActivityEditDialog({
   onOpenChange,
   onSave,
 }: ActivityEditDialogProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const formDraft = useFormDraft({
+    open,
+    scope: `activity:${activity?.id}`,
+    values: { name, description },
+    restore: (v) => {
+      setName(v.name);
+      setDescription(v.description);
+    },
+    close: () => onOpenChange(false),
+    saving,
+    version: activity?.updated_at,
+  });
 
   // 当 activity 变化时重置表单
   useEffect(() => {
     if (activity) {
       setName(activity.name);
-      setDescription(activity.description ?? '');
+      setDescription(activity.description ?? "");
     }
   }, [activity]);
 
   function handleClose() {
-    onOpenChange(false);
+    formDraft.requestClose();
   }
 
   async function handleSave() {
@@ -60,10 +68,15 @@ export function ActivityEditDialog({
       updated_at: new Date().toISOString(),
     };
 
+    if (saving) return;
+    setSubmitError("");
     setSaving(true);
     try {
       await onSave(updated);
-      handleClose();
+      formDraft.clear();
+      onOpenChange(false);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "保存失败，请重试");
     } finally {
       setSaving(false);
     }
@@ -72,13 +85,12 @@ export function ActivityEditDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
+        {formDraft.protection}
         <DialogHeader>
           <DialogTitle>
             编辑活动
             {activity && (
-              <span className="ml-2 font-mono text-sm text-muted-foreground">
-                {activity.id}
-              </span>
+              <span className="ml-2 font-mono text-sm text-muted-foreground">{activity.id}</span>
             )}
           </DialogTitle>
         </DialogHeader>
@@ -110,6 +122,11 @@ export function ActivityEditDialog({
           </div>
         </div>
 
+        {submitError && (
+          <p role="alert" className="text-destructive text-sm">
+            {submitError}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={saving}>
             取消

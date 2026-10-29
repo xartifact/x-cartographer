@@ -155,3 +155,10 @@ import { mainNavItems } from '@/components/layout/navigation';
 ## 主题支持
 
 组件支持深色模式，通过 Tailwind 的 `dark:` 前缀和 CSS 变量实现。
+## xartifact theme
+
+The document root opts into `data-xartifact-palette="iris"`. The single maintained token source is `packages/ui/src/xartifact-tokens.css`, imported by `src/styles/globals.css`; page components and body portals inherit it without local theme scopes. Layouts use the neutral canvas while cards, forms, menus and dialogs use surface tokens. Brand accents identify primary actions, selected navigation and focus; status colors keep their semantic meaning.
+
+Keep the existing `next-themes` provider and `theme` storage key to preserve saved light/dark/system preferences. `ThemeToaster` forwards the resolved appearance to Sonner. Do not add another theme provider or copy token values into feature styles. The ADR design preview also consumes this shared source.
+
+Validation includes the four token palettes in both appearances, foreground/background contrast checks, portal inheritance, system appearance events, explicit overrides, remount persistence and storage-event synchronization. Browser checks cover Iris in light/dark on desktop and a 400px viewport. These checks do not claim full page-wide accessibility compliance.

@@ -15,7 +15,7 @@ import {
   useDeleteProduct,
 } from '@/lib/api/hooks';
 import { toast } from 'sonner';
-import type { CreateProductDTO, UpdateProductDTO, Product } from '@x-cartographer/shared';
+import type { CreateProductDTO, UpdateProductDTO } from '@x-cartographer/shared';
 
 /**
  * 项目操作 Hook — 基于 lib/api hooks（gateway REST）
@@ -36,7 +36,7 @@ export function useProjectActions() {
         toast.error('创建失败', { description: error instanceof Error ? error.message : '未知错误' });        throw error;
       }
     },
-    [createProjectMutation, toast],
+    [createProjectMutation],
   );
 
   const updateProject = useCallback(
@@ -47,7 +47,7 @@ export function useProjectActions() {
         toast.error('更新失败', { description: error instanceof Error ? error.message : '未知错误' });        throw error;
       }
     },
-    [updateProjectMutation, toast],
+    [updateProjectMutation],
   );
 
   const deleteProject = useCallback(
@@ -59,7 +59,7 @@ export function useProjectActions() {
         toast.error('删除失败', { description: error instanceof Error ? error.message : '未知错误' });        throw error;
       }
     },
-    [deleteProjectMutation, toast],
+    [deleteProjectMutation],
   );
 
   const switchProject = useCallback(

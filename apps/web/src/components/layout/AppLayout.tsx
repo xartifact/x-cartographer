@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useLocation , useNavigate } from '@tanstack/react-router';
-import { Header } from './Header';
-import { Sidebar, MobileSidebarOverlay } from './Sidebar';
-import { cn } from '@/lib/utils';
-import { mainNavItems } from './navigation';
-import { useProjectStore, selectActiveProjectId } from '@/features/projects/stores';
-import { useProduct } from '@/lib/api/hooks';
-import { AppLayoutProps } from './types';
-import { OnboardingGate } from '@/features/onboarding';
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "@tanstack/react-router";
+import { Header } from "./Header";
+import { Sidebar, MobileSidebarOverlay } from "./Sidebar";
+import { cn } from "@/lib/utils";
+import { mainNavItems } from "./navigation";
+import { useProjectStore, selectActiveProjectId } from "@/features/projects/stores";
+import { useProduct } from "@/lib/api/hooks";
+import { AppLayoutProps } from "./types";
+import { OnboardingGate } from "@/features/onboarding";
 
 /**
  * AppLayout - 全局应用布局组件
@@ -65,10 +65,10 @@ export function AppLayout({
   const { data: activeProject } = useProduct(activeProjectId ?? undefined);
 
   // 检查是否是产品详情页面
-  const isProjectPage = pathname?.startsWith('/products/');
+  const isProjectPage = pathname?.startsWith("/products/");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-canvas">
       {/* 顶部栏 */}
       <Header onMenuClick={() => toggleMobileSidebar()} />
 
@@ -84,7 +84,7 @@ export function AppLayout({
             }
             onSwitchProduct={(id) => {
               setActiveProjectId(id);
-              void navigate({ to: '/products/$productId', params: { productId: id } });
+              void navigate({ to: "/products/$productId", params: { productId: id } });
             }}
             collapsed={sidebarCollapsed}
             onCollapsedChange={setSidebarCollapsed}
@@ -97,26 +97,24 @@ export function AppLayout({
             items={navigationItems}
             open={mobileSidebarOpen}
             onClose={() => toggleMobileSidebar(false)}
-            currentPath={pathname || ''}
+            currentPath={pathname || ""}
           />
         )}
 
         {/* 主内容区 */}
         <main
           className={cn(
-            'flex-1 min-h-[calc(100vh-3.5rem)] transition-all duration-300',
+            "flex-1 min-w-0 min-h-[calc(100vh-3.5rem)] transition-all duration-300",
             showSidebar && !isProjectPage
               ? sidebarCollapsed
-                ? 'md:ml-[70px]'
-                : 'md:ml-[240px]'
-              : 'ml-0'
+                ? "md:ml-[70px]"
+                : "md:ml-[240px]"
+              : "ml-0",
           )}
         >
-          <div className="container mx-auto p-4 md:p-6">
-            {children}
-          </div>
+          <div className="container mx-auto p-4 md:p-6">{children}</div>
         </main>
-      <OnboardingGate />
+        <OnboardingGate />
       </div>
     </div>
   );
@@ -133,12 +131,10 @@ export function ContentLayout({
   className?: string;
 }) {
   return (
-    <div className={cn('min-h-screen bg-background', className)}>
+    <div className={cn("min-h-screen bg-canvas", className)}>
       <Header />
       <main className="pt-14">
-        <div className="container mx-auto p-4 md:p-6">
-          {children}
-        </div>
+        <div className="container mx-auto p-4 md:p-6">{children}</div>
       </main>
     </div>
   );
@@ -153,7 +149,7 @@ export function DashboardLayout({
   sidebarCollapsed,
 }: {
   children: React.ReactNode;
-  navItems?: AppLayoutProps['navItems'];
+  navItems?: AppLayoutProps["navItems"];
   sidebarCollapsed?: boolean;
   onSidebarCollapsedChange?: (collapsed: boolean) => void;
 }) {

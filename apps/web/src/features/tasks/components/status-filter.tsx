@@ -1,24 +1,19 @@
+"use client";
 /**
  * 状态筛选器组件
  *
  * 支持单选和多选的状态筛选
  */
 
-'use client';
-
-import * as React from 'react';
-import { Filter, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@x-cartographer/ui';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@x-cartographer/ui';
-import { Checkbox } from '@x-cartographer/ui';
-import { Separator } from '@x-cartographer/ui';
-import { StatusBadge, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from './status-badge';
-import type { TaskStatus, StoryStatus } from '@/types';
+import * as React from "react";
+import { Filter, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@x-cartographer/ui";
+import { Popover, PopoverContent, PopoverTrigger } from "@x-cartographer/ui";
+import { Checkbox } from "@x-cartographer/ui";
+import { Separator } from "@x-cartographer/ui";
+import { StatusBadge, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from "./status-badge";
+import type { TaskStatus, StoryStatus } from "@/types";
 
 export interface StatusFilterProps {
   /** 当前选中的状态列表 */
@@ -31,7 +26,7 @@ export interface StatusFilterProps {
   isTask?: boolean;
 
   /** 筛选模式：'single' | 'multiple' */
-  mode?: 'single' | 'multiple';
+  mode?: "single" | "multiple";
 
   /** 禁用状态 */
   disabled?: boolean;
@@ -62,9 +57,9 @@ export function StatusFilter({
   selectedStatuses,
   onStatusChange,
   isTask = true,
-  mode = 'multiple',
+  mode = "multiple",
   disabled = false,
-  placeholder = '筛选状态...',
+  placeholder = "筛选状态...",
   showAllOption = true,
   allowedStatuses = [],
   showQuickFilters = true,
@@ -89,7 +84,7 @@ export function StatusFilter({
 
   // 切换单个状态
   const toggleStatus = (status: TaskStatus | StoryStatus) => {
-    if (mode === 'single') {
+    if (mode === "single") {
       // 单选模式：直接设置为该状态
       onStatusChange([status]);
     } else {
@@ -118,18 +113,24 @@ export function StatusFilter({
   // 快捷筛选
   const quickFilters = showQuickFilters
     ? [
-        { label: '进行中', statuses: ['in_progress', 'in_review', 'testing'] as (TaskStatus | StoryStatus)[] },
-        { label: '已完成', statuses: ['done' as TaskStatus | StoryStatus, 'accepted' as TaskStatus | StoryStatus] },
-        { label: '未开始', statuses: ['backlog', 'todo'] as (TaskStatus | StoryStatus)[] },
+        {
+          label: "进行中",
+          statuses: ["in_progress", "in_review", "testing"] as (TaskStatus | StoryStatus)[],
+        },
+        {
+          label: "已完成",
+          statuses: ["done" as TaskStatus | StoryStatus, "accepted" as TaskStatus | StoryStatus],
+        },
+        { label: "未开始", statuses: ["backlog", "todo"] as (TaskStatus | StoryStatus)[] },
       ]
     : [];
 
   // 触发器显示文本
   const triggerText = isEmpty
     ? placeholder
-    : mode === 'single'
-    ? allOptions.find((opt) => opt.value === selectedStatuses[0])?.label || placeholder
-    : `${selectedCount} 个状态`;
+    : mode === "single"
+      ? allOptions.find((opt) => opt.value === selectedStatuses[0])?.label || placeholder
+      : `${selectedCount} 个状态`;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -138,9 +139,9 @@ export function StatusFilter({
           variant="outline"
           disabled={disabled}
           className={cn(
-            'min-w-[120px] justify-between gap-1',
-            !isEmpty && 'border-primary/50 bg-primary/5',
-            triggerClassName
+            "min-w-[120px] justify-between gap-1",
+            !isEmpty && "border-primary/50 bg-primary/5",
+            triggerClassName,
           )}
         >
           <span className="flex items-center gap-1">
@@ -192,12 +193,9 @@ export function StatusFilter({
           )}
 
           {/* 全部选项 */}
-          {showAllOption && mode === 'multiple' && (
+          {showAllOption && mode === "multiple" && (
             <label className="flex items-center gap-2 cursor-pointer hover:bg-accent p-1 rounded">
-              <Checkbox
-                checked={isAllSelected}
-                onCheckedChange={toggleAll}
-              />
+              <Checkbox checked={isAllSelected} onCheckedChange={toggleAll} />
               <span className="text-sm">全部</span>
             </label>
           )}
@@ -205,17 +203,19 @@ export function StatusFilter({
           {/* 状态列表 */}
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {options.map((option) => {
-              const isSelected = selectedStatuses.includes(option.value as TaskStatus | StoryStatus);
+              const isSelected = selectedStatuses.includes(
+                option.value as TaskStatus | StoryStatus,
+              );
 
               return (
                 <label
                   key={option.value}
                   className={cn(
-                    'flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-accent',
-                    isSelected && 'bg-primary/5'
+                    "flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-accent",
+                    isSelected && "bg-primary/5",
                   )}
                 >
-                  {mode === 'multiple' ? (
+                  {mode === "multiple" ? (
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={() => toggleStatus(option.value as TaskStatus | StoryStatus)}
@@ -240,13 +240,9 @@ export function StatusFilter({
           </div>
 
           {/* 多选时的应用按钮 */}
-          {mode === 'multiple' && (
+          {mode === "multiple" && (
             <div className="pt-2 border-t">
-              <Button
-                className="w-full"
-                size="sm"
-                onClick={() => setOpen(false)}
-              >
+              <Button className="w-full" size="sm" onClick={() => setOpen(false)}>
                 应用筛选 ({selectedCount})
               </Button>
             </div>
@@ -278,7 +274,7 @@ export function StatusFilterTags({
   const options = isTask ? TASK_STATUS_OPTIONS : STORY_STATUS_OPTIONS;
 
   return (
-    <div className={cn('flex flex-wrap gap-1', className)}>
+    <div className={cn("flex flex-wrap gap-1", className)}>
       {selectedStatuses.map((status) => {
         const option = options.find((opt) => opt.value === status);
         if (!option) return null;
@@ -316,13 +312,13 @@ export function StatusFilterBar({
   selectedStatuses,
   onStatusChange,
   isTask = true,
-  mode = 'multiple',
+  mode = "multiple",
   disabled = false,
   placeholder,
   className,
 }: StatusFilterProps & { className?: string }) {
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn("flex items-center gap-2", className)}>
       <StatusFilter
         selectedStatuses={selectedStatuses}
         onStatusChange={onStatusChange}

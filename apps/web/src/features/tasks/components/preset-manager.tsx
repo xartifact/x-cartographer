@@ -1,26 +1,18 @@
+"use client";
+import { toast } from "sonner";
 /**
  * 筛选预设管理器
  *
  * 支持筛选条件的保存、加载和预设管理
  */
 
-'use client';
-
-import * as React from 'react';
-import {
-  Star,
-  Save,
-  Trash2,
-  Download,
-  Upload,
-  Settings,
-  Check,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { createLogger } from '@/lib/logger';
-import { Button } from '@x-cartographer/ui';
-import { Input } from '@x-cartographer/ui';
-import { Badge } from '@x-cartographer/ui';
+import * as React from "react";
+import { Star, Save, Trash2, Download, Upload, Settings, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { createLogger } from "@/lib/logger";
+import { Button } from "@x-cartographer/ui";
+import { Input } from "@x-cartographer/ui";
+import { Badge } from "@x-cartographer/ui";
 import {
   Dialog,
   DialogContent,
@@ -28,28 +20,46 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@x-cartographer/ui';
+} from "@x-cartographer/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@x-cartographer/ui';
-import { Separator } from '@x-cartographer/ui';
-import { TaskStatus, Priority } from '@/types';
-import type { StoryStatus } from '@/types';
+} from "@x-cartographer/ui";
+import { Separator } from "@x-cartographer/ui";
+import { TaskStatus, Priority } from "@/types";
+import type { StoryStatus } from "@/types";
 
-const log = createLogger('presetManager');
+const log = createLogger("presetManager");
 
 /**
  * 预设存储键名
  */
-const PRESETS_STORAGE_KEY = 'filter-presets';
+const PRESETS_STORAGE_KEY = "filter-presets";
 
 /**
  * 筛选条件类型
  */
+function validPresets(value: unknown): value is FilterPreset[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (p) =>
+        p &&
+        typeof p.id === "string" &&
+        typeof p.name === "string" &&
+        p.conditions &&
+        typeof p.conditions === "object" &&
+        !Array.isArray(p.conditions) &&
+        (!p.conditions.taskStatuses ||
+          (Array.isArray(p.conditions.taskStatuses) &&
+            p.conditions.taskStatuses.every((s: unknown) => typeof s === "string"))) &&
+        (!p.conditions.searchQuery || typeof p.conditions.searchQuery === "string"),
+    )
+  );
+}
 export interface FilterPreset {
   /** 预设 ID */
   id: string;
@@ -124,60 +134,56 @@ export interface PresetManagerProps {
  */
 export const DEFAULT_PRESETS: FilterPreset[] = [
   {
-    id: 'all',
-    name: '全部',
-    description: '显示所有产品',
+    id: "all",
+    name: "全部",
+    description: "显示所有产品",
     isDefault: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     conditions: {},
   },
   {
-    id: 'in-progress',
-    name: '进行中',
-    description: '只显示进行中的产品',
+    id: "in-progress",
+    name: "进行中",
+    description: "只显示进行中的产品",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     conditions: {
-      taskStatuses: [
-        TaskStatus.IN_PROGRESS,
-        TaskStatus.IN_REVIEW,
-        TaskStatus.TESTING,
-      ],
-      storyStatuses: ['in_progress' as StoryStatus],
+      taskStatuses: [TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.TESTING],
+      storyStatuses: ["in_progress" as StoryStatus],
     },
   },
   {
-    id: 'todo',
-    name: '待处理',
-    description: '待开始的任务和故事',
+    id: "todo",
+    name: "待处理",
+    description: "待开始的任务和故事",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     conditions: {
       taskStatuses: [TaskStatus.BACKLOG, TaskStatus.TODO],
-      storyStatuses: ['backlog' as StoryStatus, 'todo' as StoryStatus],
+      storyStatuses: ["backlog" as StoryStatus, "todo" as StoryStatus],
     },
   },
   {
-    id: 'completed',
-    name: '已完成',
-    description: '只显示已完成的产品',
+    id: "completed",
+    name: "已完成",
+    description: "只显示已完成的产品",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     conditions: {
       taskStatuses: [TaskStatus.DONE],
-      storyStatuses: ['accepted' as StoryStatus],
+      storyStatuses: ["accepted" as StoryStatus],
     },
   },
   {
-    id: 'high-priority',
-    name: '高优先级',
-    description: '只显示高优先级的产品',
+    id: "high-priority",
+    name: "高优先级",
+    description: "只显示高优先级的产品",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     conditions: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      priorities: [Priority.HIGH, 'P0' as any],
+      priorities: [Priority.HIGH, "P0" as any],
     },
   },
 ];
@@ -194,14 +200,11 @@ export function PresetManager({
   isTask = true,
   className,
 }: PresetManagerProps) {
-  const [localPresets, setLocalPresets] =
-    React.useState<FilterPreset[]>(presets);
+  const [localPresets, setLocalPresets] = React.useState<FilterPreset[]>(presets);
   const [showSaveDialog, setShowSaveDialog] = React.useState(false);
   const [showManageDialog, setShowManageDialog] = React.useState(false);
-  const [newPresetName, setNewPresetName] = React.useState('');
-  const [editingPreset, setEditingPreset] = React.useState<FilterPreset | null>(
-    null
-  );
+  const [newPresetName, setNewPresetName] = React.useState("");
+  const [editingPreset, setEditingPreset] = React.useState<FilterPreset | null>(null);
 
   // 从 localStorage 加载预设
   React.useEffect(() => {
@@ -209,9 +212,10 @@ export function PresetManager({
     if (savedPresets) {
       try {
         const parsed = JSON.parse(savedPresets);
+        if (!validPresets(parsed)) throw new Error("预设格式不合法");
         setLocalPresets(parsed);
       } catch (e) {
-        log.error('presets.parse.failed', {
+        log.error("presets.parse.failed", {
           error: e instanceof Error ? e.message : String(e),
         });
       }
@@ -237,7 +241,7 @@ export function PresetManager({
     const newPreset: FilterPreset = {
       id: `preset-${Date.now()}`,
       name: newPresetName.trim(),
-      description: `保存于 ${new Date().toLocaleDateString('zh-CN')}`,
+      description: `保存于 ${new Date().toLocaleDateString("zh-CN")}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       conditions: { ...currentConditions },
@@ -245,7 +249,7 @@ export function PresetManager({
 
     const newPresets = [...localPresets, newPreset];
     saveToStorage(newPresets);
-    setNewPresetName('');
+    setNewPresetName("");
     setShowSaveDialog(false);
   };
 
@@ -258,9 +262,7 @@ export function PresetManager({
   // 更新预设
   const updatePreset = (presetId: string, updates: Partial<FilterPreset>) => {
     const newPresets = localPresets.map((p) =>
-      p.id === presetId
-        ? { ...p, ...updates, updatedAt: new Date().toISOString() }
-        : p
+      p.id === presetId ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p,
     );
     saveToStorage(newPresets);
     setEditingPreset(null);
@@ -269,11 +271,11 @@ export function PresetManager({
   // 导出预设
   const exportPresets = () => {
     const data = JSON.stringify(localPresets, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+    const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `filter-presets-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `filter-presets-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -287,23 +289,24 @@ export function PresetManager({
     reader.onload = (e) => {
       try {
         const imported = JSON.parse(e.target?.result as string);
-        if (Array.isArray(imported)) {
+        if (!validPresets(imported)) throw new Error("预设格式不合法，未导入");
+        if (validPresets(imported)) {
           const newPresets = [
             ...localPresets,
-            ...imported.filter(
-              (p: FilterPreset) => !localPresets.some((lp) => lp.id === p.id)
-            ),
+            ...imported.filter((p: FilterPreset) => !localPresets.some((lp) => lp.id === p.id)),
           ];
           saveToStorage(newPresets);
+          toast.success(`导入完成，新增 ${newPresets.length - localPresets.length} 项`);
         }
       } catch (error) {
-        log.error('presets.import.failed', {
+        toast.error(error instanceof Error ? error.message : "导入失败");
+        log.error("presets.import.failed", {
           error: error instanceof Error ? error.message : String(error),
         });
       }
     };
     reader.readAsText(file);
-    event.target.value = '';
+    event.target.value = "";
   };
 
   // 获取当前匹配的预设
@@ -313,8 +316,7 @@ export function PresetManager({
         const cond = preset.conditions;
         return (
           JSON.stringify(cond) === JSON.stringify(currentConditions) ||
-          (Object.keys(cond).length === 0 &&
-            currentConditions.taskStatuses?.length === 0)
+          (Object.keys(cond).length === 0 && currentConditions.taskStatuses?.length === 0)
         );
       }) || null
     );
@@ -323,19 +325,17 @@ export function PresetManager({
   const matchingPreset = getMatchingPreset();
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn("flex items-center gap-2", className)}>
       {/* 预设选择下拉菜单 */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1">
             <Star className="h-4 w-4" />
-            <span>{matchingPreset?.name || '预设'}</span>
+            <span>{matchingPreset?.name || "预设"}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">
-          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-            选择筛选预设
-          </div>
+          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">选择筛选预设</div>
           <DropdownMenuSeparator />
 
           {localPresets.map((preset) => (
@@ -391,7 +391,7 @@ export function PresetManager({
               value={newPresetName}
               onChange={(e) => setNewPresetName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') saveAsPreset();
+                if (e.key === "Enter") saveAsPreset();
               }}
             />
           </div>
@@ -422,12 +422,7 @@ export function PresetManager({
                 导出
               </Button>
               <label>
-                <Input
-                  type="file"
-                  accept=".json"
-                  className="hidden"
-                  onChange={importPresets}
-                />
+                <Input type="file" accept=".json" className="hidden" onChange={importPresets} />
                 <Button variant="outline" size="sm" asChild>
                   <span>
                     <Upload className="mr-2 h-4 w-4" />
@@ -445,8 +440,8 @@ export function PresetManager({
                 <div
                   key={preset.id}
                   className={cn(
-                    'flex items-center justify-between rounded-lg border p-3',
-                    preset.isDefault && 'bg-muted/50'
+                    "flex items-center justify-between rounded-lg border p-3",
+                    preset.isDefault && "bg-muted/50",
                   )}
                 >
                   <div className="min-w-0 flex-1">
@@ -454,9 +449,7 @@ export function PresetManager({
                       <div className="flex items-center gap-2">
                         <Input
                           value={preset.name}
-                          onChange={(e) =>
-                            updatePreset(preset.id, { name: e.target.value })
-                          }
+                          onChange={(e) => updatePreset(preset.id, { name: e.target.value })}
                           className="h-8"
                         />
                         <Button
@@ -512,10 +505,7 @@ export function PresetManager({
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowManageDialog(false)}
-            >
+            <Button variant="outline" onClick={() => setShowManageDialog(false)}>
               关闭
             </Button>
           </DialogFooter>
@@ -548,9 +538,7 @@ export function PresetSelector({
       <DropdownMenuContent align="start">
         {presets.map((preset) => (
           <DropdownMenuItem key={preset.id} onClick={() => onSelect(preset)}>
-            {preset.isDefault && (
-              <Star className="mr-2 h-3 w-3 text-yellow-500" />
-            )}
+            {preset.isDefault && <Star className="mr-2 h-3 w-3 text-yellow-500" />}
             <span>{preset.name}</span>
           </DropdownMenuItem>
         ))}

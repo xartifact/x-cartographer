@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * 模块依赖图（模块目录页的图视图）
@@ -16,7 +16,7 @@
  * （见 lib/module-graph.ts），让"这里缺一块"在图上可见。
  */
 
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -29,13 +29,13 @@ import {
   type Node,
   type NodeProps,
   type NodeTypes,
-} from '@xyflow/react';
-import { Network } from 'lucide-react';
-import type { SystemModule } from '@x-cartographer/shared';
-import { cn } from '@/lib/utils';
-import { ZoomControls } from '@/features/story-map/components/zoom-controls';
-import { useDagreLayoutStatic } from '@/features/task-graph/use-dagre-layout';
-import { buildModuleGraph, type ModuleGraphData } from '../lib/module-graph';
+} from "@xyflow/react";
+import { Network } from "lucide-react";
+import type { SystemModule } from "@x-cartographer/shared";
+import { cn } from "@/lib/utils";
+import { ZoomControls } from "@/features/story-map/components/zoom-controls";
+import { useDagreLayoutStatic } from "@/features/task-graph/use-dagre-layout";
+import { buildModuleGraph, type ModuleGraphData } from "../lib/module-graph";
 
 const NODE_W = 200;
 const NODE_H = 64;
@@ -48,21 +48,22 @@ type ModuleNodeData = {
   path: string;
   /** true = 悬空引用占位节点 */
   missing: boolean;
+  onActivate?: () => void;
 };
 
 /**
  * 方向语义在代码里也留痕：source 是依赖方，target 是被依赖方。
  * 两个视觉标记（颜色 + 箭头）都用它，改动前先读 lib/module-graph.ts 的注释。
  */
-const EDGE_COLOR = 'hsl(var(--muted-foreground))';
+const EDGE_COLOR = "hsl(var(--muted-foreground))";
 /** 悬空引用的标红：用 --destructive-strong 而非 --destructive——
  * 后者在暗色主题下对卡片只有 2:1 对比度，红线/红字实际看不见 */
-const MISSING_EDGE_COLOR = 'hsl(var(--destructive-strong))';
+const MISSING_EDGE_COLOR = "hsl(var(--destructive-strong))";
 const EDGE_STYLE = { stroke: EDGE_COLOR, strokeWidth: 1.5 } as const;
 const MISSING_EDGE_STYLE = {
   stroke: MISSING_EDGE_COLOR,
   strokeWidth: 1.5,
-  strokeDasharray: '4 3',
+  strokeDasharray: "4 3",
 } as const;
 
 /** 模块节点：name（主）+ slug（等宽）+ path；悬空占位节点虚线红框 */
@@ -77,18 +78,35 @@ function ModuleNode({ id, data, isConnectable }: NodeProps<Node<ModuleNodeData>>
         className="!h-1.5 !w-1.5 !border-0 !bg-transparent"
       />
       <div
+        role={missing ? undefined : "button"}
+        tabIndex={missing ? undefined : 0}
+        aria-label={`查看模块 ${name}`}
+        onKeyDown={(e) => {
+          if (!missing && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            e.stopPropagation();
+            data.onActivate?.();
+          }
+        }}
         className={cn(
-          'flex h-full w-full flex-col justify-center gap-0.5 rounded-lg border px-3 py-2 text-left',
+          "flex h-full w-full flex-col justify-center gap-0.5 rounded-lg border px-3 py-2 text-left",
           missing
-            ? 'border-dashed border-destructive-strong/70 bg-destructive-strong/10'
-            : 'border-border bg-background shadow-sm'
+            ? "border-dashed border-destructive-strong/70 bg-destructive-strong/10"
+            : "border-border bg-background shadow-sm",
         )}
       >
-        <p className={cn('truncate text-xs font-medium', missing && 'font-mono text-destructive-strong')}>
+        <p
+          className={cn(
+            "truncate text-xs font-medium",
+            missing && "font-mono text-destructive-strong",
+          )}
+        >
           {name}
         </p>
         {missing ? (
-          <p className="truncate font-mono text-[10px] text-destructive-strong/90">不在目录中（可能已删除）</p>
+          <p className="truncate font-mono text-[10px] text-destructive-strong/90">
+            不在目录中（可能已删除）
+          </p>
         ) : (
           <>
             <p className="truncate font-mono text-[10px] text-muted-foreground">{id}</p>
@@ -116,7 +134,7 @@ const nodeTypes: NodeTypes = {
 function toFlowElements(graph: ModuleGraphData): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = graph.nodes.map((n) => ({
     id: n.id,
-    type: 'moduleNode',
+    type: "moduleNode",
     position: { x: 0, y: 0 },
     data: { name: n.name, path: n.path, missing: n.missing } satisfies ModuleNodeData,
     style: { width: NODE_W, height: NODE_H },
@@ -142,19 +160,24 @@ interface ModuleDependencyGraphProps {
   /** 模块目录（图视图不做搜索过滤：过滤掉中间节点会让依赖关系失真） */
   modules: readonly SystemModule[];
   className?: string;
+  onSelect?: (id: string) => void;
 }
 
-export function ModuleDependencyGraph({ modules, className }: ModuleDependencyGraphProps) {
+export function ModuleDependencyGraph({
+  modules,
+  className,
+  onSelect,
+}: ModuleDependencyGraphProps) {
   const graph = useMemo(() => buildModuleGraph(modules), [modules]);
   const { nodes: graphNodes, edges: graphEdges } = useMemo(() => toFlowElements(graph), [graph]);
   const laidOut = useDagreLayoutStatic(graphNodes, graphEdges, {
-    direction: 'TB',
+    direction: "TB",
     nodeWidth: NODE_W,
     nodeHeight: NODE_H,
   });
 
   return (
-    <div data-fullscreen-target className={cn('flex flex-col', className)}>
+    <div data-fullscreen-target className={cn("flex flex-col", className)}>
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-4 py-2 text-[11px]">
         <p className="font-medium">
           箭头 = 依赖方向：<span className="font-mono">A → B</span> 表示 A 依赖 B
@@ -167,24 +190,37 @@ export function ModuleDependencyGraph({ modules, className }: ModuleDependencyGr
           <p className="flex items-center gap-1 text-destructive-strong">
             <Network className="h-3 w-3 shrink-0" />
             <span>
-              {graph.missingIds.length} 个悬空引用（<span className="font-mono">{graph.missingIds.join('、')}</span>）：虚线红边指向占位节点，目标模块已不在目录中
+              {graph.missingIds.length} 个悬空引用（
+              <span className="font-mono">{graph.missingIds.join("、")}</span>
+              ）：虚线红边指向占位节点，目标模块已不在目录中
             </span>
           </p>
         )}
       </div>
       <div className="min-h-0 flex-1">
         <ReactFlow
-          nodes={laidOut}
+          nodes={laidOut.map((node) => ({
+            ...node,
+            data: { ...node.data, onActivate: () => onSelect?.(node.id) },
+          }))}
           edges={graphEdges}
           nodeTypes={nodeTypes}
           minZoom={0.3}
           maxZoom={1.5}
           nodesConnectable={false}
           nodesDraggable={false}
-          elementsSelectable={false}
+          elementsSelectable={true}
+          onNodeClick={(_, node) => {
+            if (modules.some((module) => module.id === node.id)) onSelect?.(node.id);
+          }}
           fitView
         >
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="hsl(var(--border))" />
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={20}
+            size={1}
+            color="hsl(var(--border))"
+          />
           <Panel position="top-right">
             <ZoomControls />
           </Panel>

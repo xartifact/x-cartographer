@@ -1,4 +1,5 @@
-'use client';
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 
 /**
  * 用户活动创建对话框
@@ -7,62 +8,65 @@
  * docs/design/story-map-redesign.md §3.2：字段 name/description/order，去 persona/priority。
  */
 
-import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@x-cartographer/ui';
-import { Button } from '@x-cartographer/ui';
-import { Input } from '@x-cartographer/ui';
-import { Label } from '@x-cartographer/ui';
-import { Textarea } from '@x-cartographer/ui';
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@x-cartographer/ui";
+import { Button } from "@x-cartographer/ui";
+import { Input } from "@x-cartographer/ui";
+import { Label } from "@x-cartographer/ui";
+import { Textarea } from "@x-cartographer/ui";
 
 interface ActivityCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** ��调：返回新建活动所需的字段（不含 id/order 等，由调用方生成） */
-  onSave: (data: {
-    name: string;
-    description: string;
-    order?: number;
-  }) => Promise<void>;
+  onSave: (data: { name: string; description: string; order?: number }) => Promise<void>;
 }
 
-export function ActivityCreateDialog({
-  open,
-  onOpenChange,
-  onSave,
-}: ActivityCreateDialogProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+export function ActivityCreateDialog({ open, onOpenChange, onSave }: ActivityCreateDialogProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const formDraft = useFormDraft({
+    open,
+    scope: `activity:new:${location.pathname}`,
+    values: { name, description },
+    restore: (v) => {
+      setName(v.name);
+      setDescription(v.description);
+    },
+    close: () => onOpenChange(false),
+    saving,
+  });
 
   // 打开时重置表单
   useEffect(() => {
     if (open) {
-      setName('');
-      setDescription('');
+      setName("");
+      setDescription("");
     }
   }, [open]);
 
   function handleClose() {
-    onOpenChange(false);
+    formDraft.requestClose();
   }
 
   async function handleSave() {
     if (!name.trim()) return;
 
+    if (saving) return;
+    setSubmitError("");
     setSaving(true);
     try {
       await onSave({
         name: name.trim(),
         description: description.trim(),
       });
-      handleClose();
+      formDraft.clear();
+      onOpenChange(false);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "保存失败，请重试");
     } finally {
       setSaving(false);
     }
@@ -71,6 +75,7 @@ export function ActivityCreateDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
+        {formDraft.protection}
         <DialogHeader>
           <DialogTitle>新建用户活动</DialogTitle>
         </DialogHeader>
@@ -87,7 +92,7 @@ export function ActivityCreateDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="动词短语，例如：组织故事地图"
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && name.trim()) {
+                if (e.key === "Enter" && name.trim()) {
                   handleSave();
                 }
               }}
@@ -107,6 +112,11 @@ export function ActivityCreateDialog({
           </div>
         </div>
 
+        {submitError && (
+          <p role="alert" className="text-destructive text-sm">
+            {submitError}
+          </p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={saving}>
             取消

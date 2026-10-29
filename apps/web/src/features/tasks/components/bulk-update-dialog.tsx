@@ -1,12 +1,12 @@
+"use client";
 /**
  * 批量状态更新确认弹窗组件
  */
 
-'use client';
-
-import { AlertTriangle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@x-cartographer/ui';
+import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@x-cartographer/ui";
 import {
   Dialog,
   DialogContent,
@@ -14,9 +14,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@x-cartographer/ui';
-import { StatusBadge } from './status-badge';
-import type { TaskStatus, StoryStatus } from '@/types';
+} from "@x-cartographer/ui";
+import { StatusBadge } from "./status-badge";
+import type { TaskStatus, StoryStatus } from "@/types";
 
 export interface BulkUpdateConfirmDialogProps {
   /** 是否显示 */
@@ -33,6 +33,7 @@ export interface BulkUpdateConfirmDialogProps {
 
   /** 当前状态 */
   currentStatus: TaskStatus | StoryStatus;
+  mixed?: boolean;
 
   /** 目标状态 */
   targetStatus: TaskStatus | StoryStatus;
@@ -41,7 +42,7 @@ export interface BulkUpdateConfirmDialogProps {
   isTask?: boolean;
 
   /** 确认回调 */
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 
   /** 取消回调 */
   onCancel?: () => void;
@@ -61,6 +62,7 @@ export function BulkUpdateConfirmDialog({
   onOpenChange,
   selectedCount,
   currentStatus,
+  mixed = false,
   targetStatus,
   isTask = true,
   onConfirm,
@@ -68,6 +70,8 @@ export function BulkUpdateConfirmDialog({
   reason,
   onReasonChange,
 }: BulkUpdateConfirmDialogProps) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const totalCount = selectedCount.tasks + selectedCount.stories;
 
   // 没有选中任何内容
@@ -77,13 +81,9 @@ export function BulkUpdateConfirmDialog({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>批量更新状态</DialogTitle>
-            <DialogDescription>
-              请先选择要更新的任务或用户故事
-            </DialogDescription>
+            <DialogDescription>请先选择要更新的任务或用户故事</DialogDescription>
           </DialogHeader>
-          <div className="py-6 text-center text-muted-foreground">
-            未选中任何内容
-          </div>
+          <div className="py-6 text-center text-muted-foreground">未选中任何内容</div>
           <DialogFooter>
             <Button onClick={() => onOpenChange(false)}>确定</Button>
           </DialogFooter>
@@ -100,30 +100,24 @@ export function BulkUpdateConfirmDialog({
             <AlertTriangle className="h-5 w-5 text-amber-500" />
             批量更新状态
           </DialogTitle>
-          <DialogDescription>
-            确认将选中的 {totalCount} 个产品更新到新状态
-          </DialogDescription>
+          <DialogDescription>确认将选中的 {totalCount} 个工作项更新到新状态</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* 状态变更预览 */}
           <div className="flex items-center justify-center gap-4 py-4">
-            <StatusBadge
-              status={currentStatus}
-              isTask={isTask}
-              size="lg"
-            />
+            {mixed ? (
+              <span>多种状态</span>
+            ) : (
+              <StatusBadge status={currentStatus} isTask={isTask} size="lg" />
+            )}
             <span className="text-muted-foreground">→</span>
-            <StatusBadge
-              status={targetStatus}
-              isTask={isTask}
-              size="lg"
-            />
+            <StatusBadge status={targetStatus} isTask={isTask} size="lg" />
           </div>
 
           {/* 选中内容统计 */}
           <div className="bg-muted/50 rounded-lg p-4">
-            <div className="text-sm font-medium mb-2">将要更新的产品</div>
+            <div className="text-sm font-medium mb-2">将要更新的工作项</div>
             <div className="flex gap-4 text-sm">
               {selectedCount.tasks > 0 && (
                 <div className="flex items-center gap-1">
@@ -143,16 +137,16 @@ export function BulkUpdateConfirmDialog({
           {/* 变更原因 */}
           {onReasonChange && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">变更原因（可选）</label>
+              <label className="text-sm font-medium">变更原因</label>
               <input
                 type="text"
-                value={reason || ''}
+                value={reason || ""}
                 onChange={(e) => onReasonChange(e.target.value)}
                 placeholder="输入变更原因..."
                 className={cn(
-                  'w-full px-3 py-2 text-sm border rounded-md',
-                  'focus:outline-none focus:ring-2 focus:ring-primary/20',
-                  'placeholder:text-muted-foreground'
+                  "w-full px-3 py-2 text-sm border rounded-md",
+                  "focus:outline-none focus:ring-2 focus:ring-primary/20",
+                  "placeholder:text-muted-foreground",
                 )}
               />
             </div>
@@ -165,13 +159,27 @@ export function BulkUpdateConfirmDialog({
               取消
             </Button>
           )}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <Button
-            onClick={() => {
-              onConfirm();
-              onOpenChange(false);
+            disabled={pending || (!!onReasonChange && !reason?.trim())}
+            onClick={async () => {
+              setPending(true);
+              setError("");
+              try {
+                await onConfirm();
+                onOpenChange(false);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "更新失败");
+              } finally {
+                setPending(false);
+              }
             }}
           >
-            确认更新
+            {pending ? "更新中…" : "确认更新"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -202,8 +210,8 @@ export function BulkActionToolbar({
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-4 px-4 py-2 bg-primary/5 border rounded-lg',
-        className
+        "flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-primary/5 border rounded-lg",
+        className,
       )}
     >
       <div className="flex items-center gap-2 text-sm">
@@ -216,10 +224,7 @@ export function BulkActionToolbar({
 
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">设为:</span>
-        <BulkStatusButtons
-          selectedCount={selectedCount}
-          onStatusChange={onStatusChange}
-        />
+        <BulkStatusButtons selectedCount={selectedCount} onStatusChange={onStatusChange} />
       </div>
     </div>
   );
@@ -238,14 +243,14 @@ function BulkStatusButtons({
   const isTask = selectedCount.tasks > 0 && selectedCount.stories === 0;
   const options = isTask
     ? [
-        { value: 'todo', label: '待开始', color: 'slate' },
-        { value: 'in_progress', label: '进行中', color: 'blue' },
-        { value: 'done', label: '已完成', color: 'green' },
+        { value: "todo", label: "待开始", color: "slate" },
+        { value: "in_progress", label: "进行中", color: "blue" },
+        { value: "done", label: "已完成", color: "green" },
       ]
     : [
-        { value: 'todo', label: '待开始', color: 'slate' },
-        { value: 'in_progress', label: '进行中', color: 'blue' },
-        { value: 'accepted', label: '已验收', color: 'green' },
+        { value: "todo", label: "待开始", color: "slate" },
+        { value: "in_progress", label: "进行中", color: "blue" },
+        { value: "accepted", label: "已验收", color: "green" },
       ];
 
   return (

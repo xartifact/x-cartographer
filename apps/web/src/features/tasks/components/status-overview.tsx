@@ -1,21 +1,20 @@
+"use client";
 /**
  * 状态概览组件
  *
  * 在故事地图视图顶部显示各状态的统计信息
  */
 
-'use client';
-
-import { cn } from '@/lib/utils';
-import { StatusBadge, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from './status-badge';
-import type { TaskStatus, StoryStatus } from '@/types';
+import { cn } from "@/lib/utils";
+import { StatusBadge, TASK_STATUS_OPTIONS, STORY_STATUS_OPTIONS } from "./status-badge";
+import type { TaskStatus, StoryStatus } from "@/types";
 
 export interface StatusOverviewProps {
   /** 各状态的数量统计 */
   counts: Record<string, number>;
 
   /** 实体类型 */
-  entityType: 'task' | 'story';
+  entityType: "task" | "story";
 
   /** 选中的状态列表 */
   selectedStatuses?: (TaskStatus | StoryStatus)[];
@@ -45,18 +44,18 @@ export function StatusOverview({
   compact = false,
   className,
 }: StatusOverviewProps) {
-  const options = entityType === 'task' ? TASK_STATUS_OPTIONS : STORY_STATUS_OPTIONS;
+  const options = entityType === "task" ? TASK_STATUS_OPTIONS : STORY_STATUS_OPTIONS;
 
   // 计算总数
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
 
   // 计算完成率
-  const doneCount = counts['done'] || 0;
+  const doneCount = counts["done"] || 0;
   const completionRate = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   if (compact) {
     return (
-      <div className={cn('flex items-center gap-2', className)}>
+      <div className={cn("flex items-center gap-2", className)}>
         {/* 总数 */}
         <div className="text-sm">
           <span className="font-semibold">{total}</span>
@@ -90,27 +89,27 @@ export function StatusOverview({
                 onClick={() => onStatusClick?.(option.value as TaskStatus | StoryStatus)}
                 disabled={disabled}
                 className={cn(
-                  'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors',
-                  'hover:bg-accent',
-                  isSelected && 'bg-primary/10',
-                  disabled && 'cursor-not-allowed'
+                  "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors",
+                  "hover:bg-accent",
+                  isSelected && "bg-primary/10",
+                  disabled && "cursor-not-allowed",
                 )}
                 title={`${option.label}: ${count}`}
               >
                 <span
                   className={cn(
-                    'w-1.5 h-1.5 rounded-full',
-                    option.color === 'gray' && 'bg-gray-400',
-                    option.color === 'slate' && 'bg-slate-400',
-                    option.color === 'blue' && 'bg-blue-400',
-                    option.color === 'green' && 'bg-green-400',
-                    option.color === 'red' && 'bg-red-400',
-                    option.color === 'yellow' && 'bg-yellow-400',
-                    option.color === 'purple' && 'bg-purple-400',
-                    option.color === 'orange' && 'bg-orange-400'
+                    "w-1.5 h-1.5 rounded-full",
+                    option.color === "gray" && "bg-gray-400",
+                    option.color === "slate" && "bg-slate-400",
+                    option.color === "blue" && "bg-blue-400",
+                    option.color === "green" && "bg-green-400",
+                    option.color === "red" && "bg-red-400",
+                    option.color === "yellow" && "bg-yellow-400",
+                    option.color === "purple" && "bg-purple-400",
+                    option.color === "orange" && "bg-orange-400",
                   )}
                 />
-                <span className={cn(isSelected && 'font-medium')}>{count}</span>
+                <span className={cn(isSelected && "font-medium")}>{count}</span>
               </button>
             );
           })}
@@ -120,7 +119,7 @@ export function StatusOverview({
   }
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn("space-y-3", className)}>
       {/* 顶部统计 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -154,15 +153,15 @@ export function StatusOverview({
               <div
                 key={option.value}
                 className={cn(
-                  'transition-all',
-                  option.color === 'gray' && 'bg-gray-400',
-                  option.color === 'slate' && 'bg-slate-400',
-                  option.color === 'blue' && 'bg-blue-400',
-                  option.color === 'green' && 'bg-green-400',
-                  option.color === 'red' && 'bg-red-400',
-                  option.color === 'yellow' && 'bg-yellow-400',
-                  option.color === 'purple' && 'bg-purple-400',
-                  option.color === 'orange' && 'bg-orange-400'
+                  "transition-all",
+                  option.color === "gray" && "bg-gray-400",
+                  option.color === "slate" && "bg-slate-400",
+                  option.color === "blue" && "bg-blue-400",
+                  option.color === "green" && "bg-green-400",
+                  option.color === "red" && "bg-red-400",
+                  option.color === "yellow" && "bg-yellow-400",
+                  option.color === "purple" && "bg-purple-400",
+                  option.color === "orange" && "bg-orange-400",
                 )}
                 style={{ width: `${percentage}%` }}
               />
@@ -183,15 +182,15 @@ export function StatusOverview({
               onClick={() => onStatusClick?.(option.value as TaskStatus | StoryStatus)}
               disabled={disabled}
               className={cn(
-                'flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors',
-                'hover:bg-accent',
-                isSelected && 'border-primary bg-primary/5',
-                disabled && 'cursor-not-allowed opacity-60'
+                "flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors",
+                "hover:bg-accent",
+                isSelected && "border-primary bg-primary/5",
+                disabled && "cursor-not-allowed opacity-60",
               )}
             >
               <StatusBadge
                 status={option.value as TaskStatus | StoryStatus}
-                isTask={entityType === 'task'}
+                isTask={entityType === "task"}
                 size="sm"
                 showLabel={true}
               />
@@ -213,40 +212,38 @@ export function StatusMiniStats({
   className,
 }: {
   counts: Record<string, number>;
-  entityType: 'task' | 'story';
+  entityType: "task" | "story";
   className?: string;
 }) {
-  const options = entityType === 'task' ? TASK_STATUS_OPTIONS : STORY_STATUS_OPTIONS;
+  const options = entityType === "task" ? TASK_STATUS_OPTIONS : STORY_STATUS_OPTIONS;
 
   // 只显示非零的状态
   const activeStatuses = options.filter((opt) => (counts[opt.value] || 0) > 0);
 
   return (
-    <div className={cn('flex items-center gap-1', className)}>
+    <div className={cn("flex items-center gap-1", className)}>
       {activeStatuses.slice(0, 3).map((option) => {
         const count = counts[option.value] || 0;
         return (
           <div
             key={option.value}
             className={cn(
-              'w-2 h-2 rounded-full',
-              option.color === 'gray' && 'bg-gray-400',
-              option.color === 'slate' && 'bg-slate-400',
-              option.color === 'blue' && 'bg-blue-400',
-              option.color === 'green' && 'bg-green-400',
-              option.color === 'red' && 'bg-red-400',
-              option.color === 'yellow' && 'bg-yellow-400',
-              option.color === 'purple' && 'bg-purple-400',
-              option.color === 'orange' && 'bg-orange-400'
+              "w-2 h-2 rounded-full",
+              option.color === "gray" && "bg-gray-400",
+              option.color === "slate" && "bg-slate-400",
+              option.color === "blue" && "bg-blue-400",
+              option.color === "green" && "bg-green-400",
+              option.color === "red" && "bg-red-400",
+              option.color === "yellow" && "bg-yellow-400",
+              option.color === "purple" && "bg-purple-400",
+              option.color === "orange" && "bg-orange-400",
             )}
             title={`${option.label}: ${count}`}
           />
         );
       })}
       {activeStatuses.length > 3 && (
-        <span className="text-xs text-muted-foreground">
-          +{activeStatuses.length - 3}
-        </span>
+        <span className="text-xs text-muted-foreground">+{activeStatuses.length - 3}</span>
       )}
     </div>
   );

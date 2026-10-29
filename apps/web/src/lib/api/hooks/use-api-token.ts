@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api/client';
-import { toApiError } from '@/lib/api/error';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
+import { toApiError } from "@/lib/api/error";
 
 /**
  * API Token hooks
@@ -10,9 +10,10 @@ import { toApiError } from '@/lib/api/error';
 
 export function useApiTokenStatus() {
   return useQuery({
-    queryKey: ['api-token'],
+    queryKey: ["api-token"],
     queryFn: async () => {
       const res = await api.api.settings.token.$get();
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json() as Promise<{ configured: boolean }>;
     },
   });
@@ -24,11 +25,11 @@ export function useCreateApiToken() {
   return useMutation({
     mutationFn: async () => {
       const res = await api.api.settings.token.$post();
-      if (!res.ok) throw await toApiError(res, '生成 API Token 失败');
+      if (!res.ok) throw await toApiError(res, "生成 API Token 失败");
       return res.json() as Promise<{ success: boolean; token: string }>;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api-token'] });
+      queryClient.invalidateQueries({ queryKey: ["api-token"] });
     },
   });
 }
@@ -39,11 +40,11 @@ export function useDeleteApiToken() {
   return useMutation({
     mutationFn: async () => {
       const res = await api.api.settings.token.$delete();
-      if (!res.ok) throw await toApiError(res, '撤销 API Token 失败');
+      if (!res.ok) throw await toApiError(res, "撤销 API Token 失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['api-token'] });
+      queryClient.invalidateQueries({ queryKey: ["api-token"] });
     },
   });
 }

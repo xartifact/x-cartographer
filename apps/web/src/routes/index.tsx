@@ -1,46 +1,51 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { FolderKanban, Map, CheckSquare } from 'lucide-react';
-
-
-
+import { Link } from "@tanstack/react-router";
+import { useProducts } from "@/lib/api/hooks";
+import { Button } from "@x-cartographer/ui";
 export function HomePage() {
-
+  const { data: products = [], isLoading, error, refetch } = useProducts();
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <h1 className="text-4xl font-bold">X-Cartographer</h1>
-      <p className="mt-4 text-muted-foreground">AI Native 用户故事地图可视化应用</p>
-      <div className="mt-8 grid gap-6 md:grid-cols-3">
-        <Link
-          to="/products"
-          className="rounded-xl border bg-card p-6 shadow transition hover:shadow-md"
-        >
-          <div className="flex items-center gap-3">
-            <FolderKanban className="h-6 w-6 text-primary" />
-            <h2 className="text-lg font-semibold">产品管理</h2>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">创建、导入、管理你的产品</p>
-        </Link>
-        <Link
-          to="/products"
-          className="rounded-xl border bg-card p-6 shadow transition hover:shadow-md"
-        >
-          <div className="flex items-center gap-3">
-            <Map className="h-6 w-6 text-primary" />
-            <h2 className="text-lg font-semibold">故事地图</h2>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">可视化用户故事，梳理产品全局</p>
-        </Link>
-        <Link
-          to="/products"
-          className="rounded-xl border bg-card p-6 shadow transition hover:shadow-md"
-        >
-          <div className="flex items-center gap-3">
-            <CheckSquare className="h-6 w-6 text-primary" />
-            <h2 className="text-lg font-semibold">任务规划</h2>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">拆解任务，跟踪进度与交付</p>
-        </Link>
+    <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">继续你的产品工作</h1>
+          <p className="mt-1 text-muted-foreground">组织需求、跟踪交付、记录架构决定。</p>
+        </div>
+        <Button asChild>
+          <Link to="/products">新建或管理产品</Link>
+        </Button>
       </div>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">最近更新的产品</h2>
+        {isLoading ? (
+          <p>加载中…</p>
+        ) : error ? (
+          <div role="alert">
+            加载失败<Button onClick={() => refetch()}>重试</Button>
+          </div>
+        ) : !products.length ? (
+          <p className="rounded-lg border p-6">创建第一个产品，从用户活动开始规划。</p>
+        ) : (
+          [...products]
+            .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+            .slice(0, 6)
+            .map((product) => (
+              <Link
+                key={product.id}
+                to="/products/$productId"
+                params={{ productId: product.id }}
+                className="block rounded-lg border bg-card p-4 hover:border-primary"
+              >
+                <h3 className="font-medium">{product.name}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {product.description || "打开产品继续规划"}
+                </p>
+              </Link>
+            ))
+        )}
+      </section>
+      <Link to="/active" className="text-primary underline">
+        打开并行工作台
+      </Link>
     </main>
   );
 }

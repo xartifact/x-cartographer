@@ -1,36 +1,29 @@
+"use client";
+import { EntityStatusControl } from "@/components/common/entity-status-control";
 /**
  * 任务列表组件
  *
  * 显示任务列表，支持状态标签和状态筛选
  */
 
-'use client';
-
-import * as React from 'react';
-import {
-  Clock,
-  Tag,
-  MoreHorizontal,
-  Calendar,
-  Play,
-  Loader2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@x-cartographer/ui';
-import { Card, CardContent } from '@x-cartographer/ui';
-import { Checkbox } from '@x-cartographer/ui';
-import { Badge } from '@x-cartographer/ui';
+import * as React from "react";
+import { Clock, Tag, MoreHorizontal, Calendar, Play, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@x-cartographer/ui";
+import { Card, CardContent } from "@x-cartographer/ui";
+import { Checkbox } from "@x-cartographer/ui";
+import { Badge } from "@x-cartographer/ui";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@x-cartographer/ui';
-import { StatusFilterBar } from './status-filter';
-import { StatusBadge, TASK_STATUS_OPTIONS } from './status-badge';
-import { PriorityBadge } from '@/components/common/priority-badge';
-import type { DevTask, TaskStatus, StoryStatus } from '@/types';
+} from "@x-cartographer/ui";
+import { StatusFilterBar } from "./status-filter";
+import { TASK_STATUS_OPTIONS } from "./status-badge";
+import { PriorityBadge } from "@/components/common/priority-badge";
+import type { DevTask, TaskStatus, StoryStatus } from "@/types";
 
 interface TaskListProps {
   /** 任务列表 */
@@ -65,8 +58,6 @@ interface TaskListProps {
   className?: string;
 }
 
-
-
 /**
  * 任务列表组件
  */
@@ -83,18 +74,14 @@ export function TaskList({
   isExecutingIds = [],
   className,
 }: TaskListProps) {
-  const [statusFilter, setStatusFilter] = React.useState<
-    (TaskStatus | StoryStatus)[]
-  >([]);
-  const [localSelectedIds, setLocalSelectedIds] =
-    React.useState<string[]>(selectedIds);
+  const [statusFilter, setStatusFilter] = React.useState<(TaskStatus | StoryStatus)[]>([]);
+  const [innerSelectedIds, setLocalSelectedIds] = React.useState<string[]>(selectedIds);
+  const localSelectedIds = onSelectionChange ? selectedIds : innerSelectedIds;
 
   // 根据状态筛选任务
   const filteredTasks = React.useMemo(() => {
     if (statusFilter.length === 0) return tasks;
-    return tasks.filter((task) =>
-      statusFilter.includes(task.status as TaskStatus | StoryStatus)
-    );
+    return tasks.filter((task) => statusFilter.includes(task.status as TaskStatus | StoryStatus));
   }, [tasks, statusFilter]);
 
   // 处理选择变更
@@ -108,7 +95,10 @@ export function TaskList({
 
   // 全选/取消全选
   const handleSelectAll = (checked: boolean) => {
-    const newSelectedIds = checked ? filteredTasks.map((t) => t.id) : [];
+    const visibleIds = new Set(filteredTasks.map((t) => t.id));
+    const newSelectedIds = checked
+      ? [...new Set([...localSelectedIds, ...visibleIds])]
+      : localSelectedIds.filter((id) => !visibleIds.has(id));
     setLocalSelectedIds(newSelectedIds);
     onSelectionChange?.(newSelectedIds);
   };
@@ -123,15 +113,14 @@ export function TaskList({
   };
 
   const isAllSelected =
-    filteredTasks.length > 0 &&
-    localSelectedIds.length === filteredTasks.length;
+    filteredTasks.length > 0 && filteredTasks.every((t) => localSelectedIds.includes(t.id));
   const hasSelection = localSelectedIds.length > 0;
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn("space-y-4", className)}>
       {/* 筛选和操作栏 */}
       {showStatusFilter && (
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <StatusFilterBar
             selectedStatuses={statusFilter}
             onStatusChange={setStatusFilter}
@@ -143,11 +132,7 @@ export function TaskList({
               <span className="text-sm text-muted-foreground">
                 已选 {localSelectedIds.length} 项
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleSelectAll(false)}
-              >
+              <Button variant="outline" size="sm" onClick={() => handleSelectAll(false)}>
                 取消全选
               </Button>
             </div>
@@ -165,13 +150,12 @@ export function TaskList({
           {/* 全选复选框 */}
           <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-4 py-2">
             <Checkbox
+              aria-label="选择当前结果"
               checked={isAllSelected}
               onCheckedChange={(checked) => handleSelectAll(checked === true)}
             />
-            <span className="text-sm font-medium">全选</span>
-            <span className="text-sm text-muted-foreground">
-              ({filteredTasks.length} 个任务)
-            </span>
+            <span className="text-sm font-medium">选择当前结果</span>
+            <span className="text-sm text-muted-foreground">({filteredTasks.length} 个任务)</span>
           </div>
 
           {/* 任务卡片列表 */}
@@ -186,9 +170,7 @@ export function TaskList({
               editableStatus={editableStatus}
               onStatusCycle={handleStatusCycle}
               storyContext={
-                task.story_id
-                  ? (storyContextMap?.[task.story_id] ?? undefined)
-                  : undefined
+                task.story_id ? (storyContextMap?.[task.story_id] ?? undefined) : undefined
               }
               onExecute={onExecute}
               isExecuting={isExecutingIds.includes(task.id)}
@@ -220,22 +202,21 @@ function TaskCard({
   task,
   isSelected,
   onSelect,
-  onStatusChange,
+  onStatusChange: _onStatusChange,
   onClick,
   editableStatus,
-  onStatusCycle,
+  onStatusCycle: _onStatusCycle,
   storyContext,
   onExecute,
   isExecuting = false,
 }: TaskCardProps) {
-
   return (
     <Card
       className={cn(
-        'transition-all duration-200',
-        isSelected && 'bg-primary/5 ring-2 ring-primary',
-        isExecuting && 'border-blue-400/50 bg-blue-50/30 dark:bg-blue-950/20',
-        onClick && 'cursor-pointer hover:shadow-md'
+        "transition-all duration-200",
+        isSelected && "bg-primary/5 ring-2 ring-primary",
+        isExecuting && "border-blue-400/50 bg-blue-50/30 dark:bg-blue-950/20",
+        onClick && "cursor-pointer hover:shadow-md",
       )}
       onClick={() => onClick?.(task)}
     >
@@ -243,6 +224,7 @@ function TaskCard({
         <div className="flex items-start gap-3">
           {/* 选择复选框 */}
           <Checkbox
+            aria-label={`选择研发任务 ${task.title}`}
             checked={isSelected}
             onCheckedChange={(checked) => onSelect(checked === true)}
             onClick={(e) => e.stopPropagation()}
@@ -252,9 +234,7 @@ function TaskCard({
           <div className="min-w-0 flex-1">
             {/* 标题行 */}
             <div className="mb-1 flex items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">
-                {task.id}
-              </span>
+              <span className="font-mono text-xs text-muted-foreground">{task.id}</span>
               <PriorityBadge value={task.priority} isTask className="text-xs" />
               {isExecuting && (
                 <Badge
@@ -265,9 +245,7 @@ function TaskCard({
                   AI 执行中
                 </Badge>
               )}
-              <span className="truncate text-xs text-muted-foreground">
-                研发任务
-              </span>
+              <span className="truncate text-xs text-muted-foreground">研发任务</span>
             </div>
 
             {/* 任务标题 */}
@@ -275,28 +253,13 @@ function TaskCard({
 
             {/* 描述预览 */}
             {task.description && (
-              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                {task.description}
-              </p>
+              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{task.description}</p>
             )}
 
             {/* 底部信息 */}
             <div className="mt-3 flex items-center gap-4">
               {/* 状态标签 */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStatusCycle?.(task);
-                }}
-                disabled={!editableStatus}
-                className={cn(
-                  'cursor-pointer border-0 bg-transparent p-0',
-                  editableStatus && 'hover:opacity-80'
-                )}
-              >
-                <StatusBadge status={task.status} isTask={true} size="sm" />
-              </button>
+              <EntityStatusControl id={task.id} status={task.status} disabled={!editableStatus} />
 
               {/* 估算工时 */}
               {task.estimation > 0 && (
@@ -331,9 +294,7 @@ function TaskCard({
                   {storyContext.activityName} › {storyContext.storyTitle}
                 </span>
               ) : task.story_id ? (
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {task.story_id}
-                </span>
+                <span className="ml-auto text-xs text-muted-foreground">{task.story_id}</span>
               ) : null}
             </div>
           </div>
@@ -341,14 +302,12 @@ function TaskCard({
           {/* 操作按钮 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="任务操作">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onClick?.(task)}>
-                查看详情
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onClick?.(task)}>查看详情</DropdownMenuItem>
               {onExecute && (
                 <>
                   <DropdownMenuSeparator />
@@ -373,46 +332,6 @@ function TaskCard({
                   </DropdownMenuItem>
                 </>
               )}
-              {editableStatus && onStatusChange && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled
-                    className="text-xs text-muted-foreground"
-                  >
-                    更改状态
-                  </DropdownMenuItem>
-                  {TASK_STATUS_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() => onStatusChange(task.id, option.value)}
-                    >
-                      <span
-                        className="mr-2 h-2 w-2 rounded-full"
-                        style={{
-                          backgroundColor:
-                            option.color === 'gray'
-                              ? '#9ca3af'
-                              : option.color === 'slate'
-                                ? '#64748b'
-                                : option.color === 'blue'
-                                  ? '#3b82f6'
-                                  : option.color === 'green'
-                                    ? '#22c55e'
-                                    : option.color === 'red'
-                                      ? '#ef4444'
-                                      : option.color === 'yellow'
-                                        ? '#eab308'
-                                        : option.color === 'purple'
-                                          ? '#a855f7'
-                                          : '#f97316',
-                        }}
-                      />
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -424,7 +343,7 @@ function TaskCard({
 /**
  * 任务列表空状态
  */
-export function TaskListEmpty({ message = '暂无任务' }: { message?: string }) {
+export function TaskListEmpty({ message = "暂无任务" }: { message?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="mb-4 text-4xl">📋</div>

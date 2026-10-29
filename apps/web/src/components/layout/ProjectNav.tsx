@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   LayoutDashboard,
@@ -13,77 +13,72 @@ import {
   FileText,
   Boxes,
   ShieldCheck,
-} from 'lucide-react';
-import { Button } from '@x-cartographer/ui';
-import { cn } from '@/lib/utils';
-import { ProjectNavProps } from './types';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@x-cartographer/ui';
+} from "lucide-react";
+import { Button } from "@x-cartographer/ui";
+import { cn } from "@/lib/utils";
+import { ProjectNavProps } from "./types";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@x-cartographer/ui";
 
 // 默认产品内导航项配置
-const defaultProjectNavItems: ProjectNavProps['items'] = [
+const defaultProjectNavItems: ProjectNavProps["items"] = [
   {
-    id: 'overview',
-    label: '概览',
-    href: '/products/[id]',
+    id: "overview",
+    label: "概览",
+    href: "/products/[id]",
     icon: LayoutDashboard,
   },
   {
-    id: 'story-map',
-    label: '故事地图',
-    href: '/products/[id]/story-map',
+    id: "story-map",
+    label: "故事地图",
+    href: "/products/[id]/story-map",
     icon: Map,
   },
   {
-    id: 'journeys',
-    label: '活动管理',
-    href: '/products/[id]/journeys',
+    id: "journeys",
+    label: "活动管理",
+    href: "/products/[id]/journeys",
     icon: Users,
   },
   {
-    id: 'user-tasks',
-    label: '用户任务',
-    href: '/products/[id]/user-tasks',
+    id: "user-tasks",
+    label: "用户步骤",
+    href: "/products/[id]/user-tasks",
     icon: Footprints,
   },
   {
-    id: 'stories',
-    label: '故事管理',
-    href: '/products/[id]/stories',
+    id: "stories",
+    label: "故事管理",
+    href: "/products/[id]/stories",
     icon: FileText,
   },
   {
-    id: 'tasks',
-    label: '任务',
-    href: '/products/[id]/tasks',
+    id: "tasks",
+    label: "研发任务",
+    href: "/products/[id]/tasks",
     icon: CheckSquare,
   },
   {
-    id: 'roadmap',
-    label: '排期',
-    href: '/products/[id]/roadmap',
+    id: "roadmap",
+    label: "排期",
+    href: "/products/[id]/roadmap",
     icon: Calendar,
   },
   {
-    id: 'data',
-    label: '数据',
-    href: '/products/[id]/data',
+    id: "data",
+    label: "数据",
+    href: "/products/[id]/data",
     icon: Database,
   },
   {
-    id: 'modules',
-    label: '模块',
-    href: '/products/[id]/modules',
+    id: "modules",
+    label: "模块",
+    href: "/products/[id]/modules",
     icon: Boxes,
   },
   {
-    id: 'constitution',
-    label: '技术宪法',
-    href: '/products/[id]/constitution',
+    id: "constitution",
+    label: "技术宪法",
+    href: "/products/[id]/constitution",
     icon: ShieldCheck,
   },
 ];
@@ -102,14 +97,15 @@ export function ProjectNav({
   projectName,
   currentPath,
   items = defaultProjectNavItems,
-  backHref = '/products',
+  backHref = "/products",
   actions,
 }: ProjectNavProps) {
-  const pathname = (useLocation().pathname || currentPath || '');
+  const navigate = useNavigate();
+  const pathname = useLocation().pathname || currentPath || "";
   // 动态替换路径参数 [id] 为实际的 projectId
   const normalizeHref = (href: string | undefined): string => {
-    if (!href) return '';
-    return href.replace('[id]', projectId);
+    if (!href) return "";
+    return href.replace("[id]", projectId);
   };
 
   // 检查路径是否匹配
@@ -119,7 +115,7 @@ export function ProjectNav({
     if (!normalizedHref) return false;
 
     // 概览页面（无子路径）需要精确匹配
-    const isOverview = !normalizedHref.includes('/', '/products/'.length + 1);
+    const isOverview = !normalizedHref.includes("/", "/products/".length + 1);
 
     if (isOverview) {
       // 概览：精确匹配 /projects/xxx，不匹配子路径
@@ -137,12 +133,7 @@ export function ProjectNav({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                asChild
-                className="h-8 w-8"
-              >
+              <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                 <Link to={backHref} aria-label="返回产品列表">
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
@@ -153,47 +144,68 @@ export function ProjectNav({
         </TooltipProvider>
 
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm text-muted-foreground hidden sm:inline">
-            产品
-          </span>
+          <span className="text-sm text-muted-foreground hidden sm:inline">产品</span>
           <span className="text-muted-foreground hidden sm:inline">/</span>
-          <h1 className="text-lg font-semibold truncate">
-            {projectName || `产品 ${projectId}`}
-          </h1>
+          <h1 className="text-lg font-semibold truncate">{projectName || `产品 ${projectId}`}</h1>
         </div>
 
         {/* 额外操作 */}
-        {actions && (
-          <div className="ml-auto flex items-center gap-2">
-            {actions}
-          </div>
-        )}
+        {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
       </div>
 
-      {/* 标签页导航 */}
-      <nav className="flex items-center gap-1 px-4 overflow-x-auto">
-        {items?.map((item) => {
-          if (item.hidden) return null;
-
-          const href = normalizeHref(item.href);
-          const active = isActive(href);
-
+      <nav aria-label="产品工作导航" className="flex flex-wrap items-center gap-1 px-4 py-1">
+        {[
+          { name: "概览", ids: ["overview"] },
+          { name: "需求规划", ids: ["story-map", "journeys", "user-tasks", "stories"] },
+          { name: "执行交付", ids: ["tasks", "roadmap"] },
+          { name: "架构决策", ids: ["constitution", "modules"] },
+          { name: "数据浏览", ids: ["data"] },
+        ].map((group) => {
+          const entries =
+            items?.filter((item) => !item.hidden && group.ids.includes(item.id ?? "")) ?? [];
+          const active = entries.find((item) => isActive(item.href));
+          if (!entries.length) return null;
+          if (entries.length === 1)
+            return (
+              <Link
+                key={group.name}
+                to={normalizeHref(entries[0].href)}
+                className={cn(
+                  "px-3 py-2 rounded text-sm",
+                  active ? "bg-accent text-primary font-medium" : "text-muted-foreground",
+                )}
+              >
+                {group.name}
+              </Link>
+            );
           return (
-            <Link
-              key={item.href}
-              to={href}
-              className={cn(
-                'flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap',
-                active
-                  ? 'text-primary border-primary'
-                  : 'text-muted-foreground hover:text-foreground border-transparent hover:border-muted-foreground/30'
-              )}
-            >
-              {item.icon && (
-                <item.icon className="h-4 w-4" />
-              )}
-              <span>{item.label}</span>
-            </Link>
+            <div key={group.name} className="flex items-center gap-1">
+              <label
+                className={cn(
+                  "text-sm px-2 py-2 rounded",
+                  active ? "bg-accent text-primary" : "text-muted-foreground",
+                )}
+              >
+                <span className="sr-only">{group.name}</span>
+                <select
+                  aria-label={group.name}
+                  value={active ? normalizeHref(active.href) : ""}
+                  onChange={(e) => {
+                    if (e.target.value) void navigate({ to: e.target.value });
+                  }}
+                  className="max-w-[170px] bg-transparent py-1"
+                >
+                  <option value="" disabled>
+                    {group.name}
+                  </option>
+                  {entries.map((item) => (
+                    <option key={item.id} value={normalizeHref(item.href)}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           );
         })}
       </nav>

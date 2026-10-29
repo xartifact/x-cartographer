@@ -1,4 +1,5 @@
-'use client';
+"use client";
+import { useCreateSample } from "./use-create-sample";
 
 /**
  * Onboarding 入口组件（TASK-083/084/085/086）
@@ -7,11 +8,8 @@
  * 设置页通过 resetOnboarding 重新触发。
  */
 
-import { useState, useCallback } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { OnboardingWizard, ONBOARDING_STORAGE_KEY } from './onboarding-wizard';
-import { createSampleProjectData } from './sample-project';
-import { useCreateProduct } from '@/lib/api/hooks';
+import { useState, useCallback } from "react";
+import { OnboardingWizard, ONBOARDING_STORAGE_KEY } from "./onboarding-wizard";
 
 interface OnboardingGateProps {
   /** 是否立即显示（首访自动触发或设置页重看） */
@@ -20,14 +18,12 @@ interface OnboardingGateProps {
 
 export function OnboardingGate({ forceOpen = false }: OnboardingGateProps) {
   const [open, setOpen] = useState(forceOpen);
-  const createProject = useCreateProduct();
-  const navigate = useNavigate();
 
   // 首访判定（TASK-086：跳过即不再展示）
   const shouldShow = useCallback(() => {
     if (forceOpen) return true;
     try {
-      return localStorage.getItem(ONBOARDING_STORAGE_KEY) !== 'true';
+      return localStorage.getItem(ONBOARDING_STORAGE_KEY) !== "true";
     } catch {
       return true;
     }
@@ -41,24 +37,16 @@ export function OnboardingGate({ forceOpen = false }: OnboardingGateProps) {
 
   const handleComplete = useCallback(() => {
     try {
-      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
     } catch {
       // 忽略
     }
   }, []);
 
-  const handleCreateSample = useCallback(async () => {
-    const data = createSampleProjectData();
-    const now = new Date().toISOString();
-    const res = (await createProject.mutateAsync({
-      name: data.name,
-      description: data.description,
-      tech_stack: data.metadata.tech_stack,
-    })) as { success?: boolean; id?: string };
-    if (res.id) {
-      navigate({ to: '/products/$productId/story-map', params: { productId: res.id } });
-    }
-  }, [createProject, navigate]);
+  const sample = useCreateSample();
+  const handleCreateSample = async () => {
+    await sample.mutateAsync();
+  };
 
   return (
     <OnboardingWizard

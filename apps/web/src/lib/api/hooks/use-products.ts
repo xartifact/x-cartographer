@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api/client';
-import { toApiError } from '@/lib/api/error';
-import type { CreateProductDTO, UpdateProductDTO } from '@x-cartographer/shared';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
+import { toApiError } from "@/lib/api/error";
+import type { CreateProductDTO, UpdateProductDTO } from "@x-cartographer/shared";
 
 /**
  * Product REST hooks (react-query)
@@ -14,9 +14,10 @@ import type { CreateProductDTO, UpdateProductDTO } from '@x-cartographer/shared'
 
 export function useProducts() {
   return useQuery({
-    queryKey: ['products'],
+    queryKey: ["products"],
     queryFn: async () => {
       const res = await api.api.products.$get();
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
   });
@@ -24,9 +25,10 @@ export function useProducts() {
 
 export function useProduct(id: string | undefined) {
   return useQuery({
-    queryKey: ['products', id],
+    queryKey: ["products", id],
     queryFn: async () => {
-      const res = await api.api.products[':id'].$get({ param: { id: id! } });
+      const res = await api.api.products[":id"].$get({ param: { id: id! } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: !!id,
@@ -35,9 +37,10 @@ export function useProduct(id: string | undefined) {
 
 export function useSearchProducts(query: string) {
   return useQuery({
-    queryKey: ['products', 'search', query],
+    queryKey: ["products", "search", query],
     queryFn: async () => {
       const res = await api.api.products.search.$get({ query: { q: query } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: query.length > 0,
@@ -51,12 +54,14 @@ export function useCreateProduct() {
 
   return useMutation({
     mutationFn: async (dto: CreateProductDTO) => {
-      const res = await api.api.products.$post({ json: dto });
-      if (!res.ok) throw await toApiError(res, '创建产品失败');
+      const res = await api.api.products.$post({
+        json: { ...dto, provenance: dto.provenance ?? "human_asserted" },
+      });
+      if (!res.ok) throw await toApiError(res, "创建产品失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -67,14 +72,14 @@ export function useUpdateProduct() {
   return useMutation({
     mutationFn: async (variables: { id: string } & UpdateProductDTO) => {
       const { id, ...dto } = variables;
-      const res = await api.api.products[':id'].$patch({ param: { id }, json: dto });
-      if (!res.ok) throw await toApiError(res, '更新产品失败');
+      const res = await api.api.products[":id"].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, "更新产品失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       if (variables.id) {
-        queryClient.invalidateQueries({ queryKey: ['products', variables.id] });
+        queryClient.invalidateQueries({ queryKey: ["products", variables.id] });
       }
     },
   });
@@ -85,13 +90,12 @@ export function useDeleteProduct() {
 
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
-      const res = await api.api.products[':id'].$delete({ param: { id: variables.id } });
-      if (!res.ok) throw await toApiError(res, '删除产品失败');
+      const res = await api.api.products[":id"].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, "删除产品失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
-

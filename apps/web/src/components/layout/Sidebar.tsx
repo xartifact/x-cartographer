@@ -1,20 +1,25 @@
-'use client';
+"use client";
 
-import { Link } from '@tanstack/react-router';
-import { useLocation } from '@tanstack/react-router';
-import { ChevronLeft, ChevronRight, ChevronsUpDown, X } from 'lucide-react';
-import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@x-cartographer/ui';
-import { useProducts } from '@/lib/api/hooks';
-import { cn } from '@/lib/utils';
-import { SidebarProps, NavItem } from './types';
-import { projectNavItems } from './navigation';
-
+import { Link } from "@tanstack/react-router";
+import { useLocation } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, X } from "lucide-react";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@x-cartographer/ui";
+import { useProducts } from "@/lib/api/hooks";
+import { cn } from "@/lib/utils";
+import { SidebarProps, NavItem } from "./types";
+import { projectNavItems } from "./navigation";
 
 /** 生成产品作用域导航项（[id] 占位 → 实际产品 id） */
 function projectScopedItems(projectId: string): NavItem[] {
   return projectNavItems.map((item) => ({
     ...item,
-    href: item.href?.replace('[id]', projectId),
+    href: item.href?.replace("[id]", projectId),
   }));
 }
 
@@ -30,7 +35,6 @@ function NavItemContent({
   collapsed: boolean;
   currentPath: string;
 }) {
-
   const isActive = item.href === currentPath;
 
   if (item.children && item.children.length > 0) {
@@ -39,13 +43,11 @@ function NavItemContent({
       <div className="space-y-1">
         <div
           className={cn(
-            'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground transition-colors',
-            'hover:text-foreground hover:bg-muted/50 cursor-pointer'
+            "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground transition-colors",
+            "hover:text-foreground hover:bg-muted/50 cursor-pointer",
           )}
         >
-          {item.icon && (
-            <item.icon className="h-4 w-4 shrink-0" />
-          )}
+          {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
           {!collapsed && (
             <>
               <span className="flex-1">{item.label}</span>
@@ -78,21 +80,18 @@ function NavItemContent({
     <Link
       to={item.href}
       className={cn(
-        'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+        "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
         isActive
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-        item.disabled && 'pointer-events-none opacity-50'
+          ? "bg-accent text-primary"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+        item.disabled && "pointer-events-none opacity-50",
       )}
     >
-      {item.icon && (
-        <item.icon className="h-4 w-4 shrink-0" />
-      )}
+      {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
       {!collapsed && <span>{item.label}</span>}
     </Link>
   );
 }
-
 
 /**
  * 侧边栏组件
@@ -115,30 +114,28 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 h-screen border-r bg-background transition-all duration-300',
-        collapsed ? 'w-[70px]' : 'w-[240px]',
-        'hidden md:flex flex-col'
+        "fixed left-0 top-0 z-40 h-screen border-r bg-background transition-all duration-300",
+        collapsed ? "w-[70px]" : "w-[240px]",
+        "hidden md:flex flex-col",
       )}
     >
       {/* 侧边栏内容区 */}
       <div className="flex flex-col flex-1 overflow-y-auto py-4">
         {/* 收起按钮 */}
-        <div className={cn(
-          'flex items-center px-4 mb-4',
-          collapsed ? 'justify-center' : 'justify-end'
-        )}>
+        <div
+          className={cn(
+            "flex items-center px-4 mb-4",
+            collapsed ? "justify-center" : "justify-end",
+          )}
+        >
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleCollapsed}
-            className={cn(collapsed && 'mx-auto')}
-            aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
+            className={cn(collapsed && "mx-auto")}
+            aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
           >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
         </div>
 
@@ -203,11 +200,7 @@ export function Sidebar({
         </nav>
 
         {/* 底部自定义内容 */}
-        {footer && (
-          <div className="mt-auto px-3 py-4 border-t">
-            {footer}
-          </div>
-        )}
+        {footer && <div className="mt-auto px-3 py-4 border-t">{footer}</div>}
       </div>
     </aside>
   );
@@ -232,10 +225,7 @@ export function MobileSidebarOverlay({
   return (
     <div className="fixed inset-0 z-50 md:hidden">
       {/* 背景遮罩 */}
-      <div
-        className="fixed inset-0 bg-background/80 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
 
       {/* 侧边栏内容 */}
       <div className="fixed inset-y-0 left-0 w-[280px] bg-background border-r p-4">
@@ -243,12 +233,7 @@ export function MobileSidebarOverlay({
           <Link to="/" className="font-semibold text-lg" onClick={onClose}>
             X-Cartographer
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            aria-label="关闭菜单"
-          >
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="关闭菜单">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -256,11 +241,7 @@ export function MobileSidebarOverlay({
         <nav className="space-y-1">
           {items.map((item) => (
             <div key={item.id} onClick={onClose}>
-              <NavItemContent
-                item={item}
-                collapsed={false}
-                currentPath={currentPath}
-              />
+              <NavItemContent item={item} collapsed={false} currentPath={currentPath} />
             </div>
           ))}
         </nav>

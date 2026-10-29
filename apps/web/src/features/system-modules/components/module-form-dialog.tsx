@@ -1,4 +1,5 @@
-'use client';
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 
 /**
  * 模块新建/编辑对话框
@@ -9,8 +10,8 @@
  * 改 id 等于换实体，不是改名——要换 slug 就删了重建。
  */
 
-import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import {
   Button,
   Checkbox,
@@ -22,8 +23,8 @@ import {
   Input,
   Label,
   Textarea,
-} from '@x-cartographer/ui';
-import type { SystemModule } from '@x-cartographer/shared';
+} from "@x-cartographer/ui";
+import type { SystemModule } from "@x-cartographer/shared";
 import {
   MODULE_ID_PATTERN,
   hasErrors,
@@ -31,7 +32,7 @@ import {
   validateModuleForm,
   type ModuleFormDraft,
   type ModuleFormErrors,
-} from '../lib/module-form';
+} from "../lib/module-form";
 
 interface ModuleFormDialogProps {
   open: boolean;
@@ -47,12 +48,12 @@ interface ModuleFormDialogProps {
 }
 
 const EMPTY_DRAFT: ModuleFormDraft = {
-  id: '',
-  name: '',
-  path: '',
-  responsibility: '',
+  id: "",
+  name: "",
+  path: "",
+  responsibility: "",
   selectedDeps: [],
-  extraDeps: '',
+  extraDeps: "",
 };
 
 export function ModuleFormDialog({
@@ -66,6 +67,16 @@ export function ModuleFormDialog({
   const [draft, setDraft] = useState<ModuleFormDraft>(EMPTY_DRAFT);
   const [errors, setErrors] = useState<ModuleFormErrors>({});
   const [saving, setSaving] = useState(false);
+  const formDraft = useFormDraft({
+    open,
+    scope: `module:${location.pathname}:${editing?.id ?? "new"}`,
+    values: { draft },
+    restore: (v) => {
+      setDraft(v.draft);
+    },
+    close: () => onOpenChange(false),
+    saving,
+  });
 
   // 打开时用编辑目标（或空草稿）重置表单，避免上一次输入残留
   useEffect(() => {
@@ -81,9 +92,9 @@ export function ModuleFormDialog({
             selectedDeps: [],
             // 已登记的依赖回填为逗号分隔文本：它们可能指向已删除模块，
             // 不在多选列表里，放进自由输入才不会静默丢失
-            extraDeps: (editing.depends_on ?? []).join(', '),
+            extraDeps: (editing.depends_on ?? []).join(", "),
           }
-        : EMPTY_DRAFT
+        : EMPTY_DRAFT,
     );
   }, [open, editing]);
 
@@ -112,17 +123,26 @@ export function ModuleFormDialog({
     setSaving(true);
     try {
       // 仅成功时关闭：失败时保留用户输入，错误由页面经 submitError 传回
-      if (await onSubmit(draft)) onOpenChange(false);
+      if (await onSubmit(draft)) {
+        formDraft.clear();
+        onOpenChange(false);
+      }
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!saving) onOpenChange(next); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) formDraft.requestClose();
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
+        {formDraft.protection}
         <DialogHeader>
-          <DialogTitle>{isCreate ? '新建模块' : `编辑模块 ${editing.id}`}</DialogTitle>
+          <DialogTitle>{isCreate ? "新建模块" : `编辑模块 ${editing.id}`}</DialogTitle>
         </DialogHeader>
 
         <div className="max-h-[60vh] space-y-4 overflow-y-auto py-2">
@@ -139,11 +159,12 @@ export function ModuleFormDialog({
               value={draft.id}
               readOnly={!isCreate}
               onChange={(e) => patch({ id: e.target.value })}
-              className={isCreate ? 'font-mono' : 'font-mono opacity-70'}
+              className={isCreate ? "font-mono" : "font-mono opacity-70"}
             />
             {isCreate ? (
               <p className="text-xs text-muted-foreground">
-                规则：{MODULE_ID_PATTERN.source}；该 id 会被故事/任务的受影响模块按名引用，是稳定标识。
+                规则：{MODULE_ID_PATTERN.source}；该 id
+                会被故事/任务的受影响模块按名引用，是稳定标识。
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
@@ -227,12 +248,12 @@ export function ModuleFormDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="outline" onClick={formDraft.requestClose} disabled={saving}>
             取消
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isCreate ? '创建模块' : '保存'}
+            {isCreate ? "创建模块" : "保存"}
           </Button>
         </DialogFooter>
       </DialogContent>

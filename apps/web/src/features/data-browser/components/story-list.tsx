@@ -1,15 +1,14 @@
+"use client";
 /**
  * 用户故事列表组件（带搜索筛选功能）
  */
 
-'use client';
-
-import { useMemo, useState } from 'react';
-import { Search, Filter, X } from 'lucide-react';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from '@x-cartographer/ui';
-import { UserActivity, UserStory, Priority, getPriorityConfig } from '@/types';
-import { StoryCard } from './story-card';
-import { cn } from '@/lib/utils';
+import { useMemo, useState } from "react";
+import { Search, Filter, X } from "lucide-react";
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from "@x-cartographer/ui";
+import { UserActivity, UserStory, Priority, getPriorityConfig } from "@/types";
+import { StoryCard } from "./story-card";
+import { cn } from "@/lib/utils";
 
 interface StoryListProps {
   activities: UserActivity[];
@@ -17,15 +16,15 @@ interface StoryListProps {
 
 interface FilterState {
   search: string;
-  priority: Priority | 'all';
-  activityId: 'all';
+  priority: Priority | "all";
+  activityId: "all";
 }
 
 export function StoryList({ activities }: StoryListProps) {
   const [filters, setFilters] = useState<FilterState>({
-    search: '',
-    priority: 'all',
-    activityId: 'all',
+    search: "",
+    priority: "all",
+    activityId: "all",
   });
   const [showFilters, setShowFilters] = useState(false);
 
@@ -48,11 +47,11 @@ export function StoryList({ activities }: StoryListProps) {
         return false;
       }
       // 优先级筛选
-      if (filters.priority !== 'all' && story.priority !== filters.priority) {
+      if (filters.priority !== "all" && story.priority !== filters.priority) {
         return false;
       }
       // 用户活动筛选
-      if (filters.activityId !== 'all') {
+      if (filters.activityId !== "all") {
         const activity = activities.find((a) => a.id === filters.activityId);
         if (!activity || !activity.stories?.some((s) => s.id === story.id)) {
           return false;
@@ -64,17 +63,18 @@ export function StoryList({ activities }: StoryListProps) {
 
   // 统计信息
   const stats = useMemo(() => {
-    const highCount = allStories.filter((s) => s.priority === 'high').length;
-    const mediumCount = allStories.filter((s) => s.priority === 'medium').length;
-    const lowCount = allStories.filter((s) => s.priority === 'low').length;
+    const highCount = allStories.filter((s) => s.priority === "high").length;
+    const mediumCount = allStories.filter((s) => s.priority === "medium").length;
+    const lowCount = allStories.filter((s) => s.priority === "low").length;
     return { high: highCount, medium: mediumCount, low: lowCount, total: allStories.length };
   }, [allStories]);
 
   const clearFilters = () => {
-    setFilters({ search: '', priority: 'all', activityId: 'all' });
+    setFilters({ search: "", priority: "all", activityId: "all" });
   };
 
-  const hasActiveFilters = filters.search || filters.priority !== 'all' || filters.activityId !== 'all';
+  const hasActiveFilters =
+    filters.search || filters.priority !== "all" || filters.activityId !== "all";
 
   return (
     <div className="space-y-4">
@@ -92,12 +92,10 @@ export function StoryList({ activities }: StoryListProps) {
             <Badge variant="secondary" className="text-xs">
               中: {stats.medium}
             </Badge>
-            <Badge className="text-xs bg-green-500">
-              低: {stats.low}
-            </Badge>
+            <Badge className="text-xs bg-green-500">低: {stats.low}</Badge>
           </div>
           <Button
-            variant={showFilters ? 'default' : 'outline'}
+            variant={showFilters ? "default" : "outline"}
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
           >
@@ -118,7 +116,7 @@ export function StoryList({ activities }: StoryListProps) {
         />
         {filters.search && (
           <button
-            onClick={() => setFilters((prev) => ({ ...prev, search: '' }))}
+            onClick={() => setFilters((prev) => ({ ...prev, search: "" }))}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -138,23 +136,23 @@ export function StoryList({ activities }: StoryListProps) {
               <div className="space-y-2">
                 <label className="text-sm text-muted-foreground">优先级</label>
                 <div className="flex flex-wrap gap-1">
-                  {(['all', 'high', 'medium', 'low'] as const).map((priority) => (
+                  {(["all", "high", "medium", "low"] as const).map((priority) => (
                     <button
                       key={priority}
                       onClick={() =>
                         setFilters((prev) => ({
                           ...prev,
-                          priority: priority as Priority | 'all',
+                          priority: priority as Priority | "all",
                         }))
                       }
                       className={cn(
-                        'px-2 py-1 text-xs rounded-md transition-colors',
-                        filters.priority === (priority as Priority | 'all')
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted hover:bg-muted/80'
+                        "px-2 py-1 text-xs rounded-md transition-colors",
+                        filters.priority === (priority as Priority | "all")
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted hover:bg-muted/80",
                       )}
                     >
-                      {priority === 'all' ? '全部' : getPriorityConfig(priority as Priority).label}
+                      {priority === "all" ? "全部" : getPriorityConfig(priority as Priority).label}
                     </button>
                   ))}
                 </div>
@@ -166,7 +164,7 @@ export function StoryList({ activities }: StoryListProps) {
                 <select
                   value={filters.activityId}
                   onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, activityId: e.target.value as 'all' }))
+                    setFilters((prev) => ({ ...prev, activityId: e.target.value as "all" }))
                   }
                   className="w-full px-2 py-1 text-sm border rounded-md bg-background"
                 >
@@ -202,9 +200,7 @@ export function StoryList({ activities }: StoryListProps) {
         <Badge variant="secondary" className="text-xs shrink-0">
           中: {stats.medium}
         </Badge>
-        <Badge className="text-xs shrink-0 bg-green-500">
-          低: {stats.low}
-        </Badge>
+        <Badge className="text-xs shrink-0 bg-green-500">低: {stats.low}</Badge>
       </div>
 
       {/* 故事列表 */}
@@ -217,7 +213,7 @@ export function StoryList({ activities }: StoryListProps) {
           <Card>
             <CardContent className="py-8 text-center">
               <p className="text-muted-foreground">
-                {hasActiveFilters ? '没有找到匹配的故事' : '暂无用户故事'}
+                {hasActiveFilters ? "没有找到匹配的故事" : "暂无用户故事"}
               </p>
               {hasActiveFilters && (
                 <Button variant="link" onClick={clearFilters} className="mt-2">
@@ -231,4 +227,3 @@ export function StoryList({ activities }: StoryListProps) {
     </div>
   );
 }
-

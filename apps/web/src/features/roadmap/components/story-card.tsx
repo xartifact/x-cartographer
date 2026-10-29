@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * 共享用户故事卡片（排期规划 / 故事地图统一用）
@@ -9,11 +9,11 @@
  * - onClick 可选：传入则整卡可点，配合外层 StoryDetailPanel 打开详情。
  */
 
-import { Card, CardContent } from '@x-cartographer/ui';
-import { cn } from '@/lib/utils';
-import { priorityLeftBorderCls } from '@/components/common/priority-badge';
-import { StoryCardBody } from '@/components/common/story-card-body';
-import type { UserStory } from '@/types';
+import { Card, CardContent } from "@x-cartographer/ui";
+import { cn } from "@/lib/utils";
+import { priorityLeftBorderCls } from "@/components/common/priority-badge";
+import { StoryCardBody } from "@/components/common/story-card-body";
+import type { UserStory } from "@/types";
 
 interface StoryCardProps {
   story: UserStory;
@@ -27,12 +27,20 @@ interface StoryCardProps {
 export function StoryCard({ story, activityName, onClick, className }: StoryCardProps) {
   return (
     <Card
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick(story);
+        }
+      }}
       onClick={onClick ? () => onClick(story) : undefined}
       className={cn(
-        'w-full border-l-4 transition-all duration-150',
-        onClick && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md',
+        "w-full border-l-4 transition-all duration-150",
+        onClick && "cursor-pointer hover:shadow-md",
         priorityLeftBorderCls(story.priority),
-        className
+        className,
       )}
     >
       <CardContent className="p-3">

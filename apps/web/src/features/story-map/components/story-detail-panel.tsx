@@ -1,4 +1,7 @@
-'use client';
+"use client";
+import { SheetTitle } from "@x-cartographer/ui";
+import { StatusHistory } from "@/features/tasks/components/status-history";
+import { MarkdownContent } from "@/components/common/markdown-content";
 
 /**
  * 故事详情面板组件
@@ -10,7 +13,7 @@
  * 由调用方以 Sheet 抽屉包裹（roadmap / stories 管理页），或嵌入故事地图浮层。
  */
 
-import { memo } from 'react';
+import { memo } from "react";
 import {
   Clock,
   Tag,
@@ -21,24 +24,24 @@ import {
   ListChecks,
   Layers,
   CircleDot,
-} from 'lucide-react';
-import { Button, Badge, Separator } from '@x-cartographer/ui';
-import { StoryTaskPanel } from './story-task-panel';
-import { MilestoneSelect } from '@/features/roadmap/components/milestone-select';
-import { StatusBadge } from '@/features/tasks/components/status-badge';
-import { PriorityBadge } from '@/components/common/priority-badge';
-import { InfoItem } from '@/components/common/info-item';
-import type { UserStory } from '@/types';
-import type { Product } from '@/types';
-import { cn } from '@/lib/utils';
-import type { StoryStatus } from '@/types';
+} from "lucide-react";
+import { Button, Badge, Separator } from "@x-cartographer/ui";
+import { StoryTaskPanel } from "./story-task-panel";
+import { MilestoneSelect } from "@/features/roadmap/components/milestone-select";
+import { StatusBadge } from "@/features/tasks/components/status-badge";
+import { PriorityBadge } from "@/components/common/priority-badge";
+import { InfoItem } from "@/components/common/info-item";
+import type { UserStory } from "@/types";
+import type { Product } from "@/types";
+import { cn } from "@/lib/utils";
+import type { StoryStatus } from "@/types";
 
 interface StoryDetailPanelProps {
   story: UserStory | null;
   activityName?: string;
   project: Pick<
     Product,
-    'id' | 'name' | 'description' | 'metadata' | 'settings' | 'user_activities'
+    "id" | "name" | "description" | "metadata" | "settings" | "user_activities"
   >;
   onClose: () => void;
   onEdit?: (story: UserStory) => void;
@@ -55,27 +58,21 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
     }
 
     const tasks = story.dev_tasks ?? [];
-    const doneTasks = tasks.filter((t) => t.status === 'done').length;
+    const doneTasks = tasks.filter((t) => t.status === "done").length;
     const taskCount = tasks.length;
 
     return (
-      <div className={cn('flex h-full w-full flex-col overflow-y-auto', className)}>
+      <div className={cn("flex h-full w-full flex-col overflow-y-auto", className)}>
         {/* 头部（对齐任务详情 SheetHeader） */}
         <div className="flex items-start gap-3 space-y-1">
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                {story.id}
-              </span>
+              <span className="shrink-0 font-mono text-xs text-muted-foreground">{story.id}</span>
               {story.status && (
-                <StatusBadge
-                  status={story.status as StoryStatus}
-                  isTask={false}
-                  size="sm"
-                />
+                <StatusBadge status={story.status as StoryStatus} isTask={false} size="sm" />
               )}
             </div>
-            <h3 className="text-lg font-semibold leading-snug">{story.title}</h3>
+            <SheetTitle className="text-lg font-semibold leading-snug">{story.title}</SheetTitle>
             {activityName && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <GitBranch className="h-3 w-3" />
@@ -100,11 +97,11 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
               </InfoItem>
               {/* 估算工时 */}
               <InfoItem icon={<Clock className="h-3.5 w-3.5" />} label="估算工时">
-                <span>{story.estimation > 0 ? `${story.estimation} 小时` : '未估算'}</span>
+                <span>{story.estimation > 0 ? `${story.estimation} 小时` : "未估算"}</span>
               </InfoItem>
               {/* 任务进度 */}
               <InfoItem icon={<ListChecks className="h-3.5 w-3.5" />} label="任务进度">
-                <span>{taskCount > 0 ? `${doneTasks}/${taskCount}` : '无任务'}</span>
+                <span>{taskCount > 0 ? `${doneTasks}/${taskCount}` : "无任务"}</span>
               </InfoItem>
               {/* 所属活动 */}
               {activityName && (
@@ -116,7 +113,7 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
               {story.created_at && (
                 <InfoItem icon={<Calendar className="h-3.5 w-3.5" />} label="创建时间">
                   <span className="text-xs">
-                    {new Date(story.created_at).toLocaleDateString('zh-CN')}
+                    {new Date(story.created_at).toLocaleDateString("zh-CN")}
                   </span>
                 </InfoItem>
               )}
@@ -128,11 +125,7 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
           {/* 排期：所属版本 */}
           <section className="space-y-2">
             <h3 className="text-sm font-semibold text-foreground">排期版本</h3>
-            <MilestoneSelect
-              projectId={project.id}
-              value={story.milestone_id}
-              storyId={story.id}
-            />
+            <MilestoneSelect projectId={project.id} value={story.milestone_id} storyId={story.id} />
           </section>
 
           <Separator />
@@ -141,9 +134,7 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
           <section className="space-y-2">
             <h3 className="text-sm font-semibold text-foreground">描述</h3>
             {story.description ? (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                {story.description}
-              </p>
+              <MarkdownContent>{story.description}</MarkdownContent>
             ) : (
               <p className="text-sm italic text-muted-foreground/60">暂无描述</p>
             )}
@@ -159,7 +150,7 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
                 <ul className="space-y-2">
                   {story.acceptance_criteria.map((criteria, index) => {
                     const criteriaText =
-                      typeof criteria === 'string'
+                      typeof criteria === "string"
                         ? criteria
                         : (criteria as { description?: string }).description ||
                           JSON.stringify(criteria);
@@ -207,16 +198,16 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
                 </Badge>
               )}
             </div>
-            <StoryTaskPanel story={story} />
+            <StoryTaskPanel story={story} productId={project.id} />
           </section>
 
           <Separator />
 
+          <StatusHistory entityId={story.id} entityType="story" showActions={false} />
           {/* 更新时间 */}
           {story.updated_at && (
             <div className="text-xs text-muted-foreground">
-              更新时间:{' '}
-              {new Date(story.updated_at).toLocaleDateString('zh-CN')}
+              更新时间: {new Date(story.updated_at).toLocaleDateString("zh-CN")}
             </div>
           )}
 
@@ -230,6 +221,7 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
                 variant="outline"
                 size="icon"
                 className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                aria-label={`删除故事 ${story.title}`}
                 onClick={() => onDelete(story)}
               >
                 <Trash2 className="h-4 w-4" />
@@ -239,7 +231,7 @@ export const StoryDetailPanel = memo<StoryDetailPanelProps>(
         </div>
       </div>
     );
-  }
+  },
 );
 
-StoryDetailPanel.displayName = 'StoryDetailPanel';
+StoryDetailPanel.displayName = "StoryDetailPanel";

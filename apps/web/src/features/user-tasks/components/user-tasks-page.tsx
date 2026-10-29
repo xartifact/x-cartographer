@@ -1,59 +1,98 @@
-'use client';
+"use client";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 
 /**
- * 用户任务管理页面
+ * 用户步骤管理页面
  *
- * 用户任务（UserTask）= 活动下的用户操作步骤（Patton 骨架第二层，地图元素）。
+ * 用户步骤（UserTask）= 活动下的用户操作步骤（Patton 骨架第二层，地图元素）。
  * 与故事/任务管理同范式：顶部操作栏（搜索 + 活动筛选 + 新建）、列表、行内编辑/删除。
  * - 数据源：GET /api/user-tasks?productId=（跨活动聚合，按活动→任务序排列）。
  */
 
-import { useMemo, useState } from 'react';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { useMemo, useState } from "react";
+import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 
-import { Button, Input, Card, CardContent, CardHeader, CardTitle, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@x-cartographer/ui';
+import {
+  Button,
+  Input,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@x-cartographer/ui";
 import {
   useUserTasksByProduct,
   useCreateUserTask,
   useUpdateUserTask,
   useDeleteUserTask,
-} from '@/lib/api/hooks';
-import type { Product, UserTask } from '@/types';
+} from "@/lib/api/hooks";
+import type { Product, UserTask } from "@/types";
 
 interface UserTasksPageProps {
   /** 当前产品 */
   project: Product;
 }
 
-/** 带活动名的用户任务 */
+/** 带活动名的用户步骤 */
 type EnrichedTask = UserTask & { activity_name: string };
 
 export function UserTasksPage({ project }: UserTasksPageProps) {
   const productId = project.id;
   const activities = useMemo(() => project.user_activities ?? [], [project]);
-  const activityName = useMemo(
-    () => new Map(activities.map((a) => [a.id, a.name])),
-    [activities]
-  );
+  const activityName = useMemo(() => new Map(activities.map((a) => [a.id, a.name])), [activities]);
 
-  const { data: tasks = [], isLoading } = useUserTasksByProduct(productId);
+  const { data: tasks = [], isLoading, error, refetch } = useUserTasksByProduct(productId);
   const createTask = useCreateUserTask();
   const updateTask = useUpdateUserTask();
   const deleteTask = useDeleteUserTask();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activityFilter, setActivityFilter] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useUrlState("q");
+  const [activityFilter, setActivityFilter] = useState<string>("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [createTarget, setCreateTarget] = useState<string>('');
+  const [createTarget, setCreateTarget] = useState<string>("");
   const [editing, setEditing] = useState<EnrichedTask | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editDesc, setEditDesc] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newDesc, setNewDesc] = useState('');
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const createDraft = useFormDraft({
+    open: createOpen,
+    scope: `user-step:${productId}:new`,
+    values: { newName, newDesc, createTarget },
+    restore: (v) => {
+      setNewName(v.newName);
+      setNewDesc(v.newDesc);
+      setCreateTarget(v.createTarget);
+    },
+    close: () => setCreateOpen(false),
+    saving: createTask.isPending,
+  });
+  const editDraft = useFormDraft({
+    open: !!editing,
+    scope: `user-step:${productId}:${editing?.id}`,
+    values: { editName, editDesc },
+    restore: (v) => {
+      setEditName(v.editName);
+      setEditDesc(v.editDesc);
+    },
+    close: () => setEditing(null),
+    saving: updateTask.isPending,
+    version: editing?.updated_at,
+  });
 
   const enriched = useMemo<EnrichedTask[]>(
-    () => tasks.map((t) => ({ ...t, activity_name: activityName.get(t.activity_id) ?? '（未知活动）' })),
-    [tasks, activityName]
+    () =>
+      tasks.map((t) => ({
+        ...t,
+        activity_name: activityName.get(t.activity_id) ?? "（未知活动）",
+      })),
+    [tasks, activityName],
   );
 
   const filtered = useMemo(() => {
@@ -61,9 +100,7 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
     if (activityFilter) list = list.filter((t) => t.activity_id === activityFilter);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)
-      );
+      list = list.filter((t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q));
     }
     return list;
   }, [enriched, activityFilter, searchQuery]);
@@ -75,19 +112,25 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
       name: newName.trim(),
       description: newDesc.trim(),
     });
-    setNewName('');
-    setNewDesc('');
+    createDraft.clear();
+    setNewName("");
+    setNewDesc("");
     setCreateOpen(false);
   }
 
   async function handleSaveEdit() {
     if (!editing || !editName.trim()) return;
-    await updateTask.mutateAsync({ id: editing.id, name: editName.trim(), description: editDesc.trim() });
+    await updateTask.mutateAsync({
+      id: editing.id,
+      name: editName.trim(),
+      description: editDesc.trim(),
+    });
+    editDraft.clear();
     setEditing(null);
   }
 
   async function handleDelete(t: EnrichedTask) {
-    if (!window.confirm(`确定删除用户任务「${t.name}」吗？关联故事将变为未分配。`)) return;
+    if (!window.confirm(`确定删除用户步骤「${t.name}」吗？关联故事将变为未分配。`)) return;
     await deleteTask.mutateAsync({ id: t.id });
   }
 
@@ -100,15 +143,15 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
   return (
     <div className="space-y-6">
       {/* 顶部操作栏 */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="搜索用户任务..."
+              placeholder="搜索用户步骤..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-56 pl-9"
+              className="w-full sm:w-56 pl-9"
             />
           </div>
           <select
@@ -123,7 +166,9 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
               </option>
             ))}
           </select>
-          <span className="text-sm text-muted-foreground">{filtered.length} 用户任务</span>
+          <span className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">
+            {filtered.length} 用户步骤
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -145,13 +190,17 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
             }}
           >
             <Plus className="mr-2 h-4 w-4" />
-            新建用户任务
+            新建用户步骤
           </Button>
         </div>
       </div>
 
       {/* 列表 */}
-      {isLoading ? (
+      {error ? (
+        <div role="alert">
+          加载用户步骤失败<Button onClick={() => refetch()}>重试</Button>
+        </div>
+      ) : isLoading ? (
         <Card>
           <CardContent className="flex h-40 items-center justify-center text-sm text-muted-foreground">
             加载中…
@@ -160,14 +209,14 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-            暂无用户任务，点击「新建用户任务」创建
+            暂无用户步骤，点击「新建用户步骤」创建
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              用户任务列表（按活动分组序）
+              用户步骤列表（按活动分组序）
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -187,11 +236,23 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
                   {t.activity_name}
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground">#{t.order}</span>
-                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="编辑" onClick={() => openEdit(t)}>
+                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    title="编辑"
+                    onClick={() => openEdit(t)}
+                  >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" title="删除" onClick={() => handleDelete(t)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-destructive"
+                    title="删除"
+                    onClick={() => handleDelete(t)}
+                  >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -202,15 +263,45 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
       )}
 
       {/* 新建对话框 */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(value) => {
+          if (!value) createDraft.requestClose();
+        }}
+      >
         <DialogContent className="sm:max-w-md">
+          {createDraft.protection}
           <DialogHeader>
-            <DialogTitle>新建用户任务</DialogTitle>
+            <DialogTitle>新建用户步骤</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input placeholder="任务名（用户操作短语，如「拖拽调整故事位置」）" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <Input placeholder="描述（可选）" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
-            <select value={createTarget} onChange={(e) => setCreateTarget(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+            <label htmlFor="user-step-create-name" className="block text-sm font-medium">
+              步骤名称
+            </label>
+            <Input
+              id="user-step-create-name"
+              placeholder="任务名（用户操作短语，如「拖拽调整故事位置」）"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+            <label htmlFor="user-step-create-description" className="block text-sm font-medium">
+              描述（可选）
+            </label>
+            <Input
+              id="user-step-create-description"
+              placeholder="描述（可选）"
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+            />
+            <label htmlFor="user-step-create-activity" className="block text-sm font-medium">
+              所属活动
+            </label>
+            <select
+              id="user-step-create-activity"
+              value={createTarget}
+              onChange={(e) => setCreateTarget(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
               {activities.map((a) => (
                 <option key={a.id} value={a.id}>
                   所属活动：{a.name}
@@ -219,25 +310,57 @@ export function UserTasksPage({ project }: UserTasksPageProps) {
             </select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>取消</Button>
-            <Button onClick={handleCreate} disabled={!newName.trim() || !createTarget}>创建</Button>
+            <Button variant="outline" onClick={createDraft.requestClose}>
+              取消
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={createTask.isPending || !newName.trim() || !createTarget}
+            >
+              创建
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* 编辑对话框 */}
-      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+      <Dialog
+        open={!!editing}
+        onOpenChange={(open) => {
+          if (!open) editDraft.requestClose();
+        }}
+      >
         <DialogContent className="sm:max-w-md">
+          {editDraft.protection}
           <DialogHeader>
-            <DialogTitle>编辑用户任务</DialogTitle>
+            <DialogTitle>编辑用户步骤</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-            <Input placeholder="描述" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+            <label htmlFor="user-step-edit-name" className="block text-sm font-medium">
+              步骤名称
+            </label>
+            <Input
+              id="user-step-edit-name"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+            <label htmlFor="user-step-edit-description" className="block text-sm font-medium">
+              描述（可选）
+            </label>
+            <Input
+              id="user-step-edit-description"
+              placeholder="描述"
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>取消</Button>
-            <Button onClick={handleSaveEdit} disabled={!editName.trim()}>保存</Button>
+            <Button variant="outline" onClick={editDraft.requestClose}>
+              取消
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updateTask.isPending || !editName.trim()}>
+              保存
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

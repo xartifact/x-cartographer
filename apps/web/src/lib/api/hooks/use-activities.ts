@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api/client';
-import { toApiError } from '@/lib/api/error';
-import type { CreateUserActivityDTO, UpdateUserActivityDTO } from '@x-cartographer/shared';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api/client";
+import { toApiError } from "@/lib/api/error";
+import type { CreateUserActivityDTO, UpdateUserActivityDTO } from "@x-cartographer/shared";
 
 /**
  * UserActivity REST hooks (react-query)
@@ -14,9 +14,10 @@ import type { CreateUserActivityDTO, UpdateUserActivityDTO } from '@x-cartograph
 
 export function useActivitiesByProduct(productId: string) {
   return useQuery({
-    queryKey: ['user-activities', productId],
+    queryKey: ["user-activities", productId],
     queryFn: async () => {
-      const res = await api.api['user-activities'].$get({ query: { productId } });
+      const res = await api.api["user-activities"].$get({ query: { productId } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: !!productId,
@@ -29,16 +30,20 @@ export function useCreateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (variables: { productId: string } & Omit<CreateUserActivityDTO, 'product_id'>) => {
+    mutationFn: async (
+      variables: { productId: string } & Omit<CreateUserActivityDTO, "product_id">,
+    ) => {
       const { productId, ...dto } = variables;
-      const res = await api.api['user-activities'].$post({ json: { productId, ...dto } });
-      if (!res.ok) throw await toApiError(res, '创建活动失败');
+      const res = await api.api["user-activities"].$post({
+        json: { productId, ...dto, provenance: dto.provenance ?? "human_asserted" },
+      });
+      if (!res.ok) throw await toApiError(res, "创建活动失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['user-activities', variables.productId] });
+      queryClient.invalidateQueries({ queryKey: ["user-activities", variables.productId] });
       // Also invalidate parent product (deep tree)
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -49,12 +54,12 @@ export function useUpdateActivity() {
   return useMutation({
     mutationFn: async (variables: { id: string } & UpdateUserActivityDTO) => {
       const { id, ...dto } = variables;
-      const res = await api.api['user-activities'][':id'].$patch({ param: { id }, json: dto });
-      if (!res.ok) throw await toApiError(res, '更新活动失败');
+      const res = await api.api["user-activities"][":id"].$patch({ param: { id }, json: dto });
+      if (!res.ok) throw await toApiError(res, "更新活动失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -64,12 +69,12 @@ export function useDeleteActivity() {
 
   return useMutation({
     mutationFn: async (variables: { id: string }) => {
-      const res = await api.api['user-activities'][':id'].$delete({ param: { id: variables.id } });
-      if (!res.ok) throw await toApiError(res, '删除活动失败');
+      const res = await api.api["user-activities"][":id"].$delete({ param: { id: variables.id } });
+      if (!res.ok) throw await toApiError(res, "删除活动失败");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }

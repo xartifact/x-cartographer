@@ -1,20 +1,15 @@
-'use client';
+"use client";
 
 /**
  * 缩放控制组件
  */
 
-import { memo, useCallback, useRef, useState, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Focus, Maximize2, Minimize2 } from 'lucide-react';
-import { Button } from '@x-cartographer/ui';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@x-cartographer/ui';
-import { useReactFlow, useStore } from '@xyflow/react';
-import { cn } from '@/lib/utils';
+import { memo, useCallback, useRef, useState, useEffect } from "react";
+import { ZoomIn, ZoomOut, Focus, Maximize2, Minimize2 } from "lucide-react";
+import { Button } from "@x-cartographer/ui";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@x-cartographer/ui";
+import { useReactFlow, useStore } from "@xyflow/react";
+import { cn } from "@/lib/utils";
 
 interface ZoomControlsProps {
   className?: string;
@@ -22,11 +17,10 @@ interface ZoomControlsProps {
 
 /** Resolve the nearest graph surface instead of relying on the story-map-only selector. */
 export function findFullscreenTarget(control: HTMLElement | null): HTMLElement | null {
-  return control?.closest<HTMLElement>('[data-fullscreen-target], [data-patron-canvas]') ?? null;
+  return control?.closest<HTMLElement>("[data-fullscreen-target], [data-patron-canvas]") ?? null;
 }
 
-const zoomSelector = (state: { transform: [number, number, number] }) =>
-  state.transform[2];
+const zoomSelector = (state: { transform: [number, number, number] }) => state.transform[2];
 
 export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
@@ -38,8 +32,8 @@ export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
     const handleChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
-    document.addEventListener('fullscreenchange', handleChange);
-    return () => document.removeEventListener('fullscreenchange', handleChange);
+    document.addEventListener("fullscreenchange", handleChange);
+    return () => document.removeEventListener("fullscreenchange", handleChange);
   }, []);
 
   const handleZoomIn = useCallback(() => {
@@ -69,13 +63,13 @@ export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
       <div
         ref={controlRef}
         className={cn(
-          'flex items-center gap-1 rounded-lg border bg-background p-1 shadow-sm',
-          className
+          "flex items-center gap-1 rounded-lg border bg-background p-1 shadow-sm",
+          className,
         )}
       >
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={handleZoomOut}>
+            <Button variant="ghost" size="icon" aria-label="缩小" onClick={handleZoomOut}>
               <ZoomOut className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -88,7 +82,7 @@ export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={handleZoomIn}>
+            <Button variant="ghost" size="icon" aria-label="放大" onClick={handleZoomIn}>
               <ZoomIn className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -99,7 +93,7 @@ export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={handleFitView}>
+            <Button variant="ghost" size="icon" aria-label="适配视图" onClick={handleFitView}>
               <Focus className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -108,19 +102,20 @@ export const ZoomControls = memo<ZoomControlsProps>(({ className }) => {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={handleFullscreen}>
-              {isFullscreen ? (
-                <Minimize2 className="h-4 w-4" />
-              ) : (
-                <Maximize2 className="h-4 w-4" />
-              )}
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={isFullscreen ? "退出全屏" : "全屏"}
+              onClick={handleFullscreen}
+            >
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{isFullscreen ? '退出全屏' : '全屏'}</TooltipContent>
+          <TooltipContent>{isFullscreen ? "退出全屏" : "全屏"}</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>
   );
 });
 
-ZoomControls.displayName = 'ZoomControls';
+ZoomControls.displayName = "ZoomControls";

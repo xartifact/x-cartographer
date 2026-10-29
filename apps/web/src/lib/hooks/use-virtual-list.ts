@@ -14,7 +14,7 @@
  *   // 渲染 items.slice(start, end)，容器高度 totalHeight，内容 translateY(offsetY)
  */
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 interface VirtualListResult {
   /** 可视区起始索引 */
@@ -36,13 +36,6 @@ export function useVirtualList(
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const rafRef = useRef<number>(0);
-
-  const update = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    setScrollTop(el.scrollTop);
-    setViewportHeight(el.clientHeight);
-  }, [containerRef]);
 
   useEffect(() => {
     const el = containerRef.current;

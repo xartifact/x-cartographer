@@ -1,4 +1,5 @@
-'use client';
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
 
 /**
  * 新建任务对话框
@@ -6,24 +7,20 @@
  * 创建任务时明确绑定所属旅程和故事，体现「任务 → 故事 → 旅程」的层级关系。
  */
 
-import { useState, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@x-cartographer/ui';
-import { Button } from '@x-cartographer/ui';
-import { Input } from '@x-cartographer/ui';
-import { Label } from '@x-cartographer/ui';
-import type { TaskPriority, Product } from '@/types';
-import { TaskPriority as TaskPriorityEnum, TaskStatus } from '@/types';
+import { useSystemModules } from "@/lib/api/hooks";
+import { useState, useMemo } from "react";
+import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@x-cartographer/ui";
+import { Button } from "@x-cartographer/ui";
+import { Input } from "@x-cartographer/ui";
+import { Label } from "@x-cartographer/ui";
+import type { TaskPriority, Product } from "@/types";
+import { TaskPriority as TaskPriorityEnum } from "@/types";
 
 /** 新建任务草稿：ID 由服务端序列分配（禁止前端伪造主键） */
 export interface NewDevTaskDraft {
-  storyId: string;
+  storyId?: string;
+  moduleId?: string;
   title: string;
   description: string;
   priority: TaskPriority;
@@ -40,19 +37,39 @@ interface TaskCreateDialogProps {
 }
 
 const TASK_PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
-  { value: TaskPriorityEnum.P0, label: 'P0 - 紧急' },
-  { value: TaskPriorityEnum.P1, label: 'P1 - 高' },
-  { value: TaskPriorityEnum.P2, label: 'P2 - 中' },
-  { value: TaskPriorityEnum.P3, label: 'P3 - 低' },
+  { value: TaskPriorityEnum.P0, label: "P0 - 紧急" },
+  { value: TaskPriorityEnum.P1, label: "P1 - 高" },
+  { value: TaskPriorityEnum.P2, label: "P2 - 中" },
+  { value: TaskPriorityEnum.P3, label: "P3 - 低" },
 ];
 
 export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCreateDialogProps) {
-  const [selectedActivityId, setSelectedActivityId] = useState('');
-  const [selectedStoryId, setSelectedStoryId] = useState('');
-  const [title, setTitle] = useState('');
+  const { data: modules = [] } = useSystemModules(project.id);
+  const [anchor, setAnchor] = useState("story");
+  const [moduleId, setModuleId] = useState("");
+  const [selectedActivityId, setSelectedActivityId] = useState("");
+  const [selectedStoryId, setSelectedStoryId] = useState("");
+  const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TaskPriority>(TaskPriorityEnum.P1);
   const [estimation, setEstimation] = useState(2);
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const formDraft = useFormDraft({
+    open,
+    scope: `task:${project.id}:new`,
+    values: { anchor, moduleId, selectedActivityId, selectedStoryId, title, priority, estimation },
+    restore: (v) => {
+      setAnchor(v.anchor);
+      setModuleId(v.moduleId);
+      setSelectedActivityId(v.selectedActivityId);
+      setSelectedStoryId(v.selectedStoryId);
+      setTitle(v.title);
+      setPriority(v.priority);
+      setEstimation(v.estimation);
+    },
+    close: () => onOpenChange(false),
+    saving,
+  });
 
   const activities = useMemo(() => project.user_activities ?? [], [project.user_activities]);
 
@@ -63,93 +80,128 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
 
   function handleActivityChange(activityId: string) {
     setSelectedActivityId(activityId);
-    setSelectedStoryId('');
+    setSelectedStoryId("");
   }
 
   function handleClose() {
-    setSelectedActivityId('');
-    setSelectedStoryId('');
-    setTitle('');
-    setPriority(TaskPriorityEnum.P1);
-    setEstimation(2);
-    onOpenChange(false);
+    formDraft.requestClose();
   }
 
   async function handleSave() {
-    if (!title.trim() || !selectedStoryId) return;
+    if (!title.trim() || (anchor === "story" ? !selectedStoryId : !moduleId)) return;
 
     // 主键由服务端分配（TASK-xxx 序列），前端只提交内容字段
     const draft: NewDevTaskDraft = {
-      storyId: selectedStoryId,
+      ...(anchor === "story" ? { storyId: selectedStoryId } : { moduleId }),
       title: title.trim(),
-      description: '',
+      description: "",
       priority,
       estimation,
       dependencies: [],
       tags: [],
     };
 
+    if (saving) return;
+    setSubmitError("");
     setSaving(true);
     try {
       await onSave(draft);
-      handleClose();
+      formDraft.clear();
+      onOpenChange(false);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "保存失败，请重试");
     } finally {
       setSaving(false);
     }
   }
 
-  const canSave = title.trim().length > 0 && selectedStoryId !== '';
+  const canSave =
+    title.trim().length > 0 && (anchor === "story" ? selectedStoryId !== "" : moduleId !== "");
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
+        {formDraft.protection}
         <DialogHeader>
           <DialogTitle>新建任务</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* 步骤 1：选择活动 */}
-          <div className="space-y-1.5">
-            <Label htmlFor="activity-select">
-              所属活动 <span className="text-muted-foreground text-xs">（用于筛选故事）</span>
-            </Label>
-            <select
-              id="activity-select"
-              value={selectedActivityId}
-              onChange={(e) => handleActivityChange(e.target.value)}
-              className="w-full text-sm h-9 rounded-md border bg-background px-3"
-            >
-              <option value="">— 选择活动 —</option>
-              {activities.map((j) => (
-                <option key={j.id} value={j.id}>{j.name}</option>
-              ))}
-            </select>
-          </div>
+          <Label htmlFor="task-anchor">任务归属</Label>
+          <select
+            id="task-anchor"
+            value={anchor}
+            onChange={(e) => setAnchor(e.target.value)}
+            className="h-9 rounded border bg-background"
+          >
+            <option value="story">故事关联任务</option>
+            <option value="module">模块关联任务</option>
+          </select>
+          {anchor === "module" && (
+            <>
+              <Label htmlFor="task-module">所属模块</Label>
+              <select
+                id="task-module"
+                className="w-full h-9 rounded border bg-background"
+                value={moduleId}
+                onChange={(e) => setModuleId(e.target.value)}
+              >
+                <option value="">选择模块</option>
+                {modules.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} · {m.id}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          {anchor === "story" && (
+            <>
+              {/* 步骤 1：选择活动 */}
+              <div className="space-y-1.5">
+                <Label htmlFor="activity-select">
+                  所属活动 <span className="text-muted-foreground text-xs">（用于筛选故事）</span>
+                </Label>
+                <select
+                  id="activity-select"
+                  value={selectedActivityId}
+                  onChange={(e) => handleActivityChange(e.target.value)}
+                  className="w-full text-sm h-9 rounded-md border bg-background px-3"
+                >
+                  <option value="">— 选择活动 —</option>
+                  {activities.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          {/* 步骤 2：选择故事（绑定关系） */}
-          <div className="space-y-1.5">
-            <Label htmlFor="story-select">
-              所属故事 <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="story-select"
-              value={selectedStoryId}
-              onChange={(e) => setSelectedStoryId(e.target.value)}
-              disabled={!selectedActivityId}
-              className="w-full text-sm h-9 rounded-md border bg-background px-3 disabled:opacity-50"
-            >
-              <option value="">— 选择故事 —</option>
-              {storiesInActivity.map((s) => (
-                <option key={s.id} value={s.id}>
-                  [{s.id}] {s.title}
-                </option>
-              ))}
-            </select>
-            {!selectedActivityId && (
-              <p className="text-xs text-muted-foreground">请先选择活动</p>
-            )}
-          </div>
-
+              {/* 步骤 2：选择故事（绑定关系） */}
+              <div className="space-y-1.5">
+                <Label htmlFor="story-select">
+                  所属故事 <span className="text-destructive">*</span>
+                </Label>
+                <select
+                  id="story-select"
+                  value={selectedStoryId}
+                  onChange={(e) => setSelectedStoryId(e.target.value)}
+                  disabled={!selectedActivityId}
+                  className="w-full text-sm h-9 rounded-md border bg-background px-3 disabled:opacity-50"
+                >
+                  <option value="">— 选择故事 —</option>
+                  {storiesInActivity.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      [{s.id}] {s.title}
+                    </option>
+                  ))}
+                </select>
+                {!selectedActivityId && (
+                  <p className="text-xs text-muted-foreground">请先选择活动</p>
+                )}
+              </div>
+            </>
+          )}
           {/* 步骤 3：任务标题 */}
           <div className="space-y-1.5">
             <Label htmlFor="task-title">
@@ -160,7 +212,9 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
               placeholder="输入任务标题..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && canSave) handleSave(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canSave) handleSave();
+              }}
             />
           </div>
 
@@ -174,7 +228,9 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
                 className="w-full text-sm h-9 rounded-md border bg-background px-2"
               >
                 {TASK_PRIORITY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -193,8 +249,15 @@ export function TaskCreateDialog({ open, onOpenChange, project, onSave }: TaskCr
           </div>
         </div>
 
+        {submitError && (
+          <p role="alert" className="text-destructive text-sm">
+            {submitError}
+          </p>
+        )}
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={saving}>取消</Button>
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
+            取消
+          </Button>
           <Button onClick={handleSave} disabled={!canSave || saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             创建任务

@@ -1,72 +1,32 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/inter';
+@import '@x-cartographer/ui/src/xartifact-tokens.css';
 
 /* Tailwind v4 扫描范围由 postcss.config.mjs 的 base 指定（覆盖 packages/ui） */
 @custom-variant dark (&:is(.dark *));
 
+/* xartifact tokens are the sole runtime theme source, including portal surfaces.
+ * Keep the existing next-themes storage key so saved appearance choices survive. */
+
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
-  --radius: 0.5rem;
-
-  /* 自定义颜色 */
-  --priority-high: 0 84% 60%;
-  --priority-medium: 38 92% 50%;
-  --priority-low: 142 76% 36%;
-
-  --task-user-story: 217 91% 60%;
-  --task-technical: 262 83% 58%;
-  --task-bug-fix: 0 84% 60%;
-  --task-spike: 38 92% 50%;
-
-  /* 卡片面上的强对比红（依赖图悬空引用的标红）。--destructive 在暗色下对卡片
-     只有 2:1 对比度，红字/红线在近黑卡片上几乎看不见。本变量保证两套主题下
-     都 ≥4.5:1（对比的是 10% 同色底）：亮色 red-700（5.4:1）/ 暗色 red-400（6.5:1）。 */
+  --priority-high: 0 74% 42%;
+  --priority-medium: 35 77% 32%;
+  --priority-low: 154 54% 30%;
+  --task-user-story: 214 55% 43%;
+  --task-technical: var(--primary);
+  --task-bug-fix: var(--destructive);
+  --task-spike: var(--priority-medium);
   --destructive-strong: 0 74% 42%;
 }
-
 .dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 210 40% 98%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  /* 暗色下 --destructive 太暗（卡片上仅 2:1），标红用醒目的 red-400 */
+  --priority-high: 353 100% 81%;
+  --priority-medium: 36 76% 71%;
+  --priority-low: 152 50% 65%;
+  --task-user-story: 214 100% 78%;
   --destructive-strong: 0 91% 71%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 212.7 26.8% 83.9%;
 }
 
 @theme inline {
+  --color-canvas: var(--xa-canvas);
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));
@@ -107,9 +67,9 @@
     border-color: hsl(var(--border));
   }
   body {
-    background-color: hsl(var(--background));
+    background-color: var(--xa-canvas);
     color: hsl(var(--foreground));
-    font-family: 'Inter Variable', system-ui, sans-serif;
+    font-family: 'Inter Variable', var(--xa-font-sans);
   }
 }
 
@@ -134,4 +94,31 @@
   50% {
     opacity: 0.5;
   }
+}
+
+/* Sonner mounts under body; resolve its surfaces from the same root tokens. */
+html[data-xartifact-palette] [data-sonner-toaster][data-sonner-theme] {
+  --normal-bg: var(--xa-raised);
+  --normal-text: var(--xa-text);
+  --normal-border: var(--xa-border);
+  --success-bg: var(--xa-success-soft);
+  --success-text: var(--xa-success);
+  --success-border: var(--xa-success);
+  --error-bg: var(--xa-danger-soft);
+  --error-text: var(--xa-danger);
+  --error-border: var(--xa-danger);
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Shared compact management surfaces retain readable content on touch screens. */
+@media (max-width: 640px) {
+  button, [role="button"], select { min-height: 44px; }
+  [role="dialog"] { max-height: 95dvh; overflow-y: auto; }
+  [data-patron-canvas] { min-width: 0; }
 }

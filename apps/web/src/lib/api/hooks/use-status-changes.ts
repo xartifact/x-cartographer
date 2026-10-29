@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { StatusChangeRecord } from '@x-cartographer/shared';
-import { toApiError } from '@/lib/api/error';
-import { api } from '@/lib/api/client';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { StatusChangeRecord } from "@x-cartographer/shared";
+import { toApiError } from "@/lib/api/error";
+import { api } from "@/lib/api/client";
 
 /**
  * Status change history REST hooks (react-query)
@@ -12,7 +12,7 @@ import { api } from '@/lib/api/client';
 
 export interface CreateStatusChangeVariables {
   entityId: string;
-  entityType: StatusChangeRecord['entity_type'];
+  entityType: StatusChangeRecord["entity_type"];
   previousStatus: string;
   newStatus: string;
   reason?: string;
@@ -23,9 +23,10 @@ export interface CreateStatusChangeVariables {
 
 export function useStatusHistory(entityId: string) {
   return useQuery({
-    queryKey: ['status-changes', entityId],
+    queryKey: ["status-changes", entityId],
     queryFn: async () => {
-      const res = await api.api['status-changes'].$get({ query: { entityId } });
+      const res = await api.api["status-changes"].$get({ query: { entityId } });
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
     enabled: !!entityId,
@@ -34,9 +35,10 @@ export function useStatusHistory(entityId: string) {
 
 export function useAllStatusChanges() {
   return useQuery({
-    queryKey: ['status-changes'],
+    queryKey: ["status-changes"],
     queryFn: async () => {
-      const res = await api.api['status-changes'].$get();
+      const res = await api.api["status-changes"].$get();
+      if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json();
     },
   });
@@ -49,13 +51,13 @@ export function useCreateStatusChange() {
 
   return useMutation({
     mutationFn: async (variables: CreateStatusChangeVariables) => {
-      const res = await api.api['status-changes'].$post({ json: variables });
-      if (!res.ok) throw await toApiError(res, '记录状态变更失败');
+      const res = await api.api["status-changes"].$post({ json: variables });
+      if (!res.ok) throw await toApiError(res, "记录状态变更失败");
       return res.json();
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['status-changes', variables.entityId] });
-      queryClient.invalidateQueries({ queryKey: ['status-changes'] });
+      queryClient.invalidateQueries({ queryKey: ["status-changes", variables.entityId] });
+      queryClient.invalidateQueries({ queryKey: ["status-changes"] });
     },
   });
 }

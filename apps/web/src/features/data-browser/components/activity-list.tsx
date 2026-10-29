@@ -1,15 +1,14 @@
+"use client";
 /**
  * 用户活动列表组件
  */
 
-'use client';
-
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, LayoutList } from 'lucide-react';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
-import { UserActivity } from '@/types';
-import { StoryCard } from './story-card';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { ChevronDown, ChevronRight, LayoutList } from "lucide-react";
+import { Badge, Card, CardContent, CardHeader, CardTitle } from "@x-cartographer/ui";
+import { UserActivity } from "@/types";
+import { StoryCard } from "./story-card";
+import { cn } from "@/lib/utils";
 
 interface ActivityListProps {
   activities: UserActivity[];
@@ -76,13 +75,20 @@ export function ActivityList({ activities }: ActivityListProps) {
           return (
             <Card
               key={activity.id}
-              className={cn(
-                'transition-all duration-200',
-                isExpanded && 'ring-2 ring-primary'
-              )}
+              className={cn("transition-all duration-200", isExpanded && "ring-2 ring-primary")}
             >
               <CardHeader
                 className="cursor-pointer hover:bg-muted/50 transition-colors p-3"
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
+                aria-label={`展开或收起活动 ${activity.name}`}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleActivity(activity.id);
+                  }
+                }}
                 onClick={() => toggleActivity(activity.id)}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -116,11 +122,7 @@ export function ActivityList({ activities }: ActivityListProps) {
                   <div className="space-y-2 pl-6">
                     {storyCount > 0 ? (
                       activity.stories?.map((story) => (
-                        <StoryCard
-                          key={story.id}
-                          story={story}
-                          activityName={activity.name}
-                        />
+                        <StoryCard key={story.id} story={story} activityName={activity.name} />
                       ))
                     ) : (
                       <p className="flex items-center justify-center gap-1 py-4 text-sm text-muted-foreground">

@@ -1,12 +1,13 @@
+"use client";
+import { useFormDraft } from "@/lib/hooks/use-form-draft";
+
 /**
  * 产品创建对话框组件
  */
 
-'use client';
-
-import { useState } from 'react';
-import { FolderOpen } from 'lucide-react';
-import { validateProjectName } from '@/features/projects/api';
+import { useState } from "react";
+import { FolderOpen } from "lucide-react";
+import { validateProjectName } from "@/features/projects/api";
 import {
   Button,
   Dialog,
@@ -18,9 +19,9 @@ import {
   Input,
   Label,
   Textarea,
-} from '@x-cartographer/ui';
-import { useProjectActions } from '../hooks';
-import { toast } from 'sonner';
+} from "@x-cartographer/ui";
+import { useProjectActions } from "../hooks";
+import { toast } from "sonner";
 
 /**
  * 产品创建表单数据
@@ -50,12 +51,20 @@ export function ProjectCreateDialog({
 
   // 创建表单状态
   const [formData, setFormData] = useState<CreateFormData>({
-    name: '',
-    description: '',
-    tags: '',
-    workspace_dir: '',
+    name: "",
+    description: "",
+    tags: "",
+    workspace_dir: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const formDraft = useFormDraft({
+    open,
+    scope: "product:new",
+    values: { formData },
+    restore: (v) => setFormData(v.formData),
+    close: () => onOpenChange(false),
+    saving: isLoading,
+  });
 
   /**
    * 验证表单
@@ -71,7 +80,7 @@ export function ProjectCreateDialog({
 
     // 验证描述
     if (formData.description.length > 1000) {
-      newErrors.description = '描述不能超过 1000 个字符';
+      newErrors.description = "描述不能超过 1000 个字符";
     }
 
     setErrors(newErrors);
@@ -92,18 +101,20 @@ export function ProjectCreateDialog({
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
         tech_stack: formData.tags
-          .split(',')
+          .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
         workspace_dir: formData.workspace_dir.trim() || undefined,
       });
 
-      toast.success('产品创建成功', { description: `已创建产品 "${formData.name.trim()}"` });
+      toast.success("产品创建成功", { description: `已创建产品 "${formData.name.trim()}"` });
 
+      formDraft.clear();
       onSuccess(project.id);
       resetForm();
     } catch (error) {
-      toast.error('创建失败', { description: error instanceof Error ? error.message : '未知错误' });    } finally {
+      toast.error("创建失败", { description: error instanceof Error ? error.message : "未知错误" });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -113,10 +124,10 @@ export function ProjectCreateDialog({
    */
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: '',
-      tags: '',
-      workspace_dir: '',
+      name: "",
+      description: "",
+      tags: "",
+      workspace_dir: "",
     });
     setErrors({});
   };
@@ -125,21 +136,19 @@ export function ProjectCreateDialog({
    * 处理关闭
    */
   const handleClose = () => {
-    resetForm();
-    onOpenChange(false);
+    formDraft.requestClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
+        {formDraft.protection}
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5" />
             创建新产品
           </DialogTitle>
-          <DialogDescription>
-            创建新的产品来管理您的产品路线图和用户故事地图
-          </DialogDescription>
+          <DialogDescription>创建新的产品来管理您的产品路线图和用户故事地图</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-4">
@@ -149,14 +158,10 @@ export function ProjectCreateDialog({
               id="name"
               placeholder="输入产品名称"
               value={formData.name}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              className={errors.name ? 'border-destructive' : ''}
+              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+              className={errors.name ? "border-destructive" : ""}
             />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name}</p>
-            )}
+            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
           </div>
 
           <div className="space-y-2">
@@ -173,9 +178,7 @@ export function ProjectCreateDialog({
               }
               rows={3}
             />
-            {errors.description && (
-              <p className="text-sm text-destructive">{errors.description}</p>
-            )}
+            {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
           </div>
 
           <div className="space-y-2">
@@ -184,9 +187,7 @@ export function ProjectCreateDialog({
               id="tags"
               placeholder="React, TypeScript, Node.js（用逗号分隔）"
               value={formData.tags}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, tags: e.target.value }))
-              }
+              onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
             />
             <p className="text-xs text-muted-foreground">用逗号分隔多个标签</p>
           </div>
@@ -216,7 +217,7 @@ export function ProjectCreateDialog({
             取消
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? '创建中...' : '创建'}
+            {isLoading ? "创建中..." : "创建"}
           </Button>
         </DialogFooter>
       </DialogContent>

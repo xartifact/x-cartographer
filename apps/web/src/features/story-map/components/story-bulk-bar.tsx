@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { Tags, Trash2, X, RefreshCw, Tag } from 'lucide-react';
+import { Tags, X, RefreshCw } from 'lucide-react';
 import { Button } from '@x-cartographer/ui';
 import { Badge } from '@x-cartographer/ui';
 import type { UserStory } from '@/types';

@@ -1,17 +1,17 @@
+"use client";
 /**
  * 用户故事卡片组件
  */
 
-'use client';
-
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, Clock, Tag } from 'lucide-react';
-import { Badge, Card, CardContent, CardHeader, CardTitle } from '@x-cartographer/ui';
-import { UserStory } from '@/types';
-import { cn } from '@/lib/utils';
-import { StatusBadge, STORY_STATUS_OPTIONS } from '@/features/tasks/components/status-badge';
-import { PriorityBadge } from '@/components/common/priority-badge';
-import { StoryStatus } from '@/types';
+import { MarkdownContent } from "@/components/common/markdown-content";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Clock, Tag } from "lucide-react";
+import { Badge, Card, CardContent, CardHeader, CardTitle } from "@x-cartographer/ui";
+import { UserStory } from "@/types";
+import { cn } from "@/lib/utils";
+import { StatusBadge, STORY_STATUS_OPTIONS } from "@/features/tasks/components/status-badge";
+import { PriorityBadge } from "@/components/common/priority-badge";
+import { StoryStatus } from "@/types";
 
 interface StoryCardProps {
   story: UserStory;
@@ -36,7 +36,7 @@ export function StoryCard({
 }: StoryCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const status: StoryStatus = story.status || 'backlog';
+  const status: StoryStatus = story.status || "backlog";
 
   const handleStatusClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -50,9 +50,18 @@ export function StoryCard({
   };
 
   return (
-    <Card className={cn('transition-all duration-200', isExpanded && 'ring-2 ring-primary')}>
+    <Card className={cn("transition-all duration-200", isExpanded && "ring-2 ring-primary")}>
       <CardHeader
         className="cursor-pointer hover:bg-muted/50 transition-colors p-3"
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsExpanded((v) => !v);
+          }
+        }}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between gap-2">
@@ -75,7 +84,7 @@ export function StoryCard({
                 status={status}
                 isTask={false}
                 size="sm"
-                className={cn(editableStatus && 'cursor-pointer hover:opacity-80')}
+                className={cn(editableStatus && "cursor-pointer hover:opacity-80")}
                 onClick={handleStatusClick}
               />
             )}
@@ -93,7 +102,7 @@ export function StoryCard({
             {story.description && (
               <div>
                 <h4 className="text-xs font-semibold text-muted-foreground mb-1">描述</h4>
-                <p className="text-sm">{story.description}</p>
+                <MarkdownContent>{story.description}</MarkdownContent>
               </div>
             )}
             {story.acceptance_criteria && story.acceptance_criteria.length > 0 && (
@@ -104,9 +113,9 @@ export function StoryCard({
                     <li key={index} className="flex items-start gap-2">
                       <span className="text-muted-foreground">-</span>
                       <span>
-                        {typeof criteria === 'string'
+                        {typeof criteria === "string"
                           ? criteria
-                          : (criteria as { description?: string }).description || ''}
+                          : (criteria as { description?: string }).description || ""}
                       </span>
                     </li>
                   ))}
