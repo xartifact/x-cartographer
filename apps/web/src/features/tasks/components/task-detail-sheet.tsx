@@ -51,6 +51,10 @@ interface TaskDetailSheetProps {
   open: boolean;
   /** 打开/关闭回调 */
   onOpenChange: (open: boolean) => void;
+  /** Keep one Sheet mounted while selected task/context loads. */
+  loadingMessage?: string;
+  loadError?: boolean;
+  onRetryLoad?: () => void;
   /** 所有任务列表（用于解析依赖） */
   allTasks: DevTask[];
   /** 故事/旅程上下文映射 */
@@ -76,6 +80,9 @@ export function TaskDetailSheet({
   storyContextMap,
   onTaskNavigate,
   onUpdateDependencies,
+  loadingMessage,
+  loadError,
+  onRetryLoad,
 }: TaskDetailSheetProps) {
   // TASK-062：依赖编辑状态
   const editClose = React.useRef<() => void>(() => {});
@@ -139,7 +146,28 @@ export function TaskDetailSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task, allTasks]);
 
-  if (!task) return null;
+  if (!task) {
+    if (!open || (!loadingMessage && !loadError)) return null;
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+          <SheetHeader className="pr-8">
+            <SheetTitle>任务详情</SheetTitle>
+            <SheetDescription>读取任务及依赖上下文</SheetDescription>
+          </SheetHeader>
+          {loadError ? (
+            <div role="alert" className="mt-4">
+              读取任务详情失败<Button onClick={onRetryLoad}>重试</Button>
+            </div>
+          ) : (
+            <p role="status" className="mt-4">
+              {loadingMessage}
+            </p>
+          )}
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   const typeInfo = typeConfig.technical_task;
   const storyContext = task.story_id ? (storyContextMap?.[task.story_id] ?? undefined) : undefined;
@@ -168,6 +196,14 @@ export function TaskDetailSheet({
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
+          {loadError && (
+            <div role="alert" className="rounded-md border border-destructive/40 p-3 text-sm">
+              刷新详情失败，正在显示上次结果。
+              <Button variant="outline" size="sm" onClick={onRetryLoad}>
+                重试
+              </Button>
+            </div>
+          )}
           <Button
             variant="outline"
             onClick={() => (editing ? editClose.current() : setEditing(true))}
@@ -186,6 +222,25 @@ export function TaskDetailSheet({
             />
           )}
           <StatusHistory entityId={task.id} entityType="task" showActions={false} />
+          {task.claim_agent_id && task.claim_session_id && task.claimed_at && (
+            <section
+              className="space-y-2 rounded-lg border p-3 text-sm"
+              aria-label="本次 Agent 认领"
+            >
+              <h3 className="font-semibold">本次 Agent 认领</h3>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                <dt className="text-muted-foreground">Agent</dt>
+                <dd className="break-all">{task.claim_agent_id}</dd>
+                <dt className="text-muted-foreground">会话</dt>
+                <dd className="break-all font-mono text-xs">{task.claim_session_id}</dd>
+                <dt className="text-muted-foreground">认领时间</dt>
+                <dd>{new Date(task.claimed_at).toLocaleString()}</dd>
+              </dl>
+              <p className="text-xs text-muted-foreground">
+                调用方声明的执行身份，不代表进程在线。
+              </p>
+            </section>
+          )}
           {/* 基本属性 */}
           <section className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">基本信息</h3>

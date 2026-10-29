@@ -1,7 +1,13 @@
-import { eq, and, sql } from 'drizzle-orm';
-import { ensureDb } from '../db/client';
-import { devTasks } from '../db/schema/dev-tasks';
-import type { CreateDevTaskDTO, UpdateDevTaskDTO } from '@x-cartographer/shared';
+import { eq, and, sql, isNotNull } from "drizzle-orm";
+import { ensureDb } from "../db/client";
+import { devTasks } from "../db/schema/dev-tasks";
+import { products } from "../db/schema/products";
+import { userStories } from "../db/schema/user-stories";
+import { userActivities } from "../db/schema/user-activities";
+import { statusChanges } from "../db/schema/status-changes";
+import { generateShortId } from "../lib/short-id";
+import type { AgentClaimIdentity } from "@x-cartographer/shared";
+import type { CreateDevTaskDTO, UpdateDevTaskDTO } from "@x-cartographer/shared";
 
 /**
  * 状态流转要维护的 started_at / completed_at（由新状态派生 + COALESCE 保序，
@@ -18,11 +24,12 @@ import type { CreateDevTaskDTO, UpdateDevTaskDTO } from '@x-cartographer/shared'
  *
  * 直接 backlog→done 只记完成时间、不伪造开始时间（没有证据表明开始过，不猜）。
  */
-function statusTimestamps(
-  newStatus: string
-): { startedAt?: Date | null | ReturnType<typeof sql>; completedAt?: Date | null } {
-  if (newStatus === 'done') return { completedAt: new Date() };
-  if (newStatus === 'in_progress' || newStatus === 'in_review' || newStatus === 'testing') {
+function statusTimestamps(newStatus: string): {
+  startedAt?: Date | null | ReturnType<typeof sql>;
+  completedAt?: Date | null;
+} {
+  if (newStatus === "done") return { completedAt: new Date() };
+  if (newStatus === "in_progress" || newStatus === "in_review" || newStatus === "testing") {
     return { startedAt: sql`coalesce(${devTasks.startedAt}, now())`, completedAt: null };
   }
   // backlog / todo / cancelled：不是"已完成"
@@ -59,6 +66,33 @@ export class DevTaskRepository {
     return db.query.devTasks.findMany();
   }
 
+  async findActiveAgentTasks() {
+    const db = await ensureDb();
+    return db
+      .select({
+        task: devTasks,
+        product: { id: products.id, name: products.name },
+        storyId: userStories.id,
+        storyTitle: userStories.title,
+      })
+      .from(devTasks)
+      .leftJoin(userStories, eq(devTasks.storyId, userStories.id))
+      .leftJoin(userActivities, eq(userStories.activityId, userActivities.id))
+      .innerJoin(
+        products,
+        eq(products.id, sql`coalesce(${devTasks.productId}, ${userActivities.productId})`),
+      )
+      .where(
+        and(
+          eq(devTasks.status, "in_progress"),
+          isNotNull(devTasks.claimedAt),
+          isNotNull(devTasks.claimAgentId),
+          isNotNull(devTasks.claimSessionId),
+          sql`length(trim(${devTasks.claimAgentId})) > 0`,
+          sql`length(trim(${devTasks.claimSessionId})) > 0`,
+        ),
+      );
+  }
 
   async create(id: string, dto: CreateDevTaskDTO): Promise<void> {
     const db = await ensureDb();
@@ -72,7 +106,7 @@ export class DevTaskRepository {
       description: dto.description,
       priority: dto.priority,
       estimation: dto.estimation,
-      status: 'backlog',
+      status: "backlog",
       dependencies: dto.dependencies ?? [],
       tags: dto.tags ?? [],
       createdAt: now,
@@ -105,14 +139,26 @@ export class DevTaskRepository {
    * 保证「读-判-写」原子性（并发认领场景，docs/design/task-claim-concurrency.md §2）。
    * @returns 是否确实发生了流转（受影响行数 > 0）
    */
-  async compareAndSetStatus(id: string, newStatus: string, expectedStatus?: string): Promise<boolean> {
+  async compareAndSetStatus(
+    id: string,
+    newStatus: string,
+    expectedStatus?: string,
+  ): Promise<boolean> {
     const db = await ensureDb();
-    const condition = expectedStatus !== undefined
-      ? and(eq(devTasks.id, id), eq(devTasks.status, expectedStatus))
-      : eq(devTasks.id, id);
+    const condition =
+      expectedStatus !== undefined
+        ? and(eq(devTasks.id, id), eq(devTasks.status, expectedStatus))
+        : eq(devTasks.id, id);
     const moved = await db
       .update(devTasks)
-      .set({ status: newStatus, ...statusTimestamps(newStatus), updatedAt: new Date() })
+      .set({
+        status: newStatus,
+        ...statusTimestamps(newStatus),
+        ...(newStatus !== "in_progress"
+          ? { claimAgentId: null, claimSessionId: null, claimedAt: null }
+          : {}),
+        updatedAt: new Date(),
+      })
       .where(condition)
       .returning({ id: devTasks.id });
     return moved.length > 0;
@@ -125,7 +171,7 @@ export class DevTaskRepository {
    * 否则并发 Agent 可在两步之间绕过就绪条件。与 /next 一致，done / cancelled
    * 都满足依赖；LEFT JOIN 的空行也会阻止存量悬空依赖被认领。
    */
-  async claim(id: string): Promise<boolean> {
+  async claim(id: string, reason: string, identity?: AgentClaimIdentity): Promise<boolean> {
     const db = await ensureDb();
     const dependenciesFinished = sql`not exists (
       select 1
@@ -133,12 +179,36 @@ export class DevTaskRepository {
       left join dev_tasks as dependency_task on dependency_task.id = dependency.id
       where dependency_task.id is null or dependency_task.status not in ('done', 'cancelled')
     )`;
-    const moved = await db
-      .update(devTasks)
-      .set({ status: 'in_progress', ...statusTimestamps('in_progress'), updatedAt: new Date() })
-      .where(and(eq(devTasks.id, id), eq(devTasks.status, 'todo'), dependenciesFinished))
-      .returning({ id: devTasks.id });
-    return moved.length > 0;
+    const eventId = await generateShortId("statusChange");
+    return db.transaction(async (tx) => {
+      const now = new Date();
+      const moved = await tx
+        .update(devTasks)
+        .set({
+          status: "in_progress",
+          ...statusTimestamps("in_progress"),
+          updatedAt: now,
+          claimAgentId: identity?.agentId ?? null,
+          claimSessionId: identity?.sessionId ?? null,
+          claimedAt: identity ? now : null,
+        })
+        .where(and(eq(devTasks.id, id), eq(devTasks.status, "todo"), dependenciesFinished))
+        .returning({ id: devTasks.id });
+      if (!moved.length) return false;
+      await tx.insert(statusChanges).values({
+        id: eventId,
+        entityId: id,
+        entityType: "task",
+        previousStatus: "todo",
+        newStatus: "in_progress",
+        reason,
+        changedBy: identity
+          ? JSON.stringify({ agent_id: identity.agentId, session_id: identity.sessionId })
+          : null,
+        changedAt: now,
+      });
+      return true;
+    });
   }
 
   async delete(id: string): Promise<void> {

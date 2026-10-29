@@ -38,6 +38,11 @@ const REQUIRED_TABLES = [
  * 所以必须在探活阶段就暴露。
  */
 const REQUIRED_COLUMNS: Array<{ table: string; column: string; since: string }> = [
+  ...["claim_agent_id", "claim_session_id", "claimed_at"].map((column) => ({
+    table: "dev_tasks",
+    column,
+    since: "0011",
+  })),
   { table: "adr_records", column: "revises", since: "0010" },
   { table: "adr_review_events", column: "comment_id", since: "0010" },
   // 0003 story-map-redesign

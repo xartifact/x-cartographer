@@ -35,6 +35,7 @@ export {
   useDevTask,
   useDevTasksByStory,
   useAllDevTasks,
+  useActiveAgentTasks,
   useNextDevTask,
   useCreateDevTask,
   useUpdateDevTask,

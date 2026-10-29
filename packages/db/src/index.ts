@@ -1,5 +1,6 @@
 // @x-cartographer/db - Data layer: schema, client, repositories, logger
 
+export { AGENT_CLAIM_DDL } from "./db/agent-claim-ddl";
 export { ADR_REVIEW_DDL } from "./db/adr-review-ddl";
 
 // Database schema

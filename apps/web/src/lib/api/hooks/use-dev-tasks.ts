@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import { toApiError } from "@/lib/api/error";
-import type { DevTask, TaskStatus, TaskPriority } from "@x-cartographer/shared";
+import type { ActiveAgentTask, DevTask, TaskStatus, TaskPriority } from "@x-cartographer/shared";
 
 /**
  * DevTask REST hooks (react-query)
@@ -47,7 +47,7 @@ export interface UpdateDevTaskStatusVariables {
 
 // ─── Query Hooks ───────────────────────────────────────────────
 
-export function useDevTask(id: string) {
+export function useDevTask(id: string, refetchInterval: number | false = false) {
   return useQuery({
     queryKey: ["dev-tasks", id],
     queryFn: async () => {
@@ -56,6 +56,7 @@ export function useDevTask(id: string) {
       return res.json();
     },
     enabled: !!id,
+    refetchInterval,
   });
 }
 
@@ -80,15 +81,34 @@ export function useAllDevTasks(options?: {
   productId?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
+  enabled?: boolean;
+  refetchInterval?: number | false;
 }) {
-  const { productId, status, priority } = options ?? {};
+  const { productId, status, priority, enabled = true, refetchInterval = false } = options ?? {};
   return useQuery({
+    enabled,
+    refetchInterval,
     queryKey: ["dev-tasks", "all", { productId, status, priority }],
     queryFn: async () => {
       const res = await api.api["dev-tasks"].all.$get({ query: { productId, status, priority } });
       if (!res.ok) throw await toApiError(res, "请求失败，请重试");
       return res.json() as Promise<AllDevTask[]>;
     },
+  });
+}
+
+/** Visibility-aware polling: a task state is not an Agent heartbeat. */
+export function useActiveAgentTasks() {
+  return useQuery({
+    queryKey: ["dev-tasks", "active"],
+    queryFn: async (): Promise<ActiveAgentTask[]> => {
+      const res = await api.api["dev-tasks"].active.$get();
+      if (!res.ok) throw await toApiError(res, "读取执行任务失败");
+      return res.json() as Promise<ActiveAgentTask[]>;
+    },
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: "always",
   });
 }
 

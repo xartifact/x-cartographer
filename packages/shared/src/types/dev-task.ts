@@ -4,7 +4,7 @@
  * docs/design/story-map-redesign.md §3.3），交付性质由 tags 承载。
  */
 
-import { TaskPriority, TaskStatus, Timestamp } from './common';
+import { TaskPriority, TaskStatus, Timestamp } from "./common";
 
 /**
  * 研发任务接口
@@ -54,6 +54,10 @@ export interface DevTask {
 
   /** 负责人 */
   assignee?: string;
+  /** Current Agent claim, written only by claim; cleared when execution ends. */
+  claim_agent_id?: string;
+  claim_session_id?: string;
+  claimed_at?: Timestamp;
 
   /** 受影响模块（引用 SystemModule.id）；不填 = 继承所属 Story 的并集，填了 = 收窄（§3.7/§4） */
   affected_modules?: string[];
@@ -95,4 +99,17 @@ export interface UpdateDevTaskDTO {
   product_id?: string;
   /** 模块锚定（工程治理类的主锚） */
   module_id?: string;
+}
+
+/** Caller-declared execution identity, not an authenticated user or heartbeat. */
+export interface AgentClaimIdentity {
+  agentId: string;
+  sessionId: string;
+}
+export interface ActiveAgentTask extends DevTask {
+  claim_agent_id: string;
+  claim_session_id: string;
+  claimed_at: Timestamp;
+  product: { id: string; name: string };
+  story: { id: string; title: string } | null;
 }

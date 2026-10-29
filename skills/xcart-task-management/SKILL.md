@@ -18,7 +18,7 @@ xcart task create --story <storyId> --title <t> [--priority P0|P1|P2|P3] [--esti
 xcart task create --product <productId> --module-id <slug> --title <t> [--priority] [--estimation] [--tags a,b]
 xcart task update <taskId> [--title] [--priority] [--estimation] [--assignee] [--tags] [--product <id>] [--module-id <slug>] [--story <id>|none] [--affected-modules a,b]
 xcart task status <taskId> <status> --reason "<依据>" [--expected-status <s>]  # backlog|todo|in_progress|in_review|testing|done|cancelled
-xcart task claim <taskId> --reason "<开始依据>"  # 原子认领：仅 todo 且依赖 done/cancelled 时转为 in_progress
+xcart task claim <taskId> --agent-id <agentId> --session-id <sessionId> --reason "<开始依据>"  # 原子认领：仅 todo 且依赖 done/cancelled 时转为 in_progress
 xcart task next --project <productId> [--assignee]   # 下一个可执行任务（仅 todo 且依赖已完成；两种锚定都参与）
 xcart task summary --project <productId>             # 任务状态统计/完成率（含 module_anchored 计数）
 xcart task bulk-create --story <storyId> --file tasks.json | --product <productId> --module-id <slug> --file tasks.json
@@ -39,7 +39,7 @@ xcart status history <taskId>                        # 状态变更历史（含�
 2. `xcart task info <taskId>` 确认任务仍为 `todo`、读取依赖、锚定（`story_id` 或 `product_id` + `module_id`）和 `architecture_context`。
 3. 检查 `architecture_context.relevant_principles` 的每条 `[MUST]` / `[MUST_NOT]`；模块相关任务若缺少影响面标注，应先补齐 `affected_modules` 或在任务说明中说明无法标注的原因。
 4. 故事锚定任务：从 task info 取得 `story_id` 后执行 `xcart story info <storyId>`，阅读 `acceptance_criteria`，把本任务将满足的条目和验证方式纳入实现计划。模块锚定任务没有故事 AC，改以任务描述定义可观察的完成条件。
-5. 用原子命令认领：`xcart task claim <taskId> --reason "<开始依据>"`。服务端仅在任务为 `todo` 且依赖均为 `done` / `cancelled` 时转为 `in_progress`；收到 409 时，重新执行 `task info`；不得盲目重试或继续实现。
+5. 用原子命令认领：`xcart task claim <taskId> --agent-id <agentId> --session-id <sessionId> --reason "<开始依据>"`。服务端仅在任务为 `todo` 且依赖均为 `done` / `cancelled` 时转为 `in_progress`；收到 409 时，重新执行 `task info`；不得盲目重试或继续实现。
 
 `task next` 是推荐发现入口；`task claim` 对状态与依赖提供原子服务端门禁。架构原则、验收标准是否已被理解只能由 Agent 的上述 preflight 和实际验证保证，当前不是 CLI 的拦截门禁。
 
@@ -77,7 +77,7 @@ xcart status history <taskId>                        # 状态变更历史（含�
 ## 典型工作流
 
 1. **找活干**：`xcart task next --project <productId>` → 若无候选，检查依赖与任务就绪度，再用 `task status <id> todo --reason "已确认任务就绪"` 更新状态。
-2. **认领**：完成动工前检查后，`xcart task claim <taskId> --reason "依赖完成，开始实现"`。
+2. **认领**：完成动工前检查后，`xcart task claim <taskId> --agent-id <agentId> --session-id <sessionId> --reason "依赖完成，开始实现"`。
 3. **完成**：`xcart task status <taskId> done --reason "实现完成"`。
 4. **回顾**：`xcart status history <taskId>` 看变更轨迹；`xcart task summary --project <id>` 看整体进度。
 
@@ -108,3 +108,10 @@ xcart status history <taskId>                        # 状态变更历史（含�
   ```
 - 复杂多步转换才用脚本，且写成文件而非内联 heredoc
 - 评测依据与数据：`tools/bench-parse.ts`（可重跑）+ 结论见 `docs/cli-agent-usage.md`
+
+
+## Agent execution identity and the parallel workbench
+
+Pass `--agent-id` and `--session-id` together when claiming work. Explicit flags override `XCART_AGENT_ID` and `XCART_SESSION_ID` respectively. Use a stable Agent identifier and a unique session ID generated once for the current execution session; reuse that session ID across commands in the same session. Do not generate a new ID on every command or infer identity from `assignee`.
+
+Only claims with both identity fields and `in_progress` status appear in the parallel workbench. Legacy claims without identity still work, but the CLI warns that they will not appear. Historical tasks are not inferred or backfilled. Leaving `in_progress` clears the current claim; setting the status back manually does not resume it. Re-enter `todo` and claim again for a new execution. The identity is caller-declared and is not authentication or a heartbeat; the workbench does not assert process liveness.

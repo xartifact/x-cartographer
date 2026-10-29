@@ -10,7 +10,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { sql } from "drizzle-orm";
-import { ensureDb, closeDb, ADR_REVIEW_DDL } from "@x-cartographer/db";
+import { ensureDb, closeDb, ADR_REVIEW_DDL, AGENT_CLAIM_DDL } from "@x-cartographer/db";
 import { createApp } from "../app";
 
 // 强制走 PGlite（若环境里存在 DATABASE_URL，测试会误连 PostgreSQL）
@@ -2596,6 +2596,209 @@ describe("sample transaction rollback", () => {
     } finally {
       await db.execute(sql.raw("DROP TRIGGER ux_reject_step ON user_tasks;"));
       await db.execute(sql.raw("DROP FUNCTION ux_reject_step();"));
+    }
+  });
+});
+
+describe("Agent execution claims and active workbench", () => {
+  async function fixture() {
+    const product = await createProduct("Agent execution");
+    const activity = await createActivity(product, "观察执行");
+    const story = await createStory(activity, "查看Agent执行任务");
+    const task = await createDevTask(story, "Agent task");
+    await jsonRequest("POST", `/api/dev-tasks/${task}/status`, { status: "todo", reason: "ready" });
+    return { product, story, task };
+  }
+  const claim = (id: string, extra: Record<string, unknown> = {}) =>
+    jsonRequest("POST", `/api/dev-tasks/${id}/claim`, {
+      reason: "execute",
+      agentId: "codex",
+      sessionId: "session-A",
+      ...extra,
+    });
+  const active = async () =>
+    (await (await app.request("/api/dev-tasks/active")).json()) as Array<Record<string, any>>;
+
+  it("atomically records identity and exposes snake_case fields in detail, all, deep tree and active collection", async () => {
+    const { product, task } = await fixture();
+    expect((await claim(task)).status).toBe(200);
+    const detail = (await (await app.request(`/api/dev-tasks/${task}`)).json()) as any;
+    expect(detail.claim_agent_id).toBe("codex");
+    expect(detail.claim_session_id).toBe("session-A");
+    expect(Date.parse(detail.claimed_at)).toBeGreaterThan(0);
+    expect(detail.assignee).toBeUndefined();
+    const rows = await active();
+    expect(rows.map((t) => t.id)).toEqual([task]);
+    expect(rows[0].product.id).toBe(product);
+    expect(rows[0].claim_agent_id).toBe("codex");
+    expect(rows[0].agentId).toBeUndefined();
+    const all = (await (await app.request("/api/dev-tasks/all")).json()) as any[];
+    expect(all[0].claimed_at).toBe(detail.claimed_at);
+    const tree = (await (await app.request(`/api/products/${product}`)).json()) as any;
+    expect(tree.user_activities[0].stories[0].dev_tasks[0].claim_session_id).toBe("session-A");
+    const db = await ensureDb();
+    const history = await db.execute(
+      sql`SELECT changed_by FROM status_changes WHERE entity_id = ${task} AND new_status = 'in_progress'`,
+    );
+    expect(JSON.parse((history.rows[0] as any).changed_by)).toEqual({
+      agent_id: "codex",
+      session_id: "session-A",
+    });
+  });
+
+  it("excludes legacy claims, hand-edited statuses, ended claims and recent unrelated updates; includes module claims", async () => {
+    const { product, story, task } = await fixture();
+    expect(
+      (await jsonRequest("POST", `/api/dev-tasks/${task}/claim`, { reason: "legacy" })).status,
+    ).toBe(200);
+    const manual = await createDevTask(story, "manual");
+    await jsonRequest("POST", `/api/dev-tasks/${manual}/status`, {
+      status: "in_progress",
+      reason: "manual",
+    });
+    await jsonRequest("PATCH", `/api/dev-tasks/${manual}`, {
+      assignee: "codex",
+      claimAgentId: "forged",
+      claimSessionId: "forged",
+      claimed_at: new Date().toISOString(),
+    });
+    await jsonRequest("PUT", `/api/system-modules/engine`, {
+      id: "engine",
+      product_id: product,
+      name: "Engine",
+      path: "src",
+      responsibility: "test",
+      depends_on: [],
+    });
+    const res = await jsonRequest("POST", "/api/dev-tasks", {
+      productId: product,
+      moduleId: "engine",
+      title: "module job",
+      description: "",
+      priority: "P1",
+      estimation: 1,
+    });
+    const moduleTask = ((await res.json()) as any).id;
+    await jsonRequest("POST", `/api/dev-tasks/${moduleTask}/status`, {
+      status: "todo",
+      reason: "ready",
+    });
+    expect((await claim(moduleTask)).status).toBe(200);
+    expect((await active()).map((t) => t.id)).toEqual([moduleTask]);
+    expect((await active())[0].story).toBeNull();
+    expect((await active())[0].product.id).toBe(product);
+    for (const status of ["in_review", "testing", "done", "cancelled", "backlog", "todo"]) {
+      await jsonRequest("POST", `/api/dev-tasks/${moduleTask}/status`, {
+        status: "todo",
+        reason: "new run",
+      });
+      expect((await claim(moduleTask)).status).toBe(200);
+      await jsonRequest("POST", `/api/dev-tasks/${moduleTask}/status`, {
+        status,
+        reason: "finish execution",
+      });
+      const detail = (await (await app.request(`/api/dev-tasks/${moduleTask}`)).json()) as any;
+      expect(detail.claim_agent_id).toBeUndefined();
+      expect(detail.claim_session_id).toBeUndefined();
+      expect(detail.claimed_at).toBeUndefined();
+      expect(await active()).toEqual([]);
+    }
+  });
+
+  it("preserves claims on normal edits but never resurrects them on manual status changes; reclaim replaces identity", async () => {
+    const { task } = await fixture();
+    await claim(task);
+    const first = (await active())[0];
+    await jsonRequest("PATCH", `/api/dev-tasks/${task}`, {
+      title: "edited",
+      assignee: "human-owner",
+    });
+    expect((await active())[0].claimed_at).toBe(first.claimed_at);
+    await jsonRequest("POST", `/api/dev-tasks/${task}/status`, {
+      status: "in_review",
+      reason: "review",
+    });
+    await jsonRequest("POST", `/api/dev-tasks/${task}/status`, {
+      status: "in_progress",
+      reason: "manual resume",
+    });
+    expect(await active()).toEqual([]);
+    await jsonRequest("POST", `/api/dev-tasks/${task}/status`, {
+      status: "todo",
+      reason: "new execution",
+    });
+    await claim(task, { agentId: "other", sessionId: "session-B" });
+    expect((await active())[0].claim_agent_id).toBe("other");
+    expect((await active())[0].claim_session_id).toBe("session-B");
+    expect((await active())[0].assignee).toBe("human-owner");
+  });
+
+  it("rejects partial or blank identity and concurrent losers cannot overwrite the winner", async () => {
+    const { task } = await fixture();
+    for (const body of [
+      { agentId: "a" },
+      { sessionId: "s" },
+      { agentId: " ", sessionId: "s" },
+      { agentId: "a", sessionId: "" },
+    ]) {
+      expect(
+        (await jsonRequest("POST", `/api/dev-tasks/${task}/claim`, { reason: "execute", ...body }))
+          .status,
+      ).toBe(400);
+    }
+    const results = await Promise.all([
+      claim(task),
+      claim(task, { agentId: "other", sessionId: "other" }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    const winner = results[0].status === 200 ? "codex" : "other";
+    expect((await active())[0].claim_agent_id).toBe(winner);
+    const db = await ensureDb();
+    const events = await db.execute(
+      sql`SELECT id FROM status_changes WHERE entity_id=${task} AND new_status='in_progress'`,
+    );
+    expect(events.rows.length).toBe(1);
+  });
+
+  it("applies the claim migration repeatedly without inferring old claims or changing existing ones", async () => {
+    const { story, task } = await fixture();
+    await claim(task);
+    const before = (await active())[0].claimed_at;
+    const old = await createDevTask(story, "legacy in progress");
+    await jsonRequest("POST", `/api/dev-tasks/${old}/status`, {
+      status: "in_progress",
+      reason: "old",
+    });
+    const db = await ensureDb();
+    for (let n = 0; n < 2; n++)
+      for (const statement of AGENT_CLAIM_DDL) await db.execute(sql.raw(statement));
+    expect((await active()).map((t) => t.id)).toEqual([task]);
+    expect((await active())[0].claimed_at).toBe(before);
+  });
+
+  it("rolls back the status and identity if appending claim evidence fails", async () => {
+    const { task } = await fixture();
+    const db = await ensureDb();
+    await db.execute(
+      sql.raw(
+        "CREATE FUNCTION reject_claim_evidence() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'claim evidence failure'; END; $$",
+      ),
+    );
+    await db.execute(
+      sql.raw(
+        "CREATE TRIGGER reject_claim_evidence BEFORE INSERT ON status_changes FOR EACH ROW EXECUTE FUNCTION reject_claim_evidence()",
+      ),
+    );
+    try {
+      expect((await claim(task)).status).toBe(500);
+      const detail = (await (await app.request(`/api/dev-tasks/${task}`)).json()) as any;
+      expect(detail.status).toBe("todo");
+      expect(detail.claim_agent_id).toBeUndefined();
+      expect(detail.claimed_at).toBeUndefined();
+      expect(await active()).toEqual([]);
+    } finally {
+      await db.execute(sql.raw("DROP TRIGGER reject_claim_evidence ON status_changes"));
+      await db.execute(sql.raw("DROP FUNCTION reject_claim_evidence()"));
     }
   });
 });

@@ -12,7 +12,13 @@
  * 前置：本地库需先停止 gateway（PGlite 单实例）。
  */
 import { sql } from "drizzle-orm";
-import { ensureDb, rowsOf, ADR_REVIEW_DDL, type DbInstance } from "@x-cartographer/db";
+import {
+  ensureDb,
+  rowsOf,
+  ADR_REVIEW_DDL,
+  AGENT_CLAIM_DDL,
+  type DbInstance,
+} from "@x-cartographer/db";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 let db: DbInstance;
@@ -31,6 +37,7 @@ const exec = async (s: string, label: string): Promise<void> => {
 
 /** 幂等 DDL 清单：每项 = { label, statements }。新增迁移在此追加。 */
 const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> = [
+  { since: "0011", label: "Agent execution claim identity", statements: AGENT_CLAIM_DDL },
   {
     since: "0010",
     label: "ADR immutable proposal revisions and review evidence",

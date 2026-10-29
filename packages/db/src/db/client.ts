@@ -1,4 +1,5 @@
 import fs from "fs";
+import { AGENT_CLAIM_DDL } from "./agent-claim-ddl";
 import { ADR_REVIEW_DDL } from "./adr-review-ddl";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
@@ -154,6 +155,7 @@ const TABLE_SQLS = [
     "seq" bigserial NOT NULL
   )`,
   ...ADR_REVIEW_DDL,
+  ...AGENT_CLAIM_DDL,
   `CREATE TABLE IF NOT EXISTS "app_settings" (
     "key" text PRIMARY KEY NOT NULL,
     "value" text NOT NULL,

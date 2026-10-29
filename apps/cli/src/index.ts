@@ -701,7 +701,7 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       }
       const assignee = opt(f, 'assignee'); if (assignee !== undefined) body.assignee = assignee;
       if (opt(f, 'status') !== undefined) {
-        throw new Error('task update 不支持 --status；初始认领请使用 xcart task claim <id> --reason "<开始依据>"，其他流转使用 xcart task status <id> <status> [--expected-status <s>] [--reason]。');
+        throw new Error('task update 不支持 --status；初始认领请使用 xcart task claim <id> --reason "<开始依据>" [--agent-id <id> --session-id <id>]，其他流转使用 xcart task status <id> <status> [--expected-status <s>] [--reason]。');
       }
       const data = await api(`/api/dev-tasks/${id}`, 'PATCH', body);
       console.log(render(data, ctx.format));
@@ -731,17 +731,28 @@ async function cmdDevTask(ctx: Ctx): Promise<void> {
       }
       break;
     }
-    case 'claim': {
-      const id = reqId(ctx.positional.slice(1), 'task claim');
-      const reason = req(f, 'reason');
+    case "claim": {
+      const id = reqId(ctx.positional.slice(1), "task claim");
+      const reason = req(f, "reason");
       try {
-        const res = await api(`/api/dev-tasks/${id}/claim`, 'POST', { reason });
+        const agentId = (opt(f, "agent-id") ?? process.env.XCART_AGENT_ID)?.trim();
+        const sessionId = (opt(f, "session-id") ?? process.env.XCART_SESSION_ID)?.trim();
+        if ((agentId !== undefined || sessionId !== undefined) && (!agentId || !sessionId)) {
+          throw new Error(
+            "Agent 认领必须同时提供非空 --agent-id 与 --session-id（或 XCART_AGENT_ID / XCART_SESSION_ID）",
+          );
+        }
+        const res = await api(`/api/dev-tasks/${id}/claim`, "POST", {
+          reason,
+          ...(agentId && sessionId ? { agentId, sessionId } : {}),
+        });
+        if (!agentId) console.error("提示：未记录 Agent／会话身份，此任务不会进入并行工作台。");
         console.log(render(res, ctx.format));
       } catch (e) {
-        if (e instanceof Error && e.message.includes('409')) {
+        if (e instanceof Error && e.message.includes("409")) {
           throw new Error(
             `认领冲突（409）：任务不是 todo，或仍有未完成依赖。` +
-            `请重新 task info ${id} 确认状态和依赖；Agent 勿盲目重试。`
+              `请重新 task info ${id} 确认状态和依赖；Agent 勿盲目重试。`,
           );
         }
         throw e;
@@ -1615,7 +1626,7 @@ function helpText(): string {
   xcart task update <id> [--title] [--assignee] [--priority] [--estimation] [--module-id <slug>] [--story <id>|none] [--product <id>]
   xcart task status <id> <status> [--expected-status <s>] [--reason]
                                                 # --expected-status 启用 CAS 乐观锁：与当前状态不符时返回 409（防并发认领冲突，Agent 收到 409 应重读状态而非重试）
-  xcart task claim <id> --reason "<开始依据>"  # 原子认领：仅 todo 且全部依赖 done/cancelled 时转为 in_progress
+  xcart task claim <id> --reason "<开始依据>" [--agent-id <id> --session-id <id>]  # 原子认领：仅 todo 且全部依赖 done/cancelled 时转为 in_progress
   xcart task delete <id>
   xcart task next --project <id> [--assignee]   # 下一个可执行任务（拓扑规则；两种锚定都参与）
   xcart task summary --project <id>             # 任务统计（含 module_anchored 计数）

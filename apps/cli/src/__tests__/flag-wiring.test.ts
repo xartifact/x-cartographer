@@ -444,3 +444,73 @@ describe("ADR review flags", () => {
     });
   });
 });
+
+describe("Agent claim identity wiring", () => {
+  it("sends explicit identity and overrides environment defaults", async () => {
+    const result = await runCliWithEnv(
+      [
+        "--server",
+        baseUrl,
+        "task",
+        "claim",
+        "TASK-1",
+        "--reason",
+        "start",
+        "--agent-id",
+        "explicit-agent",
+        "--session-id",
+        "explicit-session",
+      ],
+      { ...process.env, XCART_AGENT_ID: "env-agent", XCART_SESSION_ID: "env-session" },
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.reqs[0]?.body).toEqual({
+      reason: "start",
+      agentId: "explicit-agent",
+      sessionId: "explicit-session",
+    });
+    expect(result.stderr).not.toContain("不会进入");
+  });
+  it("uses stable environment identity without flags", async () => {
+    const result = await runCliWithEnv(
+      ["--server", baseUrl, "task", "claim", "TASK-1", "--reason", "start"],
+      { ...process.env, XCART_AGENT_ID: "codex", XCART_SESSION_ID: "stable-session" },
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.reqs[0]?.body).toMatchObject({ agentId: "codex", sessionId: "stable-session" });
+  });
+  it("keeps legacy claims usable but warns; rejects incomplete identity before sending", async () => {
+    const env = { ...process.env, XCART_AGENT_ID: undefined, XCART_SESSION_ID: undefined };
+    const legacy = await runCliWithEnv(
+      ["--server", baseUrl, "task", "claim", "TASK-1", "--reason", "start"],
+      env,
+    );
+    expect(legacy.exitCode).toBe(0);
+    expect(legacy.reqs[0]?.body).toEqual({ reason: "start" });
+    expect(legacy.stderr).toContain("不会进入并行工作台");
+    const partial = await runCliWithEnv(
+      ["--server", baseUrl, "task", "claim", "TASK-1", "--reason", "start", "--agent-id", "codex"],
+      env,
+    );
+    expect(partial.exitCode).not.toBe(0);
+    expect(partial.reqs).toHaveLength(0);
+    const blank = await runCliWithEnv(
+      [
+        "--server",
+        baseUrl,
+        "task",
+        "claim",
+        "TASK-1",
+        "--reason",
+        "start",
+        "--agent-id",
+        " ",
+        "--session-id",
+        "s",
+      ],
+      env,
+    );
+    expect(blank.exitCode).not.toBe(0);
+    expect(blank.reqs).toHaveLength(0);
+  });
+});

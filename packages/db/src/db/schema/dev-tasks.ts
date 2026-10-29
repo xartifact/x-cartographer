@@ -1,7 +1,6 @@
-import { pgTable, text, real, jsonb, timestamp } from 'drizzle-orm/pg-core';
-import { userStories } from './user-stories';
-import { products } from './products';
-import { systemModules } from './system-modules';
+import { pgTable, text, real, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { userStories } from "./user-stories";
+import { products } from "./products";
 
 /**
  * 研发任务（DevTask）—— 工作空间实体。
@@ -16,17 +15,17 @@ import { systemModules } from './system-modules';
  * 原 type 字段已废除（实体切割后分类价值失效），交付性质由 tags 承载
  * （惯例标签：architecture-enabler / implementation / refactor / bug 等）。
  */
-export const devTasks = pgTable('dev_tasks', {
-  id: text('id').primaryKey(),
+export const devTasks = pgTable("dev_tasks", {
+  id: text("id").primaryKey(),
   /** 锚定用户故事（工程治理类工作为空） */
-  storyId: text('story_id').references(() => userStories.id, { onDelete: 'cascade' }),
+  storyId: text("story_id").references(() => userStories.id, { onDelete: "cascade" }),
   /**
    * 产品归属。挂 story 时经派生链回填；**不挂 story 时必填**——
    * 派生链在 story_id 为空时断裂，没有它无法回答"这任务属于哪个产品"。
    * （此列 2026-09-15 曾作为死列删除，属误删：当时证据只证明"无人使用"，
    *  未证明"不需要"——详见 domain-model.md §6.1）
    */
-  productId: text('product_id').references(() => products.id, { onDelete: 'cascade' }),
+  productId: text("product_id").references(() => products.id, { onDelete: "cascade" }),
   /**
    * 模块锚定：工程治理类工作的主锚（架构治理载体）。
    * 与 affectedModules 的区别：本字段是**唯一主锚**，affectedModules 是**影响面标注**（可多个）。
@@ -37,19 +36,22 @@ export const devTasks = pgTable('dev_tasks', {
    * 靠 findMissingIds 定期扫描报告，而非 DB 级联。外键语义（SET NULL / CASCADE）
    * 与「纯信息不裁决」相悖，故此处只做列，不做约束。
    */
-  moduleId: text('module_id'),
-  title: text('title').notNull(),
-  description: text('description').notNull().default(''),
-  priority: text('priority').notNull().default('P2'),
-  estimation: real('estimation').notNull().default(0),
-  status: text('status').notNull().default('backlog'),
-  dependencies: jsonb('dependencies').$type<string[]>().notNull().default([]),
-  tags: jsonb('tags').$type<string[]>().notNull().default([]),
+  moduleId: text("module_id"),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  priority: text("priority").notNull().default("P2"),
+  estimation: real("estimation").notNull().default(0),
+  status: text("status").notNull().default("backlog"),
+  dependencies: jsonb("dependencies").$type<string[]>().notNull().default([]),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
   /** 涉及模块（信息性标注，可多个；主锚见 moduleId） */
-  affectedModules: jsonb('affected_modules').$type<string[]>().notNull().default([]),
-  assignee: text('assignee'),
-  startedAt: timestamp('started_at', { withTimezone: true }),
-  completedAt: timestamp('completed_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  affectedModules: jsonb("affected_modules").$type<string[]>().notNull().default([]),
+  assignee: text("assignee"),
+  claimAgentId: text("claim_agent_id"),
+  claimSessionId: text("claim_session_id"),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
