@@ -1,18 +1,18 @@
-export { ProductRepository } from './product.repository';
-export { UserActivityRepository } from './user-activity.repository';
-export { StoryRepository } from './story.repository';
-export { DevTaskRepository } from './dev-task.repository';
-export { MilestoneRepository } from './milestone.repository';
-export { StatusChangeRepository } from './status-change.repository';
-export { AdrRepository } from './adr.repository';
-export { SystemModuleRepository } from './system-module.repository';
-export type { SystemModuleInput } from './system-module.repository';
-export { AppSettingsRepository } from './app-settings.repository';
+export { ProductRepository } from "./product.repository";
+export { UserActivityRepository } from "./user-activity.repository";
+export { StoryRepository } from "./story.repository";
+export { DevTaskRepository } from "./dev-task.repository";
+export { MilestoneRepository } from "./milestone.repository";
+export { StatusChangeRepository } from "./status-change.repository";
+export { AdrRepository, AdrReviewError } from "./adr.repository";
+export { SystemModuleRepository } from "./system-module.repository";
+export type { SystemModuleInput } from "./system-module.repository";
+export { AppSettingsRepository } from "./app-settings.repository";
 
 // 单例实例
-import { ProductRepository } from './product.repository';
-import { StatusChangeRepository } from './status-change.repository';
-import { AdrRepository } from './adr.repository';
+import { ProductRepository } from "./product.repository";
+import { StatusChangeRepository } from "./status-change.repository";
+import { AdrRepository } from "./adr.repository";
 
 let productRepo: ProductRepository | null = null;
 let statusChangeRepo: StatusChangeRepository | null = null;

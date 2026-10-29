@@ -4,13 +4,14 @@
  * 见 docs/design/story-map-redesign.md §3.1。
  */
 
-import { Timestamp, type Provenance } from './common';
-import { UserActivity } from './user-activity';
+import { Timestamp, type Provenance } from "./common";
+import { UserActivity } from "./user-activity";
 
 /**
  * 产品接口
  */
 export interface Product {
+  provenance?: "human_asserted" | "agent_inferred" | "imported";
   /** 唯一标识符 */
   id: string;
 
@@ -92,7 +93,7 @@ export interface DisplayPreferences {
   show_estimation: boolean;
 
   /** 默认视图 */
-  default_view: 'map' | 'list' | 'kanban';
+  default_view: "map" | "list" | "kanban";
 }
 
 /**

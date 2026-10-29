@@ -2,13 +2,14 @@
  * 用户故事相关类型定义
  */
 
-import { Priority, Timestamp, Position, StoryStatus, type Provenance } from './common';
-import { DevTask } from './dev-task';
+import { Priority, Timestamp, Position, StoryStatus, type Provenance } from "./common";
+import { DevTask } from "./dev-task";
 
 /**
  * 用户故事接口
  */
 export interface UserStory {
+  provenance?: "human_asserted" | "agent_inferred" | "imported";
   /** 唯一标识符，格式: US-XXX */
   id: string;
 

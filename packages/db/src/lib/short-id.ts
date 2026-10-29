@@ -14,8 +14,8 @@
  * 声明，保证生成规则与存量重写规则永不漂移。
  */
 
-import { sql } from 'drizzle-orm';
-import { ensureDb, rowsOf } from '../db/client';
+import { sql } from "drizzle-orm";
+import { ensureDb, rowsOf } from "../db/client";
 
 /**
  * 实体 ID 规格：前缀、序列表、所在表、以及指向该实体的外键列（存量重写用）。
@@ -25,76 +25,99 @@ import { ensureDb, rowsOf } from '../db/client';
  */
 export const ID_SPECS = {
   product: {
-    prefix: 'PROD',
-    sequence: 'product_id_seq',
-    table: 'products',
+    prefix: "PROD",
+    sequence: "product_id_seq",
+    table: "products",
     refs: [
-      { table: 'user_activities', column: 'product_id', kind: 'column' },
-      { table: 'milestones', column: 'product_id', kind: 'column' },
-      { table: 'adr_records', column: 'product_id', kind: 'column' },
-      { table: '_legacy_user_journeys', column: 'project_id', kind: 'column' },
+      { table: "user_activities", column: "product_id", kind: "column" },
+      { table: "milestones", column: "product_id", kind: "column" },
+      { table: "adr_records", column: "product_id", kind: "column" },
+      { table: "_legacy_user_journeys", column: "project_id", kind: "column" },
       // 0006/0008 后加的两条 FK——曾缺失致 rename 事务回滚
       // （UPDATE products SET id 被 ON UPDATE 触发的即时 FK 校验阻断）
-      { table: 'system_modules', column: 'product_id', kind: 'column' },
-      { table: 'dev_tasks', column: 'product_id', kind: 'column' },
+      { table: "system_modules", column: "product_id", kind: "column" },
+      { table: "dev_tasks", column: "product_id", kind: "column" },
     ],
   },
   userActivity: {
-    prefix: 'UA',
-    sequence: 'user_activity_id_seq',
-    table: 'user_activities',
+    prefix: "UA",
+    sequence: "user_activity_id_seq",
+    table: "user_activities",
     refs: [
-      { table: 'user_tasks', column: 'activity_id', kind: 'column' },
-      { table: 'user_stories', column: 'activity_id', kind: 'column' },
+      { table: "user_tasks", column: "activity_id", kind: "column" },
+      { table: "user_stories", column: "activity_id", kind: "column" },
     ],
   },
   userTask: {
-    prefix: 'UT',
-    sequence: 'user_task_id_seq',
-    table: 'user_tasks',
-    refs: [{ table: 'user_stories', column: 'user_task_id', kind: 'column' }],
+    prefix: "UT",
+    sequence: "user_task_id_seq",
+    table: "user_tasks",
+    refs: [{ table: "user_stories", column: "user_task_id", kind: "column" }],
   },
   milestone: {
-    prefix: 'MS',
-    sequence: 'milestone_id_seq',
-    table: 'milestones',
+    prefix: "MS",
+    sequence: "milestone_id_seq",
+    table: "milestones",
     refs: [
-      { table: 'user_stories', column: 'milestone_id', kind: 'column' },
-      { table: 'adr_records', column: 'milestone_id', kind: 'column' },
+      { table: "user_stories", column: "milestone_id", kind: "column" },
+      { table: "adr_records", column: "milestone_id", kind: "column" },
     ],
   },
   story: {
-    prefix: 'US',
-    sequence: 'user_story_id_seq',
-    table: 'user_stories',
+    prefix: "US",
+    sequence: "user_story_id_seq",
+    table: "user_stories",
     refs: [
-      { table: 'dev_tasks', column: 'story_id', kind: 'column' },
-      { table: 'status_changes', column: 'entity_id', kind: 'column', filter: "entity_type = 'story'" },
+      { table: "dev_tasks", column: "story_id", kind: "column" },
+      {
+        table: "status_changes",
+        column: "entity_id",
+        kind: "column",
+        filter: "entity_type = 'story'",
+      },
     ],
   },
   devTask: {
-    prefix: 'TASK',
-    sequence: 'dev_task_id_seq',
-    table: 'dev_tasks',
+    prefix: "TASK",
+    sequence: "dev_task_id_seq",
+    table: "dev_tasks",
     refs: [
       // 任务 DAG：依赖关系存的是任务 ID 数组（jsonb），重写时需逐元素替换
-      { table: 'dev_tasks', column: 'dependencies', kind: 'jsonbArray' },
-      { table: 'status_changes', column: 'entity_id', kind: 'column', filter: "entity_type = 'task'" },
+      { table: "dev_tasks", column: "dependencies", kind: "jsonbArray" },
+      {
+        table: "status_changes",
+        column: "entity_id",
+        kind: "column",
+        filter: "entity_type = 'task'",
+      },
     ],
   },
   adr: {
-    prefix: 'ADR',
-    sequence: 'adr_record_id_seq',
-    table: 'adr_records',
+    prefix: "ADR",
+    sequence: "adr_record_id_seq",
+    table: "adr_records",
     refs: [
-      { table: 'status_changes', column: 'entity_id', kind: 'column', filter: "entity_type = 'adr'" },
-      { table: 'adr_records', column: 'supersedes', kind: 'column' },
+      {
+        table: "status_changes",
+        column: "entity_id",
+        kind: "column",
+        filter: "entity_type = 'adr'",
+      },
+      { table: "adr_records", column: "supersedes", kind: "column" },
+      { table: "adr_records", column: "revises", kind: "column" },
+      { table: "adr_review_events", column: "adr_id", kind: "column" },
     ],
   },
+  adrReview: {
+    prefix: "AR",
+    sequence: "adr_review_id_seq",
+    table: "adr_review_events",
+    refs: [{ table: "adr_review_events", column: "comment_id", kind: "column" }],
+  },
   statusChange: {
-    prefix: 'SC',
-    sequence: 'status_change_id_seq',
-    table: 'status_changes',
+    prefix: "SC",
+    sequence: "status_change_id_seq",
+    table: "status_changes",
     refs: [],
   },
 } as const;
@@ -118,7 +141,7 @@ export async function generateShortId(kind: ShortIdKind): Promise<string> {
 
 /** 按规格拼装 ID（如 ('story', 48) → 'US-048'） */
 export function formatShortId(kind: ShortIdKind, n: number): string {
-  return `${ID_SPECS[kind].prefix}-${String(n).padStart(3, '0')}`;
+  return `${ID_SPECS[kind].prefix}-${String(n).padStart(3, "0")}`;
 }
 
 /** 解析现有 ID 的序号；非本规格形态（nanoid/UUID/旧前缀）返回 null */
@@ -136,6 +159,8 @@ export async function bumpSequenceTo(kind: ShortIdKind, atLeast: number): Promis
   const db = await ensureDb();
   await db.execute(sql.raw(`CREATE SEQUENCE IF NOT EXISTS ${sequence}`));
   await db.execute(
-    sql.raw(`SELECT setval('${sequence}', GREATEST((SELECT last_value FROM ${sequence}), ${atLeast}))`)
+    sql.raw(
+      `SELECT setval('${sequence}', GREATEST((SELECT last_value FROM ${sequence}), ${atLeast}))`,
+    ),
   );
 }

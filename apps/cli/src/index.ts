@@ -1012,72 +1012,115 @@ async function cmdAdr(ctx: Ctx): Promise<void> {
   const sub = ctx.positional[0];
   const f = ctx.flags;
   switch (sub) {
-    case 'create': {
+    case "create": {
       const body: Record<string, unknown> = {
-        product_id: req(f, 'product', 'project'),
-        title: req(f, 'title'),
-        context: req(f, 'context'),
-        decision: req(f, 'decision'),
+        product_id: req(f, "product", "project"),
+        title: req(f, "title"),
+        context: req(f, "context"),
+        decision: req(f, "decision"),
       };
-      const consequences = opt(f, 'consequences'); if (consequences !== undefined) body.consequences = consequences;
-      const alternatives = opt(f, 'alternatives'); if (alternatives !== undefined) body.alternatives_considered = alternatives;
-      const supersedes = opt(f, 'supersedes'); if (supersedes !== undefined) body.supersedes = supersedes;
-      const milestone = opt(f, 'milestone'); if (milestone !== undefined) body.milestone_id = milestone;
-      const modules = splitList(opt(f, 'modules')); if (modules) body.module_ids = modules;
-      const status = opt(f, 'status'); if (status !== undefined) body.status = status;
-      const file = opt(f, 'file');
-      if (file !== undefined) body.changes = JSON.parse(readFileSync(file, 'utf-8'));
-      const prov = opt(f, 'provenance'); if (prov) body.provenance = prov;
-      const data = await api('/api/adr-records', 'POST', body);
+      const consequences = opt(f, "consequences");
+      if (consequences !== undefined) body.consequences = consequences;
+      const alternatives = opt(f, "alternatives");
+      if (alternatives !== undefined) body.alternatives_considered = alternatives;
+      const revises = opt(f, "revises");
+      if (revises) body.revises = revises;
+      const supersedes = opt(f, "supersedes");
+      if (supersedes !== undefined) body.supersedes = supersedes;
+      const milestone = opt(f, "milestone");
+      if (milestone !== undefined) body.milestone_id = milestone;
+      const modules = splitList(opt(f, "modules"));
+      if (modules) body.module_ids = modules;
+      const status = opt(f, "status");
+      if (status !== undefined) body.status = status;
+      const file = opt(f, "file");
+      if (file !== undefined) body.changes = JSON.parse(readFileSync(file, "utf-8"));
+      const prov = opt(f, "provenance");
+      if (prov) body.provenance = prov;
+      const data = await api("/api/adr-records", "POST", body);
       console.log(render(data, ctx.format));
       break;
     }
-    case 'list': {
-      const productId = req(f, 'product', 'project');
+    case "list": {
+      const productId = req(f, "product", "project");
       const data = await api(`/api/adr-records?productId=${encodeURIComponent(productId)}`);
       const rows = (Array.isArray(data) ? data : []).map((r) => ({
-        id: r.id, seq: r.seq, status: r.status, title: r.title,
+        id: r.id,
+        seq: r.seq,
+        status: r.status,
+        title: r.title,
+        revises: r.revises,
+        revised_by: r.revised_by,
       }));
       console.log(render(rows, ctx.format));
       break;
     }
-    case 'show': {
-      const id = reqId(ctx.positional.slice(1), 'adr show');
+    case "show": {
+      const id = reqId(ctx.positional.slice(1), "adr show");
       const data = await api(`/api/adr-records/${id}`);
-      console.log(render(data, ctx.format === 'table' ? 'json' : ctx.format));
+      console.log(render(data, ctx.format === "table" ? "json" : ctx.format));
       break;
     }
-    case 'status': {
-      const id = reqId(ctx.positional.slice(1), 'adr status <id> <status>');
+    case "review": {
+      const id = reqId(ctx.positional.slice(1), "adr review");
+      const data = await api(`/api/adr-records/${id}/review`);
+      if (!isObj(data)) throw new Error(`ADR 不存在: ${id}`);
+      console.log(render(data, ctx.format === "table" ? "json" : ctx.format));
+      break;
+    }
+    case "comment":
+    case "reply":
+    case "resolve": {
+      const id = reqId(ctx.positional.slice(1), `adr ${sub}`);
+      const body = {
+        kind: sub === "comment" ? "comment" : sub,
+        body: req(f, sub === "resolve" ? "reason" : "body"),
+        ...(sub === "comment"
+          ? { target: opt(f, "target"), blocking: opt(f, "blocking") === "true" }
+          : { commentId: req(f, "comment") }),
+      };
+      console.log(render(await api(`/api/adr-records/${id}/review`, "POST", body), ctx.format));
+      break;
+    }
+    case "status": {
+      const id = reqId(ctx.positional.slice(1), "adr status <id> <status>");
       const status = ctx.positional[2];
-      if (!status) throw new Error('用法: xcart adr status <id> <status> [--reason]');
+      if (!status) throw new Error("用法: xcart adr status <id> <status> [--reason]");
       // §4.4：升格为 accepted 必须带理由（状态机即权限模型，无法静默自我许可）。
       // 与 task/story 的 cancelled 同类校验——服务端也拦，此处提前给可读提示。
-      const reason = opt(f, 'reason');
-      if (status === 'accepted' && !reason) {
+      const reason = opt(f, "reason");
+      if (!reason) {
         throw new Error(
-          '升格（accepted）必须提供 --reason（记录升格依据）：' +
-          `xcart adr status ${id} accepted --reason "<依据>"`
+          "升格（accepted）必须提供 --reason（记录升格依据）：" +
+            `xcart adr status ${id} accepted --reason "<依据>"`,
         );
       }
-      const res = await api(`/api/adr-records/${id}/status`, 'POST', { status, reason });
+      const reviewToken = status === "accepted" ? req(f, "review-token") : opt(f, "review-token");
+      const res = await api(`/api/adr-records/${id}/status`, "POST", {
+        status,
+        reason,
+        reviewToken,
+      });
       console.log(render(res, ctx.format));
       break;
     }
-    case 'current': {
-      const productId = req(f, 'product', 'project');
+    case "current": {
+      const productId = req(f, "product", "project");
       const data = await api(`/api/adr-records/current?productId=${encodeURIComponent(productId)}`);
       renderConstitution(data, ctx.format);
       break;
     }
-    case 'as-of-milestone': {
+    case "as-of-milestone": {
       const milestoneId = ctx.positional[1];
-      if (!milestoneId) throw new Error('用法: xcart adr as-of-milestone <milestoneId>');
-      const data = await api(`/api/adr-records/as-of-milestone?milestoneId=${encodeURIComponent(milestoneId)}`);
+      if (!milestoneId) throw new Error("用法: xcart adr as-of-milestone <milestoneId>");
+      const data = await api(
+        `/api/adr-records/as-of-milestone?milestoneId=${encodeURIComponent(milestoneId)}`,
+      );
       renderConstitution(data, ctx.format);
       break;
     }
-    default: throw new Error(`未知子命令: adr ${sub ?? ''}\n\n${helpText()}`);
+    default:
+      throw new Error(`未知子命令: adr ${sub ?? ""}\n\n${helpText()}`);
   }
 }
 
@@ -1595,10 +1638,14 @@ function helpText(): string {
   xcart module delete <slug> --project <id>
 
 技术宪法 (ADR)
-  xcart adr create --project <id> --title <t> --context <c> --decision <d> [--consequences] [--alternatives] [--supersedes <adrId>] [--milestone <id>] [--modules a,b] [--status proposed|accepted] [--file changes.json]
+  xcart adr create --project <id> --title <t> --context <c> --decision <d> [--consequences] [--alternatives] [--supersedes <adrId>] [--revises <adrId>] [--milestone <id>] [--modules a,b] [--status proposed|accepted] [--file changes.json]
   xcart adr list --project <id>                 # 决策记录账本（仅追加）
   xcart adr show <adrId>
-  xcart adr status <adrId> <status> --reason <r>
+  xcart adr review <adrId>                       # 规则预览、评审记录、review_token
+  xcart adr comment <adrId> --body <text> [--target category:id] [--blocking]
+  xcart adr reply <adrId> --comment <commentId> --body <text>
+  xcart adr resolve <adrId> --comment <commentId> --reason <text>
+  xcart adr status <adrId> <status> --reason <r> [--review-token <token>] # accepted 必填预览 token
   xcart adr current --project <id>              # 当前态（按 seq 折叠 accepted ADR 的 changes）
   xcart adr as-of-milestone <milestoneId>       # 截至里程碑锚点的架构态
 
@@ -1658,6 +1705,7 @@ async function main() {
   const ctx: Ctx = { flags, format, positional: rest };
 
   try {
+    if (cmd === 'adr' && rest[0] === 'comment' && boolFlags.has('blocking')) { flags.set('blocking', 'true'); boolFlags.delete('blocking'); }
     const unknownBoolean = [...boolFlags].find((flag) => flag !== 'help' && flag !== 'h');
     if (unknownBoolean) throw new Error(`不支持无值选项 --${unknownBoolean}`);
     if (requestedFormat !== undefined && !['table', 'json', 'markdown'].includes(requestedFormat)) {

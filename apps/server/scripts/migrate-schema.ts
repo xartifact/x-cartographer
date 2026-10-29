@@ -11,17 +11,20 @@
  * 用法：cd apps/server && bun scripts/migrate-schema.ts [--dry-run]
  * 前置：本地库需先停止 gateway（PGlite 单实例）。
  */
-import { sql } from 'drizzle-orm';
-import { ensureDb, rowsOf, type DbInstance } from '@x-cartographer/db';
+import { sql } from "drizzle-orm";
+import { ensureDb, rowsOf, ADR_REVIEW_DDL, type DbInstance } from "@x-cartographer/db";
 
-const DRY_RUN = process.argv.includes('--dry-run');
+const DRY_RUN = process.argv.includes("--dry-run");
 let db: DbInstance;
 
 const query = async (s: string): Promise<Array<Record<string, unknown>>> =>
   rowsOf(await db.execute(sql.raw(s)));
 
 const exec = async (s: string, label: string): Promise<void> => {
-  if (DRY_RUN) { console.log(`  [dry] ${label}`); return; }
+  if (DRY_RUN) {
+    console.log(`  [dry] ${label}`);
+    return;
+  }
   await db.execute(sql.raw(s));
   console.log(`  ✓ ${label}`);
 };
@@ -29,8 +32,13 @@ const exec = async (s: string, label: string): Promise<void> => {
 /** 幂等 DDL 清单：每项 = { label, statements }。新增迁移在此追加。 */
 const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> = [
   {
-    since: '0005',
-    label: 'provenance 列（约束空间六实体）',
+    since: "0010",
+    label: "ADR immutable proposal revisions and review evidence",
+    statements: ADR_REVIEW_DDL,
+  },
+  {
+    since: "0005",
+    label: "provenance 列（约束空间六实体）",
     statements: [
       `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "provenance" text DEFAULT 'agent_inferred' NOT NULL`,
       `ALTER TABLE "milestones" ADD COLUMN IF NOT EXISTS "provenance" text DEFAULT 'agent_inferred' NOT NULL`,
@@ -41,8 +49,8 @@ const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> 
     ],
   },
   {
-    since: '0006',
-    label: 'system_modules 表（模块目录升为一等实体）',
+    since: "0006",
+    label: "system_modules 表（模块目录升为一等实体）",
     statements: [
       `CREATE TABLE IF NOT EXISTS "system_modules" (
         "id" text PRIMARY KEY NOT NULL,
@@ -59,8 +67,8 @@ const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> 
     ],
   },
   {
-    since: '0008',
-    label: '工作项第二锚定路径（product_id 恢复 + module_id 新增，domain-model §2.5）',
+    since: "0008",
+    label: "工作项第二锚定路径（product_id 恢复 + module_id 新增，domain-model §2.5）",
     statements: [
       `ALTER TABLE "dev_tasks" ADD COLUMN IF NOT EXISTS "product_id" text REFERENCES "products"("id") ON DELETE CASCADE`,
       // module_id 不设外键：system_modules 身份是 (product_id, id) 复合主键（0009），
@@ -73,8 +81,8 @@ const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> 
     ],
   },
   {
-    since: '0009',
-    label: '模块身份改产品作用域（复合主键 (product_id, id) + 去掉单列外键）',
+    since: "0009",
+    label: "模块身份改产品作用域（复合主键 (product_id, id) + 去掉单列外键）",
     statements: [
       // 起因：system_modules 单列 id 作全局主键，与「目录按产品隔离」矛盾。
       // 两个产品各有 `cli` / `delivery` 时，upsert 按 id 命中且不更新 product_id，
@@ -93,8 +101,8 @@ const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> 
     ],
   },
   {
-    since: '0007',
-    label: '死列清理（adr_id / persona）',
+    since: "0007",
+    label: "死列清理（adr_id / persona）",
     statements: [
       // 注：本项原含 `dev_tasks.product_id`，但该列已于 0008 恢复
       // （工程治理类工作项需要它做产品归属——domain-model.md §2.5/§6.1）。
@@ -107,20 +115,25 @@ const MIGRATIONS: Array<{ since: string; label: string; statements: string[] }> 
 
 async function main(): Promise<void> {
   db = await ensureDb();
-  console.log(`=== 增量 schema 迁移${DRY_RUN ? '（DRY-RUN）' : ''} ===`);
+  console.log(`=== 增量 schema 迁移${DRY_RUN ? "（DRY-RUN）" : ""} ===`);
 
   // 前置：必须是已重设计过的库（故事地图语义）
-  const tables = (await query(`SELECT tablename FROM pg_tables WHERE schemaname='public'`))
-    .map((r) => String(r.tablename));
-  if (!tables.includes('products')) {
-    console.error('[abort] 未找到 products 表——本脚本用于已重设计的库；旧库请先跑 run-migrate-story-map.ts');
+  const tables = (await query(`SELECT tablename FROM pg_tables WHERE schemaname='public'`)).map(
+    (r) => String(r.tablename),
+  );
+  if (!tables.includes("products")) {
+    console.error(
+      "[abort] 未找到 products 表——本脚本用于已重设计的库；旧库请先跑 run-migrate-story-map.ts",
+    );
     process.exit(1);
   }
 
-  const pre = (await query(`
+  const pre = (
+    await query(`
     SELECT
       (SELECT count(*) FROM user_stories)::int AS stories,
-      (SELECT count(*) FROM dev_tasks)::int AS tasks`))[0] as { stories: number; tasks: number };
+      (SELECT count(*) FROM dev_tasks)::int AS tasks`)
+  )[0] as { stories: number; tasks: number };
   console.log(`[pre] stories=${pre.stories} tasks=${pre.tasks}`);
 
   // 按版本号排序执行 —— 不依赖数组字面顺序。
@@ -134,7 +147,7 @@ async function main(): Promise<void> {
       // 伪装成"已存在、跳过"，迁移看着 PASS 而 schema 没变——正是本项目
       // 反复消灭的静默失败。此处改为**失败即中止**，让问题在部署时暴露。
       try {
-        await exec(st, st.split('\n')[0]!.slice(0, 76));
+        await exec(st, st.split("\n")[0]!.slice(0, 76));
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`\n[abort] ${m.since} 执行失败: ${msg.slice(0, 300)}`);
@@ -146,28 +159,35 @@ async function main(): Promise<void> {
 
   // 后置断言：数据行数不变（DDL 不应动数据）
   if (!DRY_RUN) {
-    const post = (await query(`
+    const post = (
+      await query(`
       SELECT
         (SELECT count(*) FROM user_stories)::int AS stories,
-        (SELECT count(*) FROM dev_tasks)::int AS tasks`))[0] as { stories: number; tasks: number };
+        (SELECT count(*) FROM dev_tasks)::int AS tasks`)
+    )[0] as { stories: number; tasks: number };
     console.log(`[post] stories=${post.stories} tasks=${post.tasks}`);
     if (post.stories !== pre.stories || post.tasks !== pre.tasks) {
-      console.error('[assert-fail] 数据行数变化——DDL 不应影响数据');
+      console.error("[assert-fail] 数据行数变化——DDL 不应影响数据");
       process.exit(1);
     }
     // 死列断言：只含**当前仍未恢复**的死列（0007 范围内）。
     // 注：dev_tasks.product_id 不在此列——它已由 0008 恢复为有效字段（工程治理类
     // 工作项的产品归属），保留它是**预期状态**而非遗漏。
-    const dead = (await query(`
+    const dead = (
+      await query(`
       SELECT table_name || '.' || column_name AS col FROM information_schema.columns
       WHERE table_schema='public'
         AND ((table_name='milestones' AND column_name='adr_id')
-          OR (table_name='products' AND column_name='persona'))`)).map((r) => String(r.col));
-    if (dead.length > 0) { console.error(`[assert-fail] 死列仍存在: ${dead.join(', ')}`); process.exit(1); }
-    console.log('  ✓ 死列已清除，行数守恒');
-    console.log('SCHEMA MIGRATION PASS');
+          OR (table_name='products' AND column_name='persona'))`)
+    ).map((r) => String(r.col));
+    if (dead.length > 0) {
+      console.error(`[assert-fail] 死列仍存在: ${dead.join(", ")}`);
+      process.exit(1);
+    }
+    console.log("  ✓ 死列已清除，行数守恒");
+    console.log("SCHEMA MIGRATION PASS");
   } else {
-    console.log('[DRY-RUN 完成未写入]');
+    console.log("[DRY-RUN 完成未写入]");
   }
   process.exit(0);
 }

@@ -16,20 +16,21 @@
  * 特征清单随 schema 演进**必须同步更新**（新增列/表时加一条），
  * 否则防线会随版本漂移而失效。
  */
-import { sql } from 'drizzle-orm';
-import { ensureDb, rowsOf } from '@x-cartographer/db';
+import { sql } from "drizzle-orm";
+import { ensureDb, rowsOf } from "@x-cartographer/db";
 
 /** 当前代码期望的 schema 特征。新增迁移时在此追加。 */
 const REQUIRED_TABLES = [
-  'products',
-  'milestones',
-  'user_activities',
-  'user_tasks',
-  'user_stories',
-  'dev_tasks',
-  'status_changes',
-  'adr_records',
-  'system_modules',
+  "products",
+  "milestones",
+  "user_activities",
+  "user_tasks",
+  "user_stories",
+  "dev_tasks",
+  "status_changes",
+  "adr_records",
+  "adr_review_events",
+  "system_modules",
 ] as const;
 
 /**
@@ -37,25 +38,27 @@ const REQUIRED_TABLES = [
  * 所以必须在探活阶段就暴露。
  */
 const REQUIRED_COLUMNS: Array<{ table: string; column: string; since: string }> = [
+  { table: "adr_records", column: "revises", since: "0010" },
+  { table: "adr_review_events", column: "comment_id", since: "0010" },
   // 0003 story-map-redesign
-  { table: 'user_stories', column: 'activity_id', since: '0003' },
-  { table: 'user_stories', column: 'legacy_journey_id', since: '0003' },
-  { table: 'user_stories', column: 'user_task_id', since: '0003' },
-  { table: 'user_stories', column: 'affected_modules', since: '0003' },
-  { table: 'dev_tasks', column: 'affected_modules', since: '0003' },
+  { table: "user_stories", column: "activity_id", since: "0003" },
+  { table: "user_stories", column: "legacy_journey_id", since: "0003" },
+  { table: "user_stories", column: "user_task_id", since: "0003" },
+  { table: "user_stories", column: "affected_modules", since: "0003" },
+  { table: "dev_tasks", column: "affected_modules", since: "0003" },
   // 0005 provenance（约束写入协议）
-  { table: 'products', column: 'provenance', since: '0005' },
-  { table: 'milestones', column: 'provenance', since: '0005' },
-  { table: 'user_activities', column: 'provenance', since: '0005' },
-  { table: 'user_tasks', column: 'provenance', since: '0005' },
-  { table: 'user_stories', column: 'provenance', since: '0005' },
-  { table: 'adr_records', column: 'provenance', since: '0005' },
+  { table: "products", column: "provenance", since: "0005" },
+  { table: "milestones", column: "provenance", since: "0005" },
+  { table: "user_activities", column: "provenance", since: "0005" },
+  { table: "user_tasks", column: "provenance", since: "0005" },
+  { table: "user_stories", column: "provenance", since: "0005" },
+  { table: "adr_records", column: "provenance", since: "0005" },
   // 0006 system_modules（模块目录升为一等实体）
-  { table: 'system_modules', column: 'provenance', since: '0006' },
-  { table: 'system_modules', column: 'depends_on', since: '0006' },
+  { table: "system_modules", column: "provenance", since: "0006" },
+  { table: "system_modules", column: "depends_on", since: "0006" },
   // 0008 工作项第二锚定路径
-  { table: 'dev_tasks', column: 'product_id', since: '0008' },
-  { table: 'dev_tasks', column: 'module_id', since: '0008' },
+  { table: "dev_tasks", column: "product_id", since: "0008" },
+  { table: "dev_tasks", column: "module_id", since: "0008" },
 ];
 
 /**
@@ -66,7 +69,7 @@ const REQUIRED_COLUMNS: Array<{ table: string; column: string; since: string }> 
  * `columns` 按 PK 定义顺序比对（pg_constraint.conkey 顺序）。
  */
 const REQUIRED_PRIMARY_KEYS: Array<{ table: string; columns: string[]; since: string }> = [
-  { table: 'system_modules', columns: ['product_id', 'id'], since: '0009' },
+  { table: "system_modules", columns: ["product_id", "id"], since: "0009" },
 ];
 
 export interface SchemaHealth {
@@ -92,13 +95,11 @@ export async function checkSchemaHealth(): Promise<SchemaHealth> {
     const db = await ensureDb();
 
     // 1) 数据库可达
-    await db.execute(sql.raw('SELECT 1'));
+    await db.execute(sql.raw("SELECT 1"));
 
     // 2) 表就位
     const tableRows = rowsOf(
-      await db.execute(
-        sql.raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`)
-      )
+      await db.execute(sql.raw(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`)),
     );
     const present = new Set(tableRows.map((r) => String(r.tablename)));
     const missingTables = REQUIRED_TABLES.filter((t) => !present.has(t));
@@ -107,14 +108,16 @@ export async function checkSchemaHealth(): Promise<SchemaHealth> {
     const colRows = rowsOf(
       await db.execute(
         sql.raw(
-          `SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public'`
-        )
-      )
+          `SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public'`,
+        ),
+      ),
     );
-    const presentCols = new Set(colRows.map((r) => `${String(r.table_name)}.${String(r.column_name)}`));
-    const missingColumns = REQUIRED_COLUMNS
-      .filter((c) => !presentCols.has(`${c.table}.${c.column}`))
-      .map((c) => `${c.table}.${c.column} (since ${c.since})`);
+    const presentCols = new Set(
+      colRows.map((r) => `${String(r.table_name)}.${String(r.column_name)}`),
+    );
+    const missingColumns = REQUIRED_COLUMNS.filter(
+      (c) => !presentCols.has(`${c.table}.${c.column}`),
+    ).map((c) => `${c.table}.${c.column} (since ${c.since})`);
 
     // 4) 关键主键形态（列存在≠语义正确，见 REQUIRED_PRIMARY_KEYS）
     //    conkey 是列号数组，按 attnum 还原列名后与期望序列比对。
@@ -123,26 +126,22 @@ export async function checkSchemaHealth(): Promise<SchemaHealth> {
         sql.raw(`SELECT c.conrelid::regclass::text AS tbl, a.attname AS col, c.conkey
                  FROM pg_constraint c
                  JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
-                 WHERE c.contype = 'p' AND c.connamespace = 'public'::regnamespace`)
-      )
+                 WHERE c.contype = 'p' AND c.connamespace = 'public'::regnamespace`),
+      ),
     );
     const pkCols = new Map<string, string[]>();
     for (const r of pkRows) {
       const tbl = String(r.tbl);
       pkCols.set(tbl, [...(pkCols.get(tbl) ?? []), String(r.col)]);
     }
-    const wrongPrimaryKeys = REQUIRED_PRIMARY_KEYS
-      .filter(({ table, columns }) => {
-        const actual = pkCols.get(table) ?? [];
-        return actual.length !== columns.length || !columns.every((c) => actual.includes(c));
-      })
-      .map(({ table, columns, since }) => `${table}(${columns.join(', ')}) (since ${since})`);
+    const wrongPrimaryKeys = REQUIRED_PRIMARY_KEYS.filter(({ table, columns }) => {
+      const actual = pkCols.get(table) ?? [];
+      return actual.length !== columns.length || !columns.every((c) => actual.includes(c));
+    }).map(({ table, columns, since }) => `${table}(${columns.join(", ")}) (since ${since})`);
 
     return {
       ok:
-        missingTables.length === 0 &&
-        missingColumns.length === 0 &&
-        wrongPrimaryKeys.length === 0,
+        missingTables.length === 0 && missingColumns.length === 0 && wrongPrimaryKeys.length === 0,
       reachable: true,
       missingTables,
       missingColumns,

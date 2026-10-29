@@ -6,13 +6,13 @@
  * "当前态"是按 seq 折叠 changes 得到的投影，不单独维护（§3.3）。
  */
 
-import { Timestamp, type Provenance } from './common';
+import { Timestamp, type Provenance } from "./common";
 
 /**
  * ADR 状态（文档/叙事层面的标签，不影响折叠结果，§3.1）
  * 状态机: proposed → accepted | rejected; accepted → deprecated | superseded（终态不可再转）
  */
-export type AdrStatus = 'proposed' | 'accepted' | 'rejected' | 'deprecated' | 'superseded';
+export type AdrStatus = "proposed" | "accepted" | "rejected" | "deprecated" | "superseded";
 
 /**
  * 技术栈条目 —— 事实陈述（"选了什么"），非规范性陈述，§3.4
@@ -34,7 +34,7 @@ export interface TechStackEntry {
 /**
  * 强制力等级（RFC 2119 四值，§3.5）
  */
-export type PrincipleStrength = 'MUST' | 'SHOULD' | 'MAY' | 'MUST_NOT';
+export type PrincipleStrength = "MUST" | "SHOULD" | "MAY" | "MUST_NOT";
 
 /**
  * 架构原则 —— 规范性陈述（RFC 2119 + EARS），§3.5
@@ -125,6 +125,11 @@ export interface AdrRecord {
   /** 被本条替代的旧 ADR id（可选；联动仅写 status_changes 标签，不影响折叠） */
   supersedes?: string;
 
+  /** Previous immutable proposal. Distinct from replacing an adopted decision. */
+  revises?: string;
+  /** Derived successor ID; not writable. */
+  revised_by?: string;
+
   /** 关联里程碑（可选；"手动关联，不自动触发"，§5） */
   milestone_id?: string;
 
@@ -160,6 +165,7 @@ export interface CreateAdrRecordDTO {
   consequences?: string;
   alternatives_considered?: string;
   supersedes?: string;
+  revises?: string;
   milestone_id?: string;
   module_ids?: string[];
   changes?: AdrChanges;
@@ -178,7 +184,41 @@ export interface TransitionAdrStatusDTO {
  * 折叠后的"当前态"投影（§3.3）
  */
 export interface CurrentConstitution {
+  /** Effective rule version → originating ADR, derived from the same ledger fold. */
+  rule_sources?: Record<string, string>;
   tech_stack: TechStackEntry[];
   architecture_principles: ArchitecturePrinciple[];
   modules: SystemModule[];
+}
+
+export interface AdrReviewEvent {
+  id: string;
+  adr_id: string;
+  kind: "comment" | "reply" | "resolve";
+  comment_id?: string;
+  /** architecture_principles:<id> or tech_stack:<id>; empty = entire proposal. */
+  target?: string;
+  body: string;
+  blocking: boolean;
+  created_at: string;
+  seq: number;
+}
+
+export interface CreateAdrReviewEventDTO {
+  kind: AdrReviewEvent["kind"];
+  commentId?: string;
+  target?: string;
+  body: string;
+  blocking?: boolean;
+}
+
+export interface AdrReview {
+  adr: AdrRecord;
+  lineage: AdrRecord[];
+  events: AdrReviewEvent[];
+  unresolved_count: number;
+  /** Opaque fingerprint of the exact ledger and review evidence displayed. */
+  review_token: string;
+  before: CurrentConstitution;
+  after: CurrentConstitution;
 }

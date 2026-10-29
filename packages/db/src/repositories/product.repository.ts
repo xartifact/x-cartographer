@@ -1,10 +1,10 @@
-import { eq, desc, or, sql } from 'drizzle-orm';
-import { ensureDb } from '../db/client';
-import { products } from '../db/schema/products';
-import { userActivities } from '../db/schema/user-activities';
-import { userStories } from '../db/schema/user-stories';
-import { devTasks } from '../db/schema/dev-tasks';
-import { userTasks } from '../db/schema/user-tasks';
+import { eq, desc, or, sql } from "drizzle-orm";
+import { ensureDb } from "../db/client";
+import { products } from "../db/schema/products";
+import { userActivities } from "../db/schema/user-activities";
+import { userStories } from "../db/schema/user-stories";
+import { devTasks } from "../db/schema/dev-tasks";
+import { userTasks } from "../db/schema/user-tasks";
 import type {
   Product,
   CreateProductDTO,
@@ -14,8 +14,7 @@ import type {
   UserStory,
   DevTask,
   UserTask,
-} from '@x-cartographer/shared';
-
+} from "@x-cartographer/shared";
 
 function getDefaultSettings(): ProductSettings {
   return {
@@ -23,20 +22,19 @@ function getDefaultSettings(): ProductSettings {
     display_preferences: {
       show_priority_colors: true,
       show_estimation: true,
-      default_view: 'map',
+      default_view: "map",
     },
   };
 }
 
-function dbRowToProduct(
-  row: typeof products.$inferSelect
-): Omit<Product, 'user_activities'> {
+function dbRowToProduct(row: typeof products.$inferSelect): Omit<Product, "user_activities"> {
   return {
     id: row.id,
+    provenance: row.provenance,
     name: row.name,
     description: row.description ?? undefined,
-    metadata: row.metadata as Product['metadata'],
-    settings: row.settings as Product['settings'],
+    metadata: row.metadata as Product["metadata"],
+    settings: row.settings as Product["settings"],
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };
@@ -47,9 +45,9 @@ function dbRowToDevTask(row: typeof devTasks.$inferSelect): DevTask {
     id: row.id,
     title: row.title,
     description: row.description,
-    priority: row.priority as DevTask['priority'],
+    priority: row.priority as DevTask["priority"],
     estimation: row.estimation,
-    status: row.status as DevTask['status'],
+    status: row.status as DevTask["status"],
     dependencies: (row.dependencies ?? []) as string[],
     story_id: row.storyId,
     product_id: row.productId ?? undefined,
@@ -64,24 +62,22 @@ function dbRowToDevTask(row: typeof devTasks.$inferSelect): DevTask {
   };
 }
 
-function dbRowToStory(
-  row: typeof userStories.$inferSelect,
-  storyTasks: DevTask[]
-): UserStory {
+function dbRowToStory(row: typeof userStories.$inferSelect, storyTasks: DevTask[]): UserStory {
   return {
     id: row.id,
+    provenance: row.provenance,
     title: row.title,
     description: row.description,
-    priority: row.priority as UserStory['priority'],
+    priority: row.priority as UserStory["priority"],
     estimation: row.estimation,
     acceptance_criteria: (row.acceptanceCriteria ?? []) as string[],
     tags: (row.tags ?? []) as string[],
-    activity_id: row.activityId ?? '',
+    activity_id: row.activityId ?? "",
     journey_id: row.legacyJourneyId ?? undefined,
     dev_tasks: storyTasks,
     order: row.order,
-    status: (row.status ?? 'backlog') as UserStory['status'],
-    position: row.position as UserStory['position'],
+    status: (row.status ?? "backlog") as UserStory["status"],
+    position: row.position as UserStory["position"],
     milestone_id: row.milestoneId ?? undefined,
     user_task_id: row.userTaskId ?? undefined,
     affected_modules: (row.affectedModules ?? []) as string[],
@@ -94,13 +90,14 @@ function dbRowToActivity(
   row: typeof userActivities.$inferSelect & {
     userTasks?: Array<typeof userTasks.$inferSelect>;
   },
-  activityStories: UserStory[]
+  activityStories: UserStory[],
 ): UserActivity {
   const tasks: UserTask[] = (row.userTasks ?? [])
     .slice()
     .sort((a, b) => a.order - b.order)
     .map((t) => ({
       id: t.id,
+      provenance: t.provenance,
       activity_id: t.activityId,
       name: t.name,
       description: t.description,
@@ -110,6 +107,7 @@ function dbRowToActivity(
     }));
   return {
     id: row.id,
+    provenance: row.provenance,
     name: row.name,
     description: row.description,
     product_id: row.productId,
@@ -197,7 +195,7 @@ export class ProductRepository {
       description: dto.description,
       metadata: {
         tech_stack: dto.tech_stack || [],
-        version: '1.0.0',
+        version: "1.0.0",
         tags: [],
       },
       // workspace_dir 此前被丢弃：DTO/路由都收它，仓库却没有落列，
@@ -206,7 +204,7 @@ export class ProductRepository {
         ...getDefaultSettings(),
         ...(dto.workspace_dir !== undefined ? { workspace_dir: dto.workspace_dir } : {}),
       },
-      provenance: dto.provenance ?? 'agent_inferred',
+      provenance: dto.provenance ?? "agent_inferred",
       createdAt: now,
       updatedAt: now,
     });
@@ -259,7 +257,7 @@ export class ProductRepository {
     const rows = await db.query.products.findMany({
       where: or(
         sql`lower(${products.name}) like ${lowerQuery}`,
-        sql`lower(${products.description}) like ${lowerQuery}`
+        sql`lower(${products.description}) like ${lowerQuery}`,
       ),
       orderBy: [desc(products.createdAt)],
       with: {
@@ -289,5 +287,4 @@ export class ProductRepository {
       return { ...base, user_activities: activities } as Product;
     });
   }
-
 }

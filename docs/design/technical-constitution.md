@@ -52,7 +52,7 @@ AdrRecord {
 
 **新增 `rejected` 状态**——对应"评估过、决定不做"的决策。这不是假设性场景：本仓库的 `docs/design/pi-sdk-integration.md`、`pi-xherald-integration.md`，以及 `AGENTS.md` 里"MCP 确认不实现"这条记录，都是真实存在、评估过、拍了板、但从未产生任何"当前生效"结构化状态的决策。旧设计（ADR 挂靠在 Constitution 名下，只有"改变了当前态才算数"）没有地方安放这类决策；提升为独立实体后，这类决策就是一条 `status: rejected`、`changes` 为空的 `AdrRecord`，跟"MCP 是否可行"这个问题绑在一起，可查询、有权威落脚点，不会再重演"三份文档互相矛盾"的问题。
 
-`supersedes` 字段的写入行为：创建一条带 `supersedes` 的新 ADR 时，服务端顺手为被指向的旧 ADR 写一条 `status_changes` 记录（状态转 `superseded`，理由自动填"由 ADR-{new_id} 替代"）——这是结构性联动，不是语义判断，符合 P3。**这条联动只影响文档标签，不影响折叠**：如果新 ADR 的意图也包括撤销旧 ADR 引入的状态，必须在同一条新 ADR 里显式写 `changes.remove`，`supersedes` 本身不会自动做到这一点。
+`supersedes` 字段的写入行为：带 `supersedes` 的新 ADR 被采纳时（包括直接以 accepted 创建），服务端在同一事务中为被指向的旧 ADR 写一条 `status_changes` 记录（状态转 `superseded`，理由自动填"由 ADR-{new_id} 替代"）——这是结构性联动，不是语义判断，符合 P3。**这条联动只影响文档标签，不影响折叠**：如果新 ADR 的意图也包括撤销旧 ADR 引入的状态，必须在同一条新 ADR 里显式写 `changes.remove`，`supersedes` 本身不会自动做到这一点。
 
 ### 3.2 `AdrChanges`——记差异，不记全量
 
@@ -204,9 +204,9 @@ resolveEffectiveArchitectureContext(task):
 
 按 `ai-native-product-principles.md` P1：单例文档用页面，集合里的一条记录用 Sheet。
 
-- 技术宪法主页面——展示 `getCurrentConstitution` 的折叠结果（不是直接编辑一张状态表），提供"发起一条新 ADR"的入口（表单填 title/context/decision/changes，提交即 `POST /api/adr-records`，`status` 默认 `accepted`）。
+- 技术宪法主页面——展示 `getCurrentConstitution` 的折叠结果（不是直接编辑一张状态表），提供"发起一条新 ADR"的入口（表单填 title/context/decision/changes，提交即 `POST /api/adr-records`，`status` 固定为 `proposed`，由评审者查看生效预览并附理由采纳）。
 - 某一次 ADR 的详情——Sheet（集合里一条记录的详情，符合既有 Sheet 抽屉惯例），展示 context/decision/consequences/changes 全部字段。
-- 模块目录——主页面内的一个可编辑列表区块，不需要独立路由。
+- 模块目录——当前规则中只读展示；目录写入继续使用模块页面。
 
 ## 8. 遗留字段：`Project.metadata.tech_stack: string[]`
 
@@ -224,3 +224,17 @@ resolveEffectiveArchitectureContext(task):
 ## 10. 下一步
 
 按 `x-cart` 强制项目管理约束，实现前需要在 x-cart 任务板登记对应 US/task（本仓库已自托管在 xcart 项目 `X-Cartographer-Dev`，见 `AGENTS.md`），再按 §9.6 的顺序展开文件级实现。
+
+
+## 11. ADR 评审工作台（US-422）
+
+主页面提供待评审、当前规则、决策历史。详情沿用 Sheet，将规则变化、生效预览、背景依据、评审意见分开阅读。新提案与修订均默认 proposed，来源字段独立保留，不因采纳改为 human_asserted。
+
+- `revises` 指向同产品最新 proposed 提案，唯一后继，旧原文不可变。`revised_by` 由后继推导，旧提案不能再采纳；`supersedes` 专用于替代已生效 ADR。
+- `adr_review_events` 追加 comment / reply / resolve。意见可锚定 `architecture_principles:id` 或 `tech_stack:id`，修订继承整条祖先链的意见。回复不会自动解除 blocking，必须追加带依据的 resolve。现有共享访问权限允许任一操作者解决意见；不宣称具备个人身份或审批角色。
+- `GET /api/adr-records/:id/review` 返回 lineage、events、unresolved_count、before、after、review_token。预览按原始 seq 重算，可能被后续已生效 ADR 覆盖。
+- 决定在产品行锁事务中检查状态、修订、未解决意见与快照 token，随后原子写状态及证据。Web 和 CLI 采纳必传已阅读的 token；旧 API 调用可省略 token，但仍受状态机与意见约束。所有状态流转都必须有理由。
+- `POST /api/adr-records/:id/review` 追加评审事件；通用 status-changes 写入口不接受 ADR，避免伪造已采纳证据。
+- 新增 DDL 同时进入启动初始化与增量迁移 `0010`，幂等增加 revises、评审事件表和索引。无需触碰已有原文。
+
+CLI 使用 `adr review` 阅读预览；`adr comment --blocking` 提出修改意见；`adr reply` 和 `adr resolve` 留下证据；`adr create --revises` 提交修订；`adr status ... accepted --reason ... --review-token ...` 采纳。过期 token 必须重新阅读，不应自动刷新并重试决定。

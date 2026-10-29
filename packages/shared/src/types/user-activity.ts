@@ -4,14 +4,15 @@
  * 原 UserJourney 退役（语义分流见 docs/design/story-map-redesign.md §4.2）。
  */
 
-import { Timestamp, type Provenance } from './common';
-import { UserStory } from './user-story';
-import { UserTask } from './user-task';
+import { Timestamp, type Provenance } from "./common";
+import { UserStory } from "./user-story";
+import { UserTask } from "./user-task";
 
 /**
  * 用户活动接口
  */
 export interface UserActivity {
+  provenance?: "human_asserted" | "agent_inferred" | "imported";
   /** 唯一标识符 */
   id: string;
 

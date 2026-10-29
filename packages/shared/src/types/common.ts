@@ -6,19 +6,19 @@
  * 优先级枚举
  */
 export enum Priority {
-  HIGH = 'high',
-  MEDIUM = 'medium',
-  LOW = 'low',
+  HIGH = "high",
+  MEDIUM = "medium",
+  LOW = "low",
 }
 
 /**
  * 任务优先级
  */
 export enum TaskPriority {
-  P0 = 'P0', // Critical
-  P1 = 'P1', // High
-  P2 = 'P2', // Medium
-  P3 = 'P3', // Low
+  P0 = "P0", // Critical
+  P1 = "P1", // High
+  P2 = "P2", // Medium
+  P3 = "P3", // Low
 }
 
 /**
@@ -30,7 +30,7 @@ export enum TaskPriority {
 export interface PriorityConfig {
   value: string;
   label: string;
-  color: 'red' | 'orange' | 'amber' | 'blue' | 'gray';
+  color: "red" | "orange" | "amber" | "blue" | "gray";
   order: number;
 }
 
@@ -38,19 +38,19 @@ export interface PriorityConfig {
  * 用户故事/旅程优先级配置
  */
 export const PRIORITY_CONFIG: Record<Priority, PriorityConfig> = {
-  [Priority.HIGH]: { value: Priority.HIGH, label: '高', color: 'red', order: 1 },
-  [Priority.MEDIUM]: { value: Priority.MEDIUM, label: '中', color: 'amber', order: 2 },
-  [Priority.LOW]: { value: Priority.LOW, label: '低', color: 'gray', order: 3 },
+  [Priority.HIGH]: { value: Priority.HIGH, label: "高", color: "red", order: 1 },
+  [Priority.MEDIUM]: { value: Priority.MEDIUM, label: "中", color: "amber", order: 2 },
+  [Priority.LOW]: { value: Priority.LOW, label: "低", color: "gray", order: 3 },
 };
 
 /**
  * 任务优先级配置（P0-P3）
  */
 export const TASK_PRIORITY_CONFIG: Record<TaskPriority, PriorityConfig> = {
-  [TaskPriority.P0]: { value: TaskPriority.P0, label: 'P0 · 紧急', color: 'red', order: 1 },
-  [TaskPriority.P1]: { value: TaskPriority.P1, label: 'P1 · 高', color: 'orange', order: 2 },
-  [TaskPriority.P2]: { value: TaskPriority.P2, label: 'P2 · 中', color: 'blue', order: 3 },
-  [TaskPriority.P3]: { value: TaskPriority.P3, label: 'P3 · 低', color: 'gray', order: 4 },
+  [TaskPriority.P0]: { value: TaskPriority.P0, label: "P0 · 紧急", color: "red", order: 1 },
+  [TaskPriority.P1]: { value: TaskPriority.P1, label: "P1 · 高", color: "orange", order: 2 },
+  [TaskPriority.P2]: { value: TaskPriority.P2, label: "P2 · 中", color: "blue", order: 3 },
+  [TaskPriority.P3]: { value: TaskPriority.P3, label: "P3 · 低", color: "gray", order: 4 },
 };
 
 /**
@@ -71,50 +71,52 @@ export function getTaskPriorityConfig(priority: TaskPriority): PriorityConfig {
  * 优先级颜色令牌 → 三种渲染形态（纯文字 / 徽章 / 卡片左色条）对应的 Tailwind 类
  */
 export const PRIORITY_COLOR_VARIANTS: Record<
-  PriorityConfig['color'],
+  PriorityConfig["color"],
   { text: string; badge: string; leftBorder: string }
 > = {
   red: {
-    text: 'text-red-600 dark:text-red-400',
-    badge: 'border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400',
-    leftBorder: 'border-l-red-500',
+    text: "text-red-600 dark:text-red-400",
+    badge:
+      "border-red-200 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400",
+    leftBorder: "border-l-red-500",
   },
   orange: {
-    text: 'text-orange-600 dark:text-orange-400',
+    text: "text-orange-600 dark:text-orange-400",
     badge:
-      'border-orange-200 bg-orange-50 text-orange-600 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-400',
-    leftBorder: 'border-l-orange-400',
+      "border-orange-200 bg-orange-50 text-orange-600 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-400",
+    leftBorder: "border-l-orange-400",
   },
   amber: {
-    text: 'text-amber-600 dark:text-amber-400',
+    text: "text-amber-600 dark:text-amber-400",
     badge:
-      'border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-400',
-    leftBorder: 'border-l-amber-400',
+      "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-400",
+    leftBorder: "border-l-amber-400",
   },
   blue: {
-    text: 'text-blue-600 dark:text-blue-400',
-    badge: 'border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-400',
-    leftBorder: 'border-l-blue-400',
+    text: "text-blue-600 dark:text-blue-400",
+    badge:
+      "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-400",
+    leftBorder: "border-l-blue-400",
   },
   gray: {
-    text: 'text-gray-500 dark:text-gray-400',
-    badge: 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400',
-    leftBorder: 'border-l-transparent',
+    text: "text-gray-500 dark:text-gray-400",
+    badge:
+      "border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400",
+    leftBorder: "border-l-transparent",
   },
 };
-
 
 /**
  * 任务状态
  */
 export enum TaskStatus {
-  BACKLOG = 'backlog',
-  TODO = 'todo',
-  IN_PROGRESS = 'in_progress',
-  IN_REVIEW = 'in_review',
-  TESTING = 'testing',
-  DONE = 'done',
-  CANCELLED = 'cancelled',
+  BACKLOG = "backlog",
+  TODO = "todo",
+  IN_PROGRESS = "in_progress",
+  IN_REVIEW = "in_review",
+  TESTING = "testing",
+  DONE = "done",
+  CANCELLED = "cancelled",
 }
 
 /**
@@ -135,9 +137,13 @@ export interface Position {
  * 调和"人-权威 + Agent-写入"：人是权威源，Agent 是操作界面。
  * 默认 agent_inferred（失败安全：误标推断只多一次确认，误标人类主张则污染可信度且不可逆）。
  */
-export type Provenance = 'human_asserted' | 'agent_inferred' | 'imported';
+export type Provenance = "human_asserted" | "agent_inferred" | "imported";
 
-export const PROVENANCE_VALUES: readonly Provenance[] = ['human_asserted', 'agent_inferred', 'imported'];
+export const PROVENANCE_VALUES: readonly Provenance[] = [
+  "human_asserted",
+  "agent_inferred",
+  "imported",
+];
 
 /**
  * 约束空间实体的公共字段（六实体：Product/Activity/UserTask/Story/Milestone/ADR/SystemModule）
@@ -151,7 +157,7 @@ export interface ProvenanceAware {
  * 与 DevTask 的 TaskStatus（工作空间：执行进度——"活干完了"）是不同语义，永不用同词。
  * done → accepted 更名见 docs/design/domain-model.md §6.3 / §8-H。
  */
-export type StoryStatus = 'backlog' | 'todo' | 'in_progress' | 'accepted' | 'cancelled';
+export type StoryStatus = "backlog" | "todo" | "in_progress" | "accepted" | "cancelled";
 
 /**
  * 所有状态类型的联合
@@ -175,14 +181,14 @@ export interface StatusChangeRecord {
    * `ratified` 追认。工作空间实体（task/story 状态流转）与 adr 沿用原语义。
    */
   entity_type:
-    | 'task'
-    | 'story'
-    | 'adr'
-    | 'milestone'
-    | 'system_module'
-    | 'user_activity'
-    | 'product'
-    | 'user_task';
+    | "task"
+    | "story"
+    | "adr"
+    | "milestone"
+    | "system_module"
+    | "user_activity"
+    | "product"
+    | "user_task";
 
   /** 变更前的状态 */
   previous_status: string;
@@ -200,15 +206,14 @@ export interface StatusChangeRecord {
   changed_at: Timestamp;
 }
 
-
 /** 约束账本可用的 entity_type（StatusChangeRecord 的子集，语义见各成员注释） */
 export type ConstraintLedgerEntityType =
-  | 'story'
-  | 'system_module'
-  | 'user_activity'
-  | 'product'
-  | 'user_task'
-  | 'milestone';
+  | "story"
+  | "system_module"
+  | "user_activity"
+  | "product"
+  | "user_task"
+  | "milestone";
 
 /**
  * 约束写入协议的账本状态值（domain-model.md §4.1 方案 B）。
@@ -216,11 +221,11 @@ export type ConstraintLedgerEntityType =
  */
 export const CONSTRAINT_LEDGER = {
   /** 高影响约束写入的直接生效落点（previous_status 固定为此） */
-  WRITTEN: 'constraint_written',
+  WRITTEN: "constraint_written",
   /** 人的事后追认（new_status），必须带 --reason */
-  RATIFIED: 'ratified',
+  RATIFIED: "ratified",
   /** 约束写入无前态 */
-  NONE: '(none)',
+  NONE: "(none)",
 } as const;
 
 /**
@@ -234,7 +239,7 @@ export interface StatusConfig {
   label: string;
 
   /** 颜色变体：gray | slate | blue | green | red | yellow | purple | orange */
-  color: 'gray' | 'slate' | 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'orange';
+  color: "gray" | "slate" | "blue" | "green" | "red" | "yellow" | "purple" | "orange";
 
   /** 是否为完成状态 */
   isCompleted: boolean;
@@ -252,56 +257,56 @@ export interface StatusConfig {
 export const TASK_STATUS_CONFIG: Record<TaskStatus, StatusConfig> = {
   [TaskStatus.BACKLOG]: {
     value: TaskStatus.BACKLOG,
-    label: '待处理',
-    color: 'gray',
+    label: "待办池",
+    color: "gray",
     isCompleted: false,
     isInProgress: false,
     order: 1,
   },
   [TaskStatus.TODO]: {
     value: TaskStatus.TODO,
-    label: '待开始',
-    color: 'slate',
+    label: "待执行",
+    color: "slate",
     isCompleted: false,
     isInProgress: false,
     order: 2,
   },
   [TaskStatus.IN_PROGRESS]: {
     value: TaskStatus.IN_PROGRESS,
-    label: '进行中',
-    color: 'blue',
+    label: "进行中",
+    color: "blue",
     isCompleted: false,
     isInProgress: true,
     order: 3,
   },
   [TaskStatus.IN_REVIEW]: {
     value: TaskStatus.IN_REVIEW,
-    label: '待评审',
-    color: 'yellow',
+    label: "评审中",
+    color: "yellow",
     isCompleted: false,
     isInProgress: true,
     order: 4,
   },
   [TaskStatus.TESTING]: {
     value: TaskStatus.TESTING,
-    label: '测试中',
-    color: 'purple',
+    label: "测试中",
+    color: "purple",
     isCompleted: false,
     isInProgress: true,
     order: 5,
   },
   [TaskStatus.DONE]: {
     value: TaskStatus.DONE,
-    label: '已完成',
-    color: 'green',
+    label: "已完成",
+    color: "green",
     isCompleted: true,
     isInProgress: false,
     order: 6,
   },
   [TaskStatus.CANCELLED]: {
     value: TaskStatus.CANCELLED,
-    label: '已取消',
-    color: 'red',
+    label: "已取消",
+    color: "red",
     isCompleted: false,
     isInProgress: false,
     order: 7,
@@ -313,41 +318,41 @@ export const TASK_STATUS_CONFIG: Record<TaskStatus, StatusConfig> = {
  */
 export const STORY_STATUS_CONFIG: Record<StoryStatus, StatusConfig> = {
   backlog: {
-    value: 'backlog',
-    label: '待处理',
-    color: 'gray',
+    value: "backlog",
+    label: "待办池",
+    color: "gray",
     isCompleted: false,
     isInProgress: false,
     order: 1,
   },
   todo: {
-    value: 'todo',
-    label: '待开始',
-    color: 'slate',
+    value: "todo",
+    label: "待执行",
+    color: "slate",
     isCompleted: false,
     isInProgress: false,
     order: 2,
   },
   in_progress: {
-    value: 'in_progress',
-    label: '进行中',
-    color: 'blue',
+    value: "in_progress",
+    label: "进行中",
+    color: "blue",
     isCompleted: false,
     isInProgress: true,
     order: 3,
   },
   accepted: {
-    value: 'accepted',
-    label: '已验收',
-    color: 'green',
+    value: "accepted",
+    label: "已验收",
+    color: "green",
     isCompleted: true,
     isInProgress: false,
     order: 4,
   },
   cancelled: {
-    value: 'cancelled',
-    label: '已取消',
-    color: 'red',
+    value: "cancelled",
+    label: "已取消",
+    color: "red",
     isCompleted: false,
     isInProgress: false,
     order: 5,
@@ -372,21 +377,22 @@ export function getStoryStatusConfig(status: StoryStatus): StatusConfig {
  * 颜色变体到 Tailwind 类名的映射
  */
 export const STATUS_COLOR_VARIANTS = {
-  gray: 'bg-gray-100 text-gray-800 border-gray-200',
-  slate: 'bg-slate-100 text-slate-800 border-slate-200',
-  blue: 'bg-blue-100 text-blue-800 border-blue-200',
-  green: 'bg-green-100 text-green-800 border-green-200',
-  red: 'bg-red-100 text-red-800 border-red-200',
-  yellow: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  purple: 'bg-purple-100 text-purple-800 border-purple-200',
-  orange: 'bg-orange-100 text-orange-800 border-orange-200',
+  gray: "bg-gray-100 text-gray-800 border-gray-200",
+  slate: "bg-slate-100 text-slate-800 border-slate-200",
+  blue: "bg-blue-100 text-blue-800 border-blue-200",
+  green: "bg-green-100 text-green-800 border-green-200",
+  red: "bg-red-100 text-red-800 border-red-200",
+  yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  purple: "bg-purple-100 text-purple-800 border-purple-200",
+  orange: "bg-orange-100 text-orange-800 border-orange-200",
 } as const;
 
 /**
  * 获取状态标签的 CSS 类名
  */
 export function getStatusVariant(status: string): string {
-  const config = TASK_STATUS_CONFIG[status as TaskStatus] || STORY_STATUS_CONFIG[status as StoryStatus];
+  const config =
+    TASK_STATUS_CONFIG[status as TaskStatus] || STORY_STATUS_CONFIG[status as StoryStatus];
   if (config) {
     return STATUS_COLOR_VARIANTS[config.color];
   }

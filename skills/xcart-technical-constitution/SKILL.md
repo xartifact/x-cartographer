@@ -83,7 +83,7 @@ xcart status ratify <story|system_module|user_activity|product|user_task|milesto
 
 1. **写代码前了解约束**：`xcart adr current --product <id>`（或 `xcart ctx <taskId>` 看按模块过滤后的相关原则）；`[MUST]` 级直接约束实现方式。
 2. **沉淀一个架构决策**：把 changes 写成 JSON 文件 → `xcart adr create ... --file changes.json`。
-3. **确认决策生效**：`xcart adr status <adrId> accepted --reason "<依据>"` → 再 `adr current` 复核折叠结果。
+3. **确认决策生效**：先 `xcart adr review <adrId> --format json` 阅读变化与意见，取得 `review_token`；`xcart adr status <adrId> accepted --reason "<依据>" --review-token <review_token>` → 再 `adr current` 复核折叠结果。
 4. **回看决策来龙去脉**：`xcart adr list`（全量）→ `xcart adr show <adrId>`（单条差异）。
 5. **维护模块目录**：模块定义只在 `system_modules` 表，用 `xcart module` 增删改（不走 ADR 的 changes）。
 6. **追认高影响写入**：Agent 代写故事/活动/模块等高影响约束后，账本会留 `constraint_written`；由人复核并 `xcart status ratify <type> <id> --reason "<依据>"` 追认（重复追认 409）。
@@ -129,3 +129,19 @@ xcart status ratify <story|system_module|user_activity|product|user_task|milesto
 
 - `xcart-project-overview`：overview 输出已含宪法计数摘要（principles_count/must_principles_count）。
 - `xcart-task-management`：实现任务前先 `adr current` 确认约束；完成架构级改动后用 `adr create` 沉淀决策。
+
+
+## 人类评审与不可变修订
+
+Web 新提案均进入 proposed。Agent 通过以下命令参与同一持久化评审流程：
+
+```bash
+xcart adr review <adrId> --format json
+xcart adr comment <adrId> --body "待确认的问题" --target architecture_principles:<id> --blocking
+xcart adr reply <adrId> --comment <commentId> --body "补充证据"
+xcart adr create --product <productId> --revises <adrId> --title "修订标题" --context "背景" --decision "完整新决策" --file changes.json --provenance agent_inferred
+xcart adr resolve <latestAdrId> --comment <commentId> --reason "已复核的解决依据"
+xcart adr status <latestAdrId> accepted --reason "采纳依据" --review-token <review_token>
+```
+
+`revises` 创建新的不可变完整提案，保留原文与祖先评审意见；不是补丁合并。修订必须保持 proposed。`supersedes` 仅用于替代已采纳决策，在新决策采纳时才更新旧状态。回复不等于解决；未解决的 blocking 意见会阻止采纳。所有状态变化必须有理由。Web/CLI 采纳使用 review 返回的 token；过期时重新阅读预览与意见，不自动换 token 重试。当前共享权限不区分个人评审角色，不能伪称某位用户已审批。

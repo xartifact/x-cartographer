@@ -1,17 +1,18 @@
+import { createSampleProduct } from "../lib/create-sample-product";
 // Products REST routes —— 原 projects 正名（docs/design/story-map-redesign.md）
 
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import { generateShortId, getProductRepository } from '@x-cartographer/db';
-import { recordConstraintWrite } from '../lib/constraint-ledger';
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import { generateShortId, getProductRepository } from "@x-cartographer/db";
+import { recordConstraintWrite } from "../lib/constraint-ledger";
 
 const createProductSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   tech_stack: z.array(z.string()).optional(),
   workspace_dir: z.string().optional(),
-  provenance: z.enum(['human_asserted', 'agent_inferred', 'imported']).optional(),
+  provenance: z.enum(["human_asserted", "agent_inferred", "imported"]).optional(),
 });
 
 const updateProductSchema = z.object({
@@ -23,30 +24,31 @@ const updateProductSchema = z.object({
 
 export const productsRoutes = new Hono()
   // GET /api/products
-  .get('/', async (c) => {
+  .get("/", async (c) => {
     const repository = getProductRepository();
     return c.json(await repository.findAll());
   })
   // GET /api/products/search?q=
-  .get('/search', async (c) => {
-    const query = c.req.query('q') ?? '';
+  .get("/search", async (c) => {
+    const query = c.req.query("q") ?? "";
     const repository = getProductRepository();
     return c.json(await repository.search(query));
   })
   // GET /api/products/:id
-  .get('/:id', async (c) => {
+  .get("/:id", async (c) => {
     const repository = getProductRepository();
-    return c.json(await repository.findById(c.req.param('id')));
+    return c.json(await repository.findById(c.req.param("id")));
   })
+  .post("/sample", async (c) => c.json({ success: true, id: await createSampleProduct() }, 201))
   // POST /api/products
-  .post('/', zValidator('json', createProductSchema), async (c) => {
-    const input = c.req.valid('json');
+  .post("/", zValidator("json", createProductSchema), async (c) => {
+    const input = c.req.valid("json");
     const repository = getProductRepository();
-    const id = await generateShortId('product');
+    const id = await generateShortId("product");
     await repository.create(id, input);
     // 创建产品 = 约束空间根实体（§4.1 高影响）——直接生效 + 账本留痕（§6.7 方案 B）
     await recordConstraintWrite({
-      entityType: 'product',
+      entityType: "product",
       entityId: id,
       action: `创建产品「${input.name}」`,
       provenance: input.provenance,
@@ -54,19 +56,19 @@ export const productsRoutes = new Hono()
     return c.json({ success: true, id }, 201);
   })
   // PATCH /api/products/:id
-  .patch('/:id', zValidator('json', updateProductSchema), async (c) => {
-    const input = c.req.valid('json');
+  .patch("/:id", zValidator("json", updateProductSchema), async (c) => {
+    const input = c.req.valid("json");
     const repository = getProductRepository();
-    await repository.update(c.req.param('id'), input);
+    await repository.update(c.req.param("id"), input);
     return c.json({ success: true });
   })
   // DELETE /api/products/:id
-  .delete('/:id', async (c) => {
+  .delete("/:id", async (c) => {
     const repository = getProductRepository();
     // 与全站其余 DELETE 统一为 { success: true }：此前返回裸 true，是唯一例外——
     // 调用方按统一约定读 res.success 时，只有 products 拿到 undefined。
     // 保持幂等语义（不存在的 id 同样 200），与其余 6 条 DELETE 路由及 GET /:id
     // 的「查不到返回 200 + null」一致；只有 products 报 404 会是新的不一致。
-    await repository.delete(c.req.param('id'));
+    await repository.delete(c.req.param("id"));
     return c.json({ success: true });
   });

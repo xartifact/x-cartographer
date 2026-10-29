@@ -1,14 +1,15 @@
-import fs from 'fs';
-import { PGlite } from '@electric-sql/pglite';
-import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
-import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from './schema';
-import { createLogger } from '../lib/logger';
+import fs from "fs";
+import { ADR_REVIEW_DDL } from "./adr-review-ddl";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "./schema";
+import { createLogger } from "../lib/logger";
 
 type DbInstance = ReturnType<typeof drizzlePglite<typeof schema>>;
 
-const log = createLogger('db');
+const log = createLogger("db");
 
 // 使用 globalThis 存储单例，避免 Next.js 模块热重载时重复创建 PGlite 实例
 // 但 Route Handler 不访问数据库——它通过客户端传入的上下文工作，无需此单例
@@ -152,6 +153,7 @@ const TABLE_SQLS = [
     "created_at" timestamp with time zone DEFAULT now() NOT NULL,
     "seq" bigserial NOT NULL
   )`,
+  ...ADR_REVIEW_DDL,
   `CREATE TABLE IF NOT EXISTS "app_settings" (
     "key" text PRIMARY KEY NOT NULL,
     "value" text NOT NULL,
@@ -160,7 +162,7 @@ const TABLE_SQLS = [
 ];
 
 /** 应用级锁文件名（与 PGlite 内部的 postmaster.pid 无关，语义见 acquirePgliteLock） */
-const PGLITE_LOCK_FILE = '.xpr-db.pid';
+const PGLITE_LOCK_FILE = ".xpr-db.pid";
 
 /**
  * 应用级独占锁：打开 PGlite 数据目录前先取得。
@@ -183,16 +185,16 @@ function acquirePgliteLock(pgliteDir: string): void {
   fs.mkdirSync(pgliteDir, { recursive: true });
 
   if (fs.existsSync(lockPath)) {
-    const existingPid = Number.parseInt(fs.readFileSync(lockPath, 'utf-8').trim(), 10);
+    const existingPid = Number.parseInt(fs.readFileSync(lockPath, "utf-8").trim(), 10);
     if (existingPid === process.pid) return; // 同进程重复初始化（测试场景）
 
     if (Number.isInteger(existingPid) && existingPid > 0 && isProcessAlive(existingPid)) {
-      let command = '';
-      let elapsed = '';
+      let command = "";
+      let elapsed = "";
       try {
         // 仅取诊断信息用；失败不影响错误抛出
-        const out = require('node:child_process')
-          .execSync(`ps -p ${existingPid} -o command=,etime=`, { encoding: 'utf-8', timeout: 1000 })
+        const out = require("node:child_process")
+          .execSync(`ps -p ${existingPid} -o command=,etime=`, { encoding: "utf-8", timeout: 1000 })
           .trim();
         const m = out.match(/^(.+?)\s+(\d{2}:\d{2}:\d{2}|\d+:\d{2})$/);
         if (m) {
@@ -204,43 +206,46 @@ function acquirePgliteLock(pgliteDir: string): void {
       } catch {
         /* 诊断信息可选 */
       }
-      log.error('db.lock_held_by_live_process', {
+      log.error("db.lock_held_by_live_process", {
         pid: existingPid,
         command: command || undefined,
         elapsed: elapsed || undefined,
         lockPath,
       });
-      const cmdSuffix = command ? ` "${command}"` : '';
-      const elapsedSuffix = elapsed ? `（已运行 ${elapsed}）` : '';
+      const cmdSuffix = command ? ` "${command}"` : "";
+      const elapsedSuffix = elapsed ? `（已运行 ${elapsed}）` : "";
       throw new Error(
         `PGlite 数据目录已被存活进程锁定：PID ${existingPid}${cmdSuffix}${elapsedSuffix}。` +
           `锁文件：${lockPath}。停止持有者：kill ${existingPid}（确认进程已退出后也可手动删锁文件）。` +
-          `绝不在锁被持有时打开/重建数据目录——那会损坏或清空数据。`
+          `绝不在锁被持有时打开/重建数据目录——那会损坏或清空数据。`,
       );
     }
 
     // 持有者已退出：清掉残留锁（崩溃残留是正常情形，清理后继续）
     fs.unlinkSync(lockPath);
-    log.warn('db.stale_lock_removed', { lockPath, stalePid: existingPid });
+    log.warn("db.stale_lock_removed", { lockPath, stalePid: existingPid });
   }
 
   fs.writeFileSync(lockPath, String(process.pid));
   const cleanup = () => {
     try {
       // 只清理仍是自己写的锁（避免误删后到者的锁）
-      if (fs.existsSync(lockPath) && fs.readFileSync(lockPath, 'utf-8').trim() === String(process.pid)) {
+      if (
+        fs.existsSync(lockPath) &&
+        fs.readFileSync(lockPath, "utf-8").trim() === String(process.pid)
+      ) {
         fs.unlinkSync(lockPath);
       }
     } catch {
       /* 尽力清理 */
     }
   };
-  process.once('exit', cleanup);
-  process.once('SIGINT', () => {
+  process.once("exit", cleanup);
+  process.once("SIGINT", () => {
     cleanup();
     process.exit(0);
   });
-  process.once('SIGTERM', () => {
+  process.once("SIGTERM", () => {
     cleanup();
     process.exit(0);
   });
@@ -267,10 +272,10 @@ async function openPGlite(pgliteDir: string): Promise<DbInstance> {
     g.__xpr_raw = pglite as unknown as { close?: () => Promise<void> };
     return drizzlePglite(pglite, { schema });
   } catch (err) {
-    log.error('db.pglite_open_failed', {
+    log.error("db.pglite_open_failed", {
       dir: pgliteDir,
       error: err instanceof Error ? err.message : String(err),
-      hint: 'pgdata 可能损坏。恢复：停掉全部进程后用 sync-dev-db.ts 从远端重建，或还原备份。绝不自动清空。',
+      hint: "pgdata 可能损坏。恢复：停掉全部进程后用 sync-dev-db.ts 从远端重建，或还原备份。绝不自动清空。",
     });
     throw err;
   }
@@ -285,7 +290,7 @@ function isProcessAlive(pid: number): boolean {
     return true;
   } catch (err) {
     // ESRCH = 进程不存在；EPERM = 存在但无权信号（视为存活）
-    return (err as NodeJS.ErrnoException).code === 'EPERM';
+    return (err as NodeJS.ErrnoException).code === "EPERM";
   }
 }
 
@@ -305,21 +310,21 @@ async function initializeDb(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
 
   if (databaseUrl) {
-    log.info('db.connecting', { type: 'postgresql' });
+    log.info("db.connecting", { type: "postgresql" });
     const sql = postgres(databaseUrl, { max: 5 });
     for (const stmt of TABLE_SQLS) {
       await sql.unsafe(stmt);
     }
     g.__xpr_raw = sql as unknown as { end?: () => Promise<void> };
     g.__xpr_db = drizzlePostgres(sql, { schema }) as unknown as DbInstance;
-    log.info('db.ready', { type: 'postgresql' });
+    log.info("db.ready", { type: "postgresql" });
   } else {
-    log.info('db.connecting', { type: 'pglite' });
+    log.info("db.connecting", { type: "pglite" });
     // 数据目录可覆盖（隔离测试环境：e2e 用独立目录，避免污染 dev 数据）
     const dbDir = process.env.XPR_DB_DIR ?? `${process.cwd()}/data/pglite`;
     const pgliteDir = dbDir;
     g.__xpr_db = await openPGlite(pgliteDir);
-    log.info('db.ready', { type: 'pglite', dir: pgliteDir });
+    log.info("db.ready", { type: "pglite", dir: pgliteDir });
   }
 }
 
@@ -359,13 +364,13 @@ export async function closeDb(): Promise<void> {
     if (raw.close) await raw.close();
     else if (raw.end) await raw.end();
   } catch (err) {
-    log.warn('db.close_failed', { error: err instanceof Error ? err.message : String(err) });
+    log.warn("db.close_failed", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
 export function getDb(): DbInstance {
   if (!g.__xpr_db) {
-    throw new Error('Database not initialized. Call ensureDb() first.');
+    throw new Error("Database not initialized. Call ensureDb() first.");
   }
   return g.__xpr_db;
 }

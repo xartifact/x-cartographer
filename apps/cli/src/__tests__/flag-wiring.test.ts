@@ -355,3 +355,92 @@ describe('不存在的 id：给可读错误，不抛裸 JS 错误', () => {
     }
   });
 });
+
+describe("ADR review flags", () => {
+  it("sends revision relationship on create", async () => {
+    const reqs = await runCli([
+      "adr",
+      "create",
+      "--product",
+      "PROD-1",
+      "--title",
+      "Revision",
+      "--context",
+      "Context",
+      "--decision",
+      "Decision",
+      "--revises",
+      "ADR-1",
+    ]);
+    expect(reqs[0]?.body?.revises).toBe("ADR-1");
+  });
+  it("sends targeted blocking comment and linked replies/resolutions", async () => {
+    const reqs = await runCli([
+      "adr",
+      "comment",
+      "ADR-1",
+      "--body",
+      "Needs work",
+      "--target",
+      "tech_stack:db",
+      "--blocking",
+    ]);
+    expect(reqs[0]).toMatchObject({
+      path: "/api/adr-records/ADR-1/review",
+      body: { kind: "comment", body: "Needs work", target: "tech_stack:db", blocking: true },
+    });
+    const reply = await runCli([
+      "adr",
+      "reply",
+      "ADR-1",
+      "--comment",
+      "AR-1",
+      "--body",
+      "Evidence",
+    ]);
+    expect(reply[0]?.body).toMatchObject({ kind: "reply", commentId: "AR-1", body: "Evidence" });
+    const resolve = await runCli([
+      "adr",
+      "resolve",
+      "ADR-1",
+      "--comment",
+      "AR-1",
+      "--reason",
+      "Verified",
+    ]);
+    expect(resolve[0]?.body).toMatchObject({
+      kind: "resolve",
+      commentId: "AR-1",
+      body: "Verified",
+    });
+  });
+  it("reads preview and sends reviewed token for acceptance", async () => {
+    const review = await runCli(["adr", "review", "ADR-1"]);
+    expect(review[0]?.path).toBe("/api/adr-records/ADR-1/review");
+    const missing = await runCliResult([
+      "adr",
+      "status",
+      "ADR-1",
+      "accepted",
+      "--reason",
+      "Reviewed",
+    ]);
+    expect(missing.exitCode).not.toBe(0);
+    expect(missing.reqs).toHaveLength(0);
+    const reqs = await runCli([
+      "adr",
+      "status",
+      "ADR-1",
+      "accepted",
+      "--reason",
+      "Reviewed",
+      "--review-token",
+      "fingerprint",
+    ]);
+    expect(reqs[0]?.body).toMatchObject({
+      status: "accepted",
+      reason: "Reviewed",
+      reviewToken: "fingerprint",
+    });
+  });
+});

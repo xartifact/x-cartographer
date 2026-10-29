@@ -1,16 +1,20 @@
-import { and, asc, eq } from 'drizzle-orm';
-import { ensureDb } from '../db/client';
-import { generateShortId } from '../lib/short-id';
-import { adrRecords } from '../db/schema/adr-records';
-import { statusChanges } from '../db/schema/status-changes';
-import { milestones } from '../db/schema/milestones';
-import { SystemModuleRepository } from './system-module.repository';
+import { createHash } from "node:crypto";
+import { adrReviewEvents } from "../db/schema/adr-review-events";
+import { products } from "../db/schema/products";
+import type { AdrReview, AdrReviewEvent, CreateAdrReviewEventDTO } from "@x-cartographer/shared";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { ensureDb, type DbInstance } from "../db/client";
+import { generateShortId } from "../lib/short-id";
+import { adrRecords } from "../db/schema/adr-records";
+import { statusChanges } from "../db/schema/status-changes";
+import { milestones } from "../db/schema/milestones";
+import { SystemModuleRepository } from "./system-module.repository";
 import type {
   AdrRecord,
   AdrStatus,
   CreateAdrRecordDTO,
   CurrentConstitution,
-} from '@x-cartographer/shared';
+} from "@x-cartographer/shared";
 
 /**
  * 折叠后的"当前态"内部累积容器（§3.3）——按 id 定位做 upsert/remove。
@@ -20,8 +24,8 @@ import type {
  * （docs/design/domain-model.md §6.4）。ADR 仅通过 module_ids 标注涉及范围。
  */
 interface ConstitutionMaps {
-  techStack: Map<string, CurrentConstitution['tech_stack'][number]>;
-  principles: Map<string, CurrentConstitution['architecture_principles'][number]>;
+  techStack: Map<string, CurrentConstitution["tech_stack"][number]>;
+  principles: Map<string, CurrentConstitution["architecture_principles"][number]>;
 }
 
 /**
@@ -59,207 +63,48 @@ function applyChanges(maps: ConstitutionMaps, record: AdrRecord): void {
  * 它们都过 `acceptedAt` 过滤。
  */
 function foldConstitution(records: AdrRecord[]): CurrentConstitution {
+  const rule_sources: Record<string, string> = {};
   const maps: ConstitutionMaps = {
     techStack: new Map(),
     principles: new Map(),
   };
   for (const record of records) {
     applyChanges(maps, record);
+    for (const category of ["tech_stack", "architecture_principles"] as const) {
+      for (const entry of record.changes?.[category]?.upsert ?? [])
+        rule_sources[`${category}:${entry.id}`] = record.id;
+      for (const id of record.changes?.[category]?.remove ?? [])
+        delete rule_sources[`${category}:${id}`];
+    }
   }
   return {
+    rule_sources,
     tech_stack: [...maps.techStack.values()],
     architecture_principles: [...maps.principles.values()],
     modules: [], // 由调用方从 system_modules 表填充
   };
 }
 
+type Reader = Pick<DbInstance, "select">;
+type Writer = Pick<DbInstance, "select" | "insert" | "update">;
+export class AdrReviewError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public status: 400 | 404 | 409 = 409,
+  ) {
+    super(message);
+  }
+}
+const transitions: Record<AdrStatus, AdrStatus[]> = {
+  proposed: ["accepted", "rejected"],
+  accepted: ["deprecated", "superseded"],
+  rejected: [],
+  deprecated: [],
+  superseded: [],
+};
+
 export class AdrRepository {
-  /**
-   * 创建 ADR（仅追加，除 status 外不可变，§3.1）。
-   * dto.supersedes 存在时，对被替代的旧 ADR 做结构性联动：
-   * 状态转 superseded 并写 status_changes 账本（理由"由 ADR-{new_id} 替代"，§3.1）——
-   * 联动只影响文档标签，不碰旧记录的 changes，折叠结果不受影响。
-   */
-  async create(dto: CreateAdrRecordDTO): Promise<AdrRecord> {
-    const db = await ensureDb();
-    // 短 ID（ADR-001 形态）：与其余实体统一，可读、可人工引用
-    const id = await generateShortId('adr');
-    await db.insert(adrRecords).values({
-      id,
-      projectId: dto.product_id,
-      title: dto.title,
-      status: dto.status ?? 'proposed',
-      context: dto.context,
-      decision: dto.decision,
-      consequences: dto.consequences ?? null,
-      alternativesConsidered: dto.alternatives_considered ?? null,
-      supersedes: dto.supersedes ?? null,
-      milestoneId: dto.milestone_id ?? null,
-      moduleIds: dto.module_ids ?? [],
-      changes: dto.changes ?? null,
-      provenance: dto.provenance ?? 'agent_inferred',
-      createdAt: new Date(),
-    });
-
-    // supersedes 结构性联动（§3.1）：只动 status 标签与账本，不改旧记录 changes
-    if (dto.supersedes) {
-      await this.transitionStatus(
-        dto.supersedes,
-        'superseded',
-        `由 ADR-${id} 替代`
-      );
-    }
-
-    const created = await this.findById(id);
-    if (!created) {
-      throw new Error(`ADR 记录创建后读取失败: ${id}`);
-    }
-    return created;
-  }
-
-  async findById(id: string): Promise<AdrRecord | null> {
-    const db = await ensureDb();
-    const rows = await db
-      .select()
-      .from(adrRecords)
-      .where(eq(adrRecords.id, id));
-    return rows[0] ? this.toRecord(rows[0]) : null;
-  }
-
-  /**
-   * 项目下全部 ADR，按 seq 升序（§3.3：seq 是折叠排序的唯一权威依据）。
-   */
-  async listByProject(projectId: string): Promise<AdrRecord[]> {
-    const db = await ensureDb();
-    const rows = await db
-      .select()
-      .from(adrRecords)
-      .where(eq(adrRecords.projectId, projectId))
-      .orderBy(asc(adrRecords.seq));
-    return rows.map((row) => this.toRecord(row));
-  }
-
-  /**
-   * ADR 状态流转（§3.1）：双写 status_changes 审计账本（每次必须带理由）与
-   * adr_records.status 标签。允许的流转由调用方（server 路由）校验，repo 不重复校验。
-   */
-  async transitionStatus(
-    id: string,
-    newStatus: AdrStatus,
-    reason?: string
-  ): Promise<void> {
-    const db = await ensureDb();
-    const current = await this.findById(id);
-    if (!current) {
-      throw new Error(`ADR 记录不存在: ${id}`);
-    }
-    // 1) 审计账本：entity_type 'adr'（shared 类型已拓宽，common.ts）
-    await db.insert(statusChanges).values({
-      id: await generateShortId('statusChange'),
-      entityId: id,
-      entityType: 'adr',
-      previousStatus: current.status,
-      newStatus,
-      reason: reason ?? null,
-      changedAt: new Date(),
-    });
-    // 2) 状态标签更新
-    await db
-      .update(adrRecords)
-      .set({ status: newStatus })
-      .where(eq(adrRecords.id, id));
-  }
-
-  /**
-   * 某条 ADR 何时进入过 accepted（§3.1）。两条路径：
-   * 1) 正常流转：status_changes 里 new_status='accepted' 的转移记录
-   *    （状态机保证 proposed→accepted 至多一次，无"第一次 vs 最近一次"歧义）；
-   * 2) 直创 accepted（create 时 status='accepted'，不经 transitionStatus，
-   *    账本无记录）：acceptedAt = 创建时刻（§3.1 明文规定）。
-   * 返回 null = 从未 accept 过（proposed/rejected），天然不参与折叠。
-   */
-  private async acceptedAt(
-    recordId: string,
-    record: AdrRecord
-  ): Promise<Date | null> {
-    if (record.status === 'rejected' || record.status === 'proposed') {
-      return null;
-    }
-    const db = await ensureDb();
-    const rows = await db
-      .select({ changedAt: statusChanges.changedAt })
-      .from(statusChanges)
-      .where(
-        and(
-          eq(statusChanges.entityId, recordId),
-          eq(statusChanges.entityType, 'adr'),
-          eq(statusChanges.newStatus, 'accepted')
-        )
-      )
-      .limit(1);
-    if (rows[0]) return rows[0].changedAt;
-    // 账本无记录：仅直创 accepted 场景（deprecated/superseded 必然经历过
-    // transitionStatus，账本必有 accepted 记录，走不到这里）
-    return new Date(record.created_at);
-  }
-
-  /**
-   * 生效宪法投影（§3.3 折叠 + **acceptedAt 过滤**，不含模块目录）。
-   *
-   * "哪些 ADR 算数"的唯一判定处：折叠只看 acceptedAt，不看当前 status——
-   * deprecated/superseded 标签不影响已生效的 changes（§3.1 反例：
-   * "不再是权威说法" ≠ "撤销引入的状态"）；rejected / proposed 从未 accept，
-   * 天然排除（§4.4 状态机即权限模型）。只折叠 changes 非空的记录。
-   *
-   * 与 `getCurrentConstitution` 的区别：不查 system_modules 表。供只消费
-   * principles / tech_stack 的读路径使用（如 ctx，它自带 depended_by 反查），
-   * 避免多一次模块查询。
-   */
-  async getEffectiveConstitution(projectId: string): Promise<CurrentConstitution> {
-    const records = await this.listByProject(projectId);
-    const folded: AdrRecord[] = [];
-    for (const r of records) {
-      if (r.changes === undefined) continue;
-      if ((await this.acceptedAt(r.id, r)) === null) continue;
-      folded.push(r);
-    }
-    return foldConstitution(folded);
-  }
-
-  /**
-   * 当前态查询（§3.3）= 生效宪法投影 + 模块目录。
-   * 模块目录自 0006 起是独立表（非折叠产物），当前态直接取表内容。
-   */
-  async getCurrentConstitution(projectId: string): Promise<CurrentConstitution> {
-    const constitution = await this.getEffectiveConstitution(projectId);
-    constitution.modules = await new SystemModuleRepository().findByProductId(projectId);
-    return constitution;
-  }
-
-  /**
-   * 历史态查询（§3.3）：折叠只应用 acceptedAt <= 里程碑创建时刻 的记录，
-   * 即「该版本交付时刻」的宪法投影。参数为里程碑 id。
-   *
-   * 注意：**不从 system_modules 表补 modules**。该表只存当前态、无版本历史，
-   * 掺进历史查询会谎称"当时就有这些模块"。历史态的 modules 来自折叠结果
-   * （0006 之后新 ADR 不再写 changes.modules，故通常为空）——宁可缺失，
-   * 不撒谎（§3.3：「今天贴的文档标签，不能改写昨天已经生效的事实」）。
-   */
-  async getConstitutionAsOfMilestone(milestoneId: string): Promise<CurrentConstitution> {
-    const db = await ensureDb();
-    const ms = await db.query.milestones.findFirst({ where: eq(milestones.id, milestoneId) });
-    if (!ms) throw new Error(`Milestone ${milestoneId} not found`);
-    const records = await this.listByProject(ms.projectId);
-    const folded: AdrRecord[] = [];
-    for (const r of records) {
-      if (r.changes === undefined) continue;
-      const at = await this.acceptedAt(r.id, r);
-      if (at === null || at > ms.createdAt) continue;
-      folded.push(r);
-    }
-    return foldConstitution(folded);
-  }
-
   private toRecord(row: typeof adrRecords.$inferSelect): AdrRecord {
     return {
       id: row.id,
@@ -271,6 +116,7 @@ export class AdrRepository {
       consequences: row.consequences ?? undefined,
       alternatives_considered: row.alternativesConsidered ?? undefined,
       supersedes: row.supersedes ?? undefined,
+      revises: row.revises ?? undefined,
       milestone_id: row.milestoneId ?? undefined,
       module_ids: row.moduleIds,
       changes: row.changes ?? undefined,
@@ -278,5 +124,350 @@ export class AdrRepository {
       created_at: row.createdAt.toISOString(),
       seq: row.seq,
     };
+  }
+
+  private async records(db: Reader, productId: string) {
+    const rows = await db
+      .select()
+      .from(adrRecords)
+      .where(eq(adrRecords.projectId, productId))
+      .orderBy(asc(adrRecords.seq));
+    const records = rows.map((r) => this.toRecord(r));
+    for (const r of records) r.revised_by = records.find((n) => n.revises === r.id)?.id;
+    return records;
+  }
+
+  async listByProject(productId: string) {
+    return this.records(await ensureDb(), productId);
+  }
+
+  async findById(id: string): Promise<AdrRecord | null> {
+    const db = await ensureDb();
+    const [row] = await db.select().from(adrRecords).where(eq(adrRecords.id, id));
+    if (!row) return null;
+    const [next] = await db
+      .select({ id: adrRecords.id })
+      .from(adrRecords)
+      .where(eq(adrRecords.revises, id));
+    return { ...this.toRecord(row), revised_by: next?.id };
+  }
+
+  // Every ADR/review mutation takes the same product-row lock before reading the ledger.
+  // This serializes preview checks, new proposals, opinions and decisions on both DB drivers.
+  private async lock(db: Writer, productId: string) {
+    const [product] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(eq(products.id, productId))
+      .for("update");
+    if (!product) throw new AdrReviewError("product_not_found", "产品不存在", 404);
+  }
+
+  private lineage(records: AdrRecord[], adr: AdrRecord) {
+    const chain: AdrRecord[] = [];
+    let current: AdrRecord | undefined = adr;
+    while (current && !chain.some((r) => r.id === current!.id)) {
+      chain.unshift(current);
+      current = records.find((r) => r.id === current!.revises);
+    }
+    return chain;
+  }
+
+  private async snapshot(db: Reader, productId: string) {
+    const records = await this.records(db, productId);
+    if (!records.length) return { records, history: [], events: [] as AdrReviewEvent[] };
+    const ids = records.map((r) => r.id);
+    const history = await db
+      .select()
+      .from(statusChanges)
+      .where(and(eq(statusChanges.entityType, "adr"), inArray(statusChanges.entityId, ids)))
+      .orderBy(asc(statusChanges.seq));
+    const rows = await db
+      .select()
+      .from(adrReviewEvents)
+      .where(inArray(adrReviewEvents.adrId, ids))
+      .orderBy(asc(adrReviewEvents.seq));
+    const events: AdrReviewEvent[] = rows.map((r) => ({
+      id: r.id,
+      adr_id: r.adrId,
+      kind: r.kind,
+      comment_id: r.commentId ?? undefined,
+      target: r.target ?? undefined,
+      body: r.body,
+      blocking: r.blocking,
+      created_at: r.createdAt.toISOString(),
+      seq: r.seq,
+    }));
+    return { records, history, events };
+  }
+
+  private acceptedAt(
+    record: AdrRecord,
+    history: Awaited<ReturnType<AdrRepository["snapshot"]>>["history"],
+  ) {
+    const accepted = history.find((e) => e.entityId === record.id && e.newStatus === "accepted");
+    if (accepted) return accepted.changedAt;
+    // Directly-created accepted records have no initial transition event.
+    if (
+      record.status === "accepted" ||
+      record.status === "deprecated" ||
+      record.status === "superseded"
+    )
+      return new Date(record.created_at);
+    return null;
+  }
+
+  private reviewFrom(
+    snapshot: Awaited<ReturnType<AdrRepository["snapshot"]>>,
+    id: string,
+  ): AdrReview {
+    const { records, history, events: allEvents } = snapshot;
+    const adr = records.find((r) => r.id === id);
+    if (!adr) throw new AdrReviewError("adr_not_found", "ADR 不存在", 404);
+    const lineage = this.lineage(records, adr);
+    const events = allEvents.filter((e) => lineage.some((r) => r.id === e.adr_id));
+    const resolved = new Set(events.filter((e) => e.kind === "resolve").map((e) => e.comment_id));
+    const effective = records.filter((r) => this.acceptedAt(r, history) !== null);
+    return {
+      adr,
+      lineage,
+      events,
+      unresolved_count: events.filter(
+        (e) => e.kind === "comment" && e.blocking && !resolved.has(e.id),
+      ).length,
+      review_token: createHash("sha256").update(JSON.stringify(snapshot)).digest("hex"),
+      before: foldConstitution(effective),
+      after: foldConstitution(
+        records.filter(
+          (r) =>
+            effective.some((a) => a.id === r.id) ||
+            (r.id === id && r.status === "proposed" && !r.revised_by),
+        ),
+      ),
+    };
+  }
+
+  async getReview(id: string): Promise<AdrReview> {
+    const record = await this.findById(id);
+    if (!record) throw new AdrReviewError("adr_not_found", "ADR 不存在", 404);
+    const db = await ensureDb();
+    return db.transaction(async (tx) => {
+      await this.lock(tx, record.product_id);
+      return this.reviewFrom(await this.snapshot(tx, record.product_id), id);
+    });
+  }
+
+  private async writeStatus(
+    db: Writer,
+    record: AdrRecord,
+    status: AdrStatus,
+    reason: string,
+    eventId: string,
+  ) {
+    if (!transitions[record.status].includes(status))
+      throw new AdrReviewError(
+        "invalid_transition",
+        `不允许 ${record.status} → ${status}，请刷新后重试`,
+      );
+    const updated = await db
+      .update(adrRecords)
+      .set({ status })
+      .where(and(eq(adrRecords.id, record.id), eq(adrRecords.status, record.status)))
+      .returning({ id: adrRecords.id });
+    if (!updated.length) throw new AdrReviewError("stale_status", "状态已改变，请重新评审");
+    await db.insert(statusChanges).values({
+      id: eventId,
+      entityId: record.id,
+      entityType: "adr",
+      previousStatus: record.status,
+      newStatus: status,
+      reason,
+      changedAt: new Date(),
+    });
+  }
+
+  async create(dto: CreateAdrRecordDTO): Promise<AdrRecord> {
+    const db = await ensureDb();
+    const id = await generateShortId("adr");
+    const eventId = dto.supersedes ? await generateShortId("statusChange") : "";
+    return db.transaction(async (tx) => {
+      await this.lock(tx, dto.product_id);
+      const records = await this.records(tx, dto.product_id);
+      if (dto.revises) {
+        const parent = records.find((r) => r.id === dto.revises);
+        if (!parent || parent.status !== "proposed" || parent.revised_by)
+          throw new AdrReviewError("invalid_revision", "只能修订同产品中尚无新版的待评审提案");
+        if (dto.status && dto.status !== "proposed")
+          throw new AdrReviewError("revision_requires_review", "修订必须重新提交评审", 400);
+      }
+      const old = dto.supersedes ? records.find((r) => r.id === dto.supersedes) : undefined;
+      if (dto.supersedes && (!old || old.status !== "accepted"))
+        throw new AdrReviewError("invalid_supersedes", "只能替代同产品中已采纳的 ADR", 400);
+      if (dto.milestone_id) {
+        const [ms] = await tx.select().from(milestones).where(eq(milestones.id, dto.milestone_id));
+        if (!ms || ms.projectId !== dto.product_id)
+          throw new AdrReviewError("invalid_milestone", "版本必须属于当前产品", 400);
+      }
+      if (dto.status === "superseded" || dto.status === "deprecated")
+        throw new AdrReviewError(
+          "invalid_initial_status",
+          "新 ADR 不能直接创建为废弃或被替代状态",
+          400,
+        );
+      const [row] = await tx
+        .insert(adrRecords)
+        .values({
+          id,
+          projectId: dto.product_id,
+          title: dto.title,
+          status: dto.status ?? "proposed",
+          context: dto.context,
+          decision: dto.decision,
+          consequences: dto.consequences,
+          alternativesConsidered: dto.alternatives_considered,
+          supersedes: dto.supersedes,
+          revises: dto.revises,
+          milestoneId: dto.milestone_id,
+          moduleIds: dto.module_ids ?? [],
+          changes: dto.changes,
+          provenance: dto.provenance ?? "agent_inferred",
+          createdAt: new Date(),
+        })
+        .returning();
+      // A proposal does not retire its predecessor before it is adopted.
+      if (old && dto.status === "accepted")
+        await this.writeStatus(tx, old, "superseded", `由 ${id} 替代`, eventId);
+      return this.toRecord(row!);
+    });
+  }
+
+  async transitionStatus(
+    id: string,
+    newStatus: AdrStatus,
+    reason?: string,
+    reviewToken?: string,
+    expectedStatus?: AdrStatus,
+  ): Promise<void> {
+    if (!reason?.trim()) throw new AdrReviewError("reason_required", "请填写决定理由", 400);
+    const record = await this.findById(id);
+    if (!record) throw new AdrReviewError("adr_not_found", "ADR 不存在", 404);
+    const db = await ensureDb();
+    const eventId = await generateShortId("statusChange");
+    const supersedeEventId =
+      record.supersedes && newStatus === "accepted" ? await generateShortId("statusChange") : "";
+    await db.transaction(async (tx) => {
+      await this.lock(tx, record.product_id);
+      const snapshot = await this.snapshot(tx, record.product_id);
+      const review = this.reviewFrom(snapshot, id);
+      if (expectedStatus && review.adr.status !== expectedStatus)
+        throw new AdrReviewError("stale_status", "状态已改变，请重新评审");
+      if (reviewToken && reviewToken !== review.review_token)
+        throw new AdrReviewError("stale_review", "评审期间账本或意见已变化，请刷新并重新确认");
+      if (newStatus === "accepted") {
+        if (review.adr.revised_by)
+          throw new AdrReviewError("newer_revision", "已有新修订，请评审最新版");
+        if (review.unresolved_count)
+          throw new AdrReviewError("unresolved_comments", "仍有未解决的修改意见");
+      }
+      await this.writeStatus(tx, review.adr, newStatus, reason.trim(), eventId);
+      if (newStatus === "accepted" && review.adr.supersedes) {
+        const old = snapshot.records.find((r) => r.id === review.adr.supersedes);
+        if (!old) throw new AdrReviewError("invalid_supersedes", "被替代的 ADR 不存在");
+        await this.writeStatus(tx, old, "superseded", `由 ${id} 替代`, supersedeEventId);
+      }
+    });
+  }
+
+  async addReviewEvent(id: string, input: CreateAdrReviewEventDTO): Promise<AdrReviewEvent> {
+    const record = await this.findById(id);
+    if (!record) throw new AdrReviewError("adr_not_found", "ADR 不存在", 404);
+    if (!input.body.trim())
+      throw new AdrReviewError("body_required", "意见或处理理由不能为空", 400);
+    const eventId = await generateShortId("adrReview");
+    const db = await ensureDb();
+    return db.transaction(async (tx) => {
+      await this.lock(tx, record.product_id);
+      const review = this.reviewFrom(await this.snapshot(tx, record.product_id), id);
+      if (review.adr.status !== "proposed" || review.adr.revised_by)
+        throw new AdrReviewError("review_closed", "请在最新待评审提案上操作");
+      if (input.kind === "comment") {
+        if (input.commentId)
+          throw new AdrReviewError("invalid_comment", "新意见不能指定父意见", 400);
+        if (input.target) {
+          const targets = new Set(
+            review.lineage.flatMap((proposal) =>
+              ["tech_stack", "architecture_principles"].flatMap((key) => {
+                const delta = proposal.changes?.[key as "tech_stack" | "architecture_principles"];
+                return [
+                  ...(delta?.upsert ?? []).map((e) => `${key}:${e.id}`),
+                  ...(delta?.remove ?? []).map((v) => `${key}:${v}`),
+                ];
+              }),
+            ),
+          );
+          if (!targets.has(input.target))
+            throw new AdrReviewError("invalid_target", "意见目标不在当前修订链的提案变更中", 400);
+        }
+      } else {
+        const comment = review.events.find((e) => e.id === input.commentId && e.kind === "comment");
+        if (!comment) throw new AdrReviewError("invalid_comment", "父意见不属于这条修订链", 400);
+        if (input.target || input.blocking)
+          throw new AdrReviewError("invalid_reply", "回复或解决不能重新指定目标和阻塞类型", 400);
+        if (
+          input.kind === "resolve" &&
+          review.events.some((e) => e.kind === "resolve" && e.comment_id === input.commentId)
+        )
+          throw new AdrReviewError("already_resolved", "这条意见已解决");
+      }
+      const [row] = await tx
+        .insert(adrReviewEvents)
+        .values({
+          id: eventId,
+          adrId: id,
+          kind: input.kind,
+          commentId: input.commentId,
+          target: input.target,
+          body: input.body.trim(),
+          blocking: input.kind === "comment" && !!input.blocking,
+        })
+        .returning();
+      return {
+        id: row!.id,
+        adr_id: id,
+        kind: row!.kind,
+        comment_id: row!.commentId ?? undefined,
+        target: row!.target ?? undefined,
+        body: row!.body,
+        blocking: row!.blocking,
+        created_at: row!.createdAt.toISOString(),
+        seq: row!.seq,
+      };
+    });
+  }
+
+  async getEffectiveConstitution(productId: string): Promise<CurrentConstitution> {
+    const snapshot = await this.snapshot(await ensureDb(), productId);
+    return foldConstitution(
+      snapshot.records.filter((r) => this.acceptedAt(r, snapshot.history) !== null),
+    );
+  }
+
+  async getCurrentConstitution(productId: string): Promise<CurrentConstitution> {
+    const constitution = await this.getEffectiveConstitution(productId);
+    constitution.modules = await new SystemModuleRepository().findByProductId(productId);
+    return constitution;
+  }
+
+  async getConstitutionAsOfMilestone(milestoneId: string): Promise<CurrentConstitution> {
+    const db = await ensureDb();
+    const [ms] = await db.select().from(milestones).where(eq(milestones.id, milestoneId));
+    if (!ms) throw new Error(`Milestone ${milestoneId} not found`);
+    const snapshot = await this.snapshot(db, ms.projectId);
+    return foldConstitution(
+      snapshot.records.filter((r) => {
+        const at = this.acceptedAt(r, snapshot.history);
+        return at !== null && at <= ms.createdAt;
+      }),
+    );
   }
 }

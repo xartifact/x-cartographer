@@ -4,12 +4,13 @@
  * 见 docs/design/story-map-redesign.md §3.2。
  */
 
-import { Timestamp, type Provenance } from './common';
+import { Timestamp, type Provenance } from "./common";
 
 /**
  * 用户任务接口
  */
 export interface UserTask {
+  provenance?: "human_asserted" | "agent_inferred" | "imported";
   /** 唯一标识符 */
   id: string;
 
